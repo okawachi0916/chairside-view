@@ -4,6 +4,7 @@ from html import escape as h
 from app.db import TODAY
 from app.mockview.parts import FULL, MIC, PHONE, band, card
 from app.mockview.reception_parts import heat_card, next_card, reserve_card
+from app.mockview.perio_parts import perio_card
 from app.views import data as D
 
 BAND = {1: "n1", 2: "n2", 3: "n3", 4: "n4"}
@@ -176,23 +177,7 @@ def doctor_page(d):
 
 
 # ---------- 歯科衛生士 ----------
-UPPER = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]
-LOWER = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
 SIDE = {0: "l", 1: "r", 2: "t", 3: "b"}  # 近心・遠心・頬側・舌側 → 四角の4辺
-
-
-def _plaque_svg(flags):
-    sides = {SIDE[i] for i, c in enumerate(flags) if c == "1"}
-    pts = {"t": "0,0 100,0 50,50", "r": "100,0 100,100 50,50", "b": "0,100 100,100 50,50", "l": "0,0 0,100 50,50"}
-    polys = "".join(
-        f'<polygon points="{p}" fill="{"#d32f2f" if k in sides else "#ffffff"}"/>' for k, p in pts.items()
-    )
-    return (
-        '<svg viewBox="0 0 100 100" preserveAspectRatio="none">'
-        f'{polys}<g stroke="#6b7480" stroke-width="1.5">'
-        '<line x1="0" y1="0" x2="100" y2="100" vector-effect="non-scaling-stroke"/>'
-        '<line x1="100" y1="0" x2="0" y2="100" vector-effect="non-scaling-stroke"/></g></svg>'
-    )
 
 
 def _perio(d):
@@ -201,67 +186,30 @@ def _perio(d):
         return card("perio-exam", "歯周基本検査", "", 12, actions=FULL)
     cur = ex[0]
     prev = ex[1] if len(ex) > 1 else None
-
-    def cell(t, mid, make):
-        if t not in cur["teeth"]:
-            return f'<td class="gone{mid}">―</td>'
-        return make(cur["teeth"][t], mid)
-
-    def row(label, teeth, make, cls=""):
-        cells = "".join(cell(t, " mid" if i == 8 else "", make) for i, t in enumerate(teeth))
-        return f'<tr class="{cls}"><th class="row">{label}</th>{cells}</tr>'
-
-    def pocket(t, mid):
-        cls = ("deep " if t["pocket"] >= 4 else "") + ("bop " if t["bop"] else "")
-        return f'<td class="{cls}{mid.strip()}">{t["pocket"]}</td>'
-
-    def loose(t, mid):
-        return f'<td class="{mid.strip()}">{t["mobility"]}</td>'
-
-    def plaque(t, mid):
-        return f'<td class="pl {mid.strip()}">{_plaque_svg(t["plaque"])}</td>'
-
-    # 歯番は上顎と下顎で共通。真ん中から外へ 1〜8
-    nos = "".join(
-        f'<td class="{"mid" if i == 8 else ""}">{abs(i - 7.5) + 0.5:.0f}</td>' for i in range(16)
-    )
-    table = (
-        '<table class="perio"><tbody>'
-        + row("上顎 動揺度", UPPER, loose) + row("上顎 プラークチャート", UPPER, plaque, "plq")
-        + row("上顎 ポケット", UPPER, pocket)
-        + f'<tr class="no"><th class="row">歯番</th>{nos}</tr>'
-        + row("下顎 ポケット", LOWER, pocket) + row("下顎 プラークチャート", LOWER, plaque, "plq")
-        + row("下顎 動揺度", LOWER, loose)
-        + "</tbody></table>"
-    )
+    teeth = {
+        t: {"pocket": v["pocket"], "bop": v["bop"], "mobility": v["mobility"],
+            "sides": {SIDE[i] for i, c in enumerate(v["plaque"]) if c == "1"}}
+        for t, v in cur["teeth"].items()
+    }
 
     def stat(label, key, unit):
-        before = f" 前回 {prev[key]}{unit}" if prev else ""
-        return f"<span>{label} <b>{cur[key]}{unit}</b>{before}</span>"
+        return (label, f"{cur[key]}{unit}", f"{prev[key]}{unit}" if prev else None)
 
-    stats = (
-        '<div class="perio-stats">'
-        + stat("4mm以上", "deep", "本") + stat("BOP", "bop", "%") + stat("PCR", "pcr", "%")
-        + stat("動揺のある歯", "loose", "本")
-        + f"<span>検査した歯 <b>{cur['n']}本</b></span></div>"
-    )
-    return card("perio-exam", "歯周基本検査", stats + table, 12, extra=f"検査日 {D.ja_date(cur['date'])}", actions=FULL)
+    stats = [stat("4mm以上", "deep", "本"), stat("BOP", "bop", "%"), stat("PCR", "pcr", "%"),
+             stat("動揺のある歯", "loose", "本"), ("検査した歯", f"{cur['n']}本", None)]
+    return perio_card(teeth, stats, D.ja_date(cur["date"]))
 
 
 def _hyg_side(d):
     iv = d["interval"]
-    interval = ""
-    if iv:
-        last = f" 前回 {D.ja_date(iv['last_date'])}" if iv["last_date"] else ""
-        interval = (f'<div><div class="lbl">メンテナンス間隔</div>'
-                    f'<div class="kv"><b>{iv["months"]}か月ごと</b>{last}</div></div>')
+    last = f' <span class="prev">前回 {D.ja_date(iv["last_date"])}</span>' if iv and iv["last_date"] else ""
+    interval = card("", "メンテナンス間隔",
+                    f'<div class="kv"><b>{iv["months"]}か月ごと</b>{last}</div>' if iv else "", None)
     rows = "".join(f"<tr><td>{h(x['item'])}</td><td>{D.slash_date(x['last_date'])}</td></tr>" for x in d["care"])
-    hist = (
-        '<div class="fill"><div class="lbl">使用ケア用品・購入履歴</div>'
-        '<table class="t"><thead><tr><th>品名</th><th>最後に買った日</th></tr></thead>'
-        f"<tbody>{rows}</tbody></table></div>"
-    )
-    return card("", "", interval + hist, 3, cls="side-card")
+    hist = card("", "使用ケア用品・購入履歴",
+                '<table class="t"><thead><tr><th>品名</th><th>最後に買った日</th></tr></thead>'
+                f"<tbody>{rows}</tbody></table>", None)
+    return f'<div class="stack" style="grid-column: span 3">{interval}{hist}</div>'
 
 
 def hygienist_page(d):

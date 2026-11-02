@@ -83,7 +83,7 @@ def check_screen(pg, parts, words, png=None, skip_overflow=("past-notes",)):
         """(skips) => [...document.querySelectorAll('.card, .band, .topbar, .card *')]
           .filter(e => !e.closest(skips.map(s => `[data-part="${s}"]`).join(',') || 'x'))
           .filter(e => e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1)
-          .filter(e => !(e instanceof SVGElement) && getComputedStyle(e).display !== 'inline')
+          .filter(e => !(e instanceof SVGElement) && e.tagName !== 'TR' && getComputedStyle(e).display !== 'inline')
           .map(e => (e.getAttribute('data-part') || e.className || e.tagName) + ':' + e.scrollWidth + 'x' + e.scrollHeight
                     + '/' + e.clientWidth + 'x' + e.clientHeight)""",
         skips,

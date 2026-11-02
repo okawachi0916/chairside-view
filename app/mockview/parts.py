@@ -49,7 +49,7 @@ def card(part, title, inner, cols, extra="", actions="", cls=""):
     dp = f' data-part="{part}"' if part else ""
     head = f'<div class="head"><h2>{title}</h2>{meta}{act}</div>' if title else ""
     return (
-        f'<section class="card {cls}"{dp} style="grid-column: span {cols}">'
+        f'<section class="card {cls}"{dp}{f" style=\"grid-column: span {cols}\"" if cols else ""}>'
         f"{head}{inner}</section>"
     )
 

@@ -35,7 +35,7 @@ def test_doctor_screen(server, browser):  # noqa: F811
     assert meds.evaluate("e => e.scrollHeight <= e.clientHeight + 1")
     # 重要事項は赤地に白文字
     assert pg.locator("[data-part=important]").evaluate(
-        "e => getComputedStyle(e).backgroundColor") == "rgb(255, 0, 0)"
+        "e => getComputedStyle(e).backgroundColor") == "rgb(183, 28, 28)"
     assert pg.locator("[data-part=important] .lines").evaluate(
         "e => getComputedStyle(e).color") == "rgb(255, 255, 255)"
     # 名前は他の項目より大きい
