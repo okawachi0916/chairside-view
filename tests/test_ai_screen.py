@@ -54,10 +54,10 @@ def test_found_dims_surroundings_and_shows_tall_frame(server, browser):  # noqa:
     assert "ペニシリン" in text and "出どころ: 重要事項" in text
     box = frame.bounding_box()
     assert box["height"] > box["width"] * 1.1, box  # 縦に長い大きな枠
-    assert pg.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(15, 19, 26)"  # 周りが暗い
+    assert pg.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(27, 34, 43)"  # 周りが暗い
     band = pg.locator('[data-part="important"]')
     assert band.is_visible()  # 重要事項の帯は暗くしない
-    assert pg.evaluate("getComputedStyle(document.querySelector('[data-part=important]')).backgroundColor") != "rgb(15, 19, 26)"
+    assert pg.evaluate("getComputedStyle(document.querySelector('[data-part=important]')).backgroundColor") != "rgb(27, 34, 43)"
     assert pg.locator("main.body").is_hidden() or pg.locator("main.body").count() == 0
     # 小さい出どころ
     assert pg.evaluate("parseFloat(getComputedStyle(document.querySelector('.ai-src')).fontSize)") < 20

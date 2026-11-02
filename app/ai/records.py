@@ -42,7 +42,7 @@ def build_records(con, patient_id: int) -> list:
         add("medical", "全身既往・服薬", "medical-history", lines, "出どころ: 全身既往・服薬")
 
     # 次回の予約 (kind='next') は治療計画の1番目と同じ内容なので、番号を付けない
-    for r in q("SELECT seq, body FROM treatment_plans WHERE patient_id=? AND kind='plan' ORDER BY seq"):
+    for r in q("SELECT seq, body FROM treatment_plans WHERE patient_id=? AND kind='plan' AND superseded_on IS NULL ORDER BY seq"):
         add(f"plan:{r['seq']}", "治療計画", "treatment-plan", [r["body"]], "出どころ: 治療計画")
 
     note_dates = set()

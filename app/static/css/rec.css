@@ -1,0 +1,72 @@
+/* 録音の窓 (親の画面 /app)、録音の一覧 /recordings、下書きの画面 /drafts。
+   色・文字・角丸・余白は mock.css の :root の変数だけを使う (先に mock.css を読み込む)。 */
+
+body.rec-parent { display: block; padding: 0; background: var(--c-ink); }
+#inner { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
+#band { position: fixed; top: 0; left: 0; right: 0; z-index: 2147483000; background: var(--c-doctor); color: var(--c-surface);
+  padding: var(--sp-4) var(--sp-6); font-size: var(--fs-4); font-weight: var(--fw-medium); display: flex; justify-content: space-between; }
+#band[hidden] { display: none; }
+
+#rec-win { position: fixed; right: var(--sp-4); bottom: var(--sp-4); z-index: 2147483100; min-width: 240px; background: var(--c-surface);
+  color: var(--c-ink); border: 2px solid var(--c-sub); border-radius: var(--r-l); padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-3); font-weight: var(--fw-bold); display: flex; align-items: center; gap: var(--sp-3); }
+#rec-win[hidden] { display: none; }
+#rec-win .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--c-line-strong); flex: none; }
+#rec-win[data-mode=recording] .dot { background: var(--c-alert); animation: recblink 0.9s infinite; }
+#rec-win[data-mode=recording] .msg { animation: recblink 0.9s infinite; }
+#rec-win[data-mode=paused] .dot { background: var(--c-warn); }
+#rec-win[data-mode=waiting] { cursor: pointer; border-color: var(--c-warn); }
+#rec-win[data-mode=waiting] .dot { background: var(--c-warn); }
+#rec-win .ok { font-family: inherit; font-size: var(--fs-3); font-weight: var(--fw-bold); padding: var(--sp-1) var(--sp-5);
+  border: 2px solid var(--c-doctor); border-radius: var(--r-s); background: var(--c-doctor); color: var(--c-surface); cursor: pointer; }
+#rec-win .ok[hidden] { display: none; }
+@keyframes recblink { 50% { opacity: 0.2; } }
+
+/* 録音の一覧と下書きの画面 */
+body.rec-page { display: block; height: auto; min-height: 100%; overflow: auto; padding: 0; }
+.rec-head { background: var(--c-doctor); color: var(--c-surface); padding: var(--sp-3) var(--sp-6); font-size: var(--fs-4);
+  font-weight: var(--fw-bold); display: flex; gap: var(--sp-4); align-items: center; }
+.rec-head a { color: var(--c-surface); font-size: var(--fs-2); font-weight: var(--fw-regular); }
+.rec-main { padding: var(--sp-5) var(--sp-6); }
+table.rec { border-collapse: collapse; width: 100%; background: var(--c-surface); }
+table.rec th, table.rec td { border: 1px solid var(--c-line-strong); padding: var(--sp-2) var(--sp-3); text-align: left; font-size: var(--fs-3);
+  font-weight: var(--fw-regular); line-height: var(--lh-table); }
+table.rec th { background: var(--c-canvas); font-weight: var(--fw-bold); }
+table.rec .st-失敗 { color: var(--c-alert); font-weight: var(--fw-bold); }
+table.rec .st-転送待ち { color: var(--c-warn); font-weight: var(--fw-bold); }
+.rec-main button, .rec-main select, .rec-main textarea { font-family: inherit; font-size: var(--fs-2); }
+.rec-main button { padding: var(--sp-1) var(--sp-3); border: 1px solid var(--c-sub); border-radius: var(--r-s); background: var(--c-canvas); cursor: pointer; }
+.err { color: var(--c-alert); font-size: var(--fs-1); font-weight: var(--fw-regular); }
+#paste { margin-top: var(--sp-6); background: var(--c-surface); border: 1px solid var(--c-line-strong); border-radius: var(--r-l); padding: var(--sp-3) var(--sp-4); }
+#paste textarea { width: 100%; height: 90px; }
+
+.draft-mark { display: inline-block; background: var(--c-warn-soft); border: 2px solid var(--c-warn); color: var(--c-warn);
+  font-size: var(--fs-4); font-weight: var(--fw-bold); padding: var(--sp-2) var(--sp-4); border-radius: var(--r-s); }
+.draft-bar { padding: var(--sp-4) var(--sp-6) 0; }
+.draft-cols { display: flex; gap: var(--sp-5); padding: var(--sp-4) var(--sp-6) var(--sp-6); height: calc(100vh - 150px); }
+.draft-left, .draft-right { flex: 1; min-width: 0; background: var(--c-surface); border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-l); padding: var(--sp-3) var(--sp-5); overflow: auto; }
+.draft-left h3, .draft-right h3 { margin: 0 0 var(--sp-2); font-size: var(--fs-3); color: var(--c-sub); }
+.draft-left p { white-space: pre-wrap; font-size: var(--fs-4); line-height: var(--lh-text); margin: 0; }
+.draft-sec { margin-bottom: var(--sp-4); }
+.draft-sec ul { margin: 0; padding-left: var(--sp-6); }
+.draft-sec li { font-size: var(--fs-4); line-height: var(--lh-table); margin-bottom: var(--sp-2); }
+.draft-sec .qt { display: block; font-size: var(--fs-1); color: var(--c-sub); }
+.draft-sec .empty { color: var(--c-sub); list-style: none; margin-left: calc(var(--sp-6) * -1); }
+
+/* 下書きの直し・確定、今日の診療一覧の印 */
+.draft-bar { display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap; }
+.draft-actions button { font-family: inherit; font-size: var(--fs-3); font-weight: var(--fw-bold); padding: var(--sp-2) var(--sp-5);
+  border: 2px solid var(--c-doctor); border-radius: var(--r-s); background: var(--c-surface); color: var(--c-doctor); cursor: pointer; }
+.draft-actions #btn-confirm { background: var(--c-doctor); color: var(--c-surface); }
+.draft-sec li.row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); list-style: none; margin-left: calc(var(--sp-6) * -1); }
+.draft-sec .tx { flex: 1; min-width: 0; font-family: inherit; font-size: var(--fs-4); padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--c-line-strong); border-radius: var(--r-s); }
+.draft-sec .qt { flex-basis: 100%; }
+.draft-sec button { font-family: inherit; font-size: var(--fs-2); padding: var(--sp-1) var(--sp-3); border: 1px solid var(--c-sub);
+  border-radius: var(--r-s); background: var(--c-canvas); cursor: pointer; }
+.fix-text { width: 100%; height: 200px; font-family: inherit; font-size: var(--fs-3); line-height: var(--lh-text); }
+.draft-left audio { width: 100%; margin-bottom: var(--sp-3); }
+#plan-compare table.rec td { font-size: var(--fs-2); }
+#plan-compare tr.add td { background: var(--c-canvas); }
+.addendum { display: inline-block; margin-left: var(--sp-3); color: var(--c-alert); font-weight: var(--fw-bold); animation: recblink 0.9s infinite; }

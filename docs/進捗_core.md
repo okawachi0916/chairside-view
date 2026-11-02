@@ -1,11 +1,9 @@
 # 進捗 core
-- 動く版: G12 完了（G11 の上）。重要事項・口腔内写真・話した内容の整理の全画面。ほかの全画面ボタンは何も起きない。
-  - 全画面の操作は actions.js の入口を通る: fs-open（部品名）、fs-close、fs-next、fs-prev、fs-photo。
-  - 中身は画面の <template data-fs="部品名"> に入れてあり、開くまでページの文字に出ない（render.py の fullscreen_templates）。
-  - 上の行と重要事項の帯は残り、body に fs-mode が付いて本体を隠す。1画面に入らないときだけ「前のページ」「次のページ」が出る。
-  - ボタン3で隠して戻すと全画面まで戻る。次の患者様を開くと全画面は消える。
-- データ: important_notes に period・detail、drafts に transcript を追加。花子の今日の診療回2件と下書き2件を初期データに足した。
-  update_db.py で古いDBにも足せる。app/views/data.py の con() が初回に自動で足りない分を足す。
-- 試験: tests/test_fullscreen.py（7件）。全体 65件通過。
-- 残り: 録音と声の窓（ボタン1・2）は register("button1") などで足す。
+- 動く版: G20 完了（G12・G14・G16・G19 を取り込んだ上）。最小版の通しの試験と、動画の撮影用の道具。
+  - 通しの試験: tests/test_e2e_flow.py。seed → 予約一覧で 0123 の RCT → 重要事項の全画面 → 3番の拡大と一覧 → 「前回は何をした？」→ 下書きを作って確定 → ボタン3で隠して戻す → 0456 の SPT で前の人が残らない。偽物の口と文字の口（cvTyped）。3回続けて通した。終わりにもう一度 seed を動かし、ほかの試験に確定した診療メモを残さない。
+  - 院長の手順: docs/通しの手順.md（17行）。
+  - scripts/demo_state.py: `save 名前` で data/runtime（データベース・音声・下書き・追記必要の印）を C:\hackathon\demo_states\名前（環境変数 CV_DEMO_DIR で変更）へ写す。`restore 名前` で全部を戻し、update_db.py を動かす。サーバーが動いたままでよい（データベースは SQLite の backup で入れ替える）。試験は tests/test_demo_state.py。
+  - seed.py: サーバーがデータベースを開いたままで消せないとき（Windows）は、中の表を捨てて空にしてから初期の行を入れる。audio も初期化する。
+- 全画面（G12）・ボタン3（G11）・データにつなぐ画面（G10）・データの形（G09）は前のとおり。全体の試験 265 件（GPU 以外）通過。
+- 残り: 実機のマイクでの通しは院長の確認待ち。
 - 次のゴール: 指示待ち
