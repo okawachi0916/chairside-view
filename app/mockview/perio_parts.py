@@ -54,8 +54,8 @@ def _plaque(d, mid):
 
 
 def _stat(label, now, prev):
-    before = f"前回 {h(prev)}" if prev else "&nbsp;"
-    return f'<div class="st"><small>{h(label)}</small><b>{h(now)}</b><em>{before}</em></div>'
+    before = f"<i>（前回 {h(prev)}）</i>" if prev else ""
+    return f'<div class="st"><small>{h(label)}</small><span><b>{h(now)}</b>{before}</span></div>'
 
 
 def perio_card(teeth, stats, date_txt):
@@ -81,5 +81,6 @@ def perio_card(teeth, stats, date_txt):
     )
     st = '<div class="perio-stats">' + "".join(_stat(*s) for s in stats) + "</div>"
     return card(
-        "perio-exam", "歯周基本検査", st + table, 12, extra=f"検査日 {date_txt}", actions=INPUT + FULL
+        "perio-exam", "歯周基本検査", st + table, 12, extra=f"検査日 {date_txt}", actions=INPUT + FULL,
+        cls="perio-card",
     )

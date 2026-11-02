@@ -14,9 +14,20 @@ WORDS = [
     "録音中 00:48", "メンテナンス間隔", "3か月ごと", "前回 2026年8月7日", "使用ケア用品・購入履歴",
     "歯間ブラシ SS", "2026/9/18", "フッ素ジェル", "2026/8/7", "歯ブラシ やわらかめ",
     "洗口液", "2026/5/8", "デンタルフロス", "2026/2/6", "歯周基本検査", "検査日 2026年8月7日",
-    "4mm以上", "6本", "前回 9本", "BOP", "15%", "前回 19%", "PCR", "18%", "前回 24%",
-    "動揺のある歯", "0本", "前回 0本", "検査した歯", "26本", "上顎", "下顎", "動揺度", "プラークチャート", "ポケット", "歯番", "入力", "全画面",
+    "4mm以上", "6本", "（前回 9本）", "BOP", "15%", "（前回 19%）", "PCR", "18%", "（前回 24%）",
+    "動揺のある歯", "0本", "（前回 0本）", "検査した歯", "26本", "上顎", "下顎", "動揺度", "プラークチャート", "ポケット", "歯番", "入力", "全画面",
 ]
+
+
+def test_titles_straddle_border(server, browser):  # noqa: F811
+    pg = open_page(browser, server, "/mock/hygienist")
+    bad = pg.evaluate("""() => [...document.querySelectorAll('.card .head h2, .band h2')].filter(h => {
+        const c = h.closest('.card, .band').getBoundingClientRect(), r = h.getBoundingClientRect();
+        const mid = (r.top + r.bottom) / 2;
+        return Math.abs(mid - c.top) > 4;
+    }).map(h => h.textContent)""")
+    assert not bad, f"題が枠線にまたがっていない: {bad}"
+    pg.close()
 
 
 def test_hygienist_screen(server, browser):  # noqa: F811
