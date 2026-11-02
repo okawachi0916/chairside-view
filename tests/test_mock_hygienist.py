@@ -15,7 +15,7 @@ WORDS = [
     "歯間ブラシ SS", "2026/9/18", "フッ素ジェル", "2026/8/7", "歯ブラシ やわらかめ",
     "洗口液", "2026/5/8", "デンタルフロス", "2026/2/6", "歯周基本検査", "検査日 2026年8月7日",
     "4mm以上", "6本", "前回 9本", "BOP", "15%", "前回 19%", "PCR", "18%", "前回 24%",
-    "動揺のある歯", "0本", "前回 0本", "検査した歯", "26本", "上顎", "下顎", "動揺度", "プラークチャート", "ポケット", "歯番", "全画面",
+    "動揺のある歯", "0本", "前回 0本", "検査した歯", "26本", "上顎", "下顎", "動揺度", "プラークチャート", "ポケット", "歯番", "入力", "全画面",
 ]
 
 
@@ -28,6 +28,15 @@ def test_hygienist_screen(server, browser):  # noqa: F811
     assert t.locator("tr").count() == 7
     assert t.locator("td.deep").count() == 6
     assert t.locator("td.bop").count() >= 1
+    # 「入力」ボタンは全画面の横に並ぶ。今は押しても表示は変わらない
+    card = pg.locator("[data-part=perio-exam]")
+    inp, full = card.locator("button.input"), card.locator("button.full")
+    assert inp.count() == 1 and inp.inner_text() == "入力"
+    ib, fb = inp.bounding_box(), full.bounding_box()
+    assert abs(ib["y"] - fb["y"]) < 3 and ib["x"] < fb["x"]
+    before = card.inner_html()
+    inp.click()
+    assert card.inner_html() == before
     # BOP は赤の太字
     assert t.locator("td.bop").first.evaluate(
         "e => [getComputedStyle(e).color, getComputedStyle(e).fontWeight].join()") == "rgb(208, 0, 0),900"

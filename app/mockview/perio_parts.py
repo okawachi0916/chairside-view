@@ -3,6 +3,9 @@ from html import escape as h
 
 from app.mockview.parts import FULL, card
 
+# 入力モードに入るボタン。押したときの動きは G24 で作る（今は見た目だけ）
+INPUT = '<button class="mini input" type="button" data-action="perio-input">入力</button>'
+
 # 左から右へ、見ている向きで並べる。上顎 18〜11 | 21〜28、下顎 48〜41 | 31〜38。
 UPPER = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]
 LOWER = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
@@ -78,5 +81,5 @@ def perio_card(teeth, stats, date_txt):
     )
     st = '<div class="perio-stats">' + "".join(_stat(*s) for s in stats) + "</div>"
     return card(
-        "perio-exam", "歯周基本検査", st + table, 12, extra=f"検査日 {date_txt}", actions=FULL
+        "perio-exam", "歯周基本検査", st + table, 12, extra=f"検査日 {date_txt}", actions=INPUT + FULL
     )
