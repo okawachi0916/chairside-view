@@ -3,6 +3,7 @@ from html import escape as h
 
 from app.db import TODAY
 from app.mockview.parts import FULL, MIC, PHONE, band, card
+from app.mockview.reception_parts import heat_card, next_card, reserve_card
 from app.views import data as D
 
 BAND = {1: "n1", 2: "n2", 3: "n3", 4: "n4"}
@@ -285,14 +286,9 @@ def _band_of(hm):
 def _reserve(d):
     t = d["today"]
     start, end = (t[0]["start_time"], t[-1]["end_time"]) if t else ("", "")
-    recent = "".join(f"<tr><td>{D.ja_date(r['visit_date'])}</td><td>{h(r['treatment'] or '')}</td></tr>" for r in d["recent"])
-    inner = (
-        f'<div class="kv"><div>今回 <b>{D.ja_date(TODAY, week=True)}</b></div>'
-        f'<div>時間 <b>{start}〜{end}（{D.duration(D.minutes(start, end)) if t else ""}）</b></div></div>'
-        '<div class="fill"><div class="lbl">最近の来院</div>'
-        f'<table class="t"><tbody>{recent}</tbody></table></div>'
-    )
-    return card("", "予約日時", inner, 4)
+    dur = D.duration(D.minutes(start, end)) if t else ""
+    recent = [(D.ja_date(r["visit_date"]), r["treatment"] or "") for r in d["recent"]]
+    return reserve_card(D.ja_date(TODAY, week=True), f"{start}〜{end}（{dur}）", recent)
 
 
 def _heat(d):
@@ -304,18 +300,7 @@ def _heat(d):
             grid[_band_of(hm)][wd] += 1
     best = max(((grid[b][w], b, w) for b in range(3) for w in range(6)), key=lambda x: (x[0], -x[1], -x[2]))
     big = f"{D.WEEK[best[2]]}曜の{BANDS[best[1]]}" if best[0] else "―"
-    head = "".join(f'<th class="n">{c}</th>' for c in D.WEEK[:6])
-    rows = "".join(
-        f'<tr><th>{BANDS[b]}</th>'
-        + "".join(f'<td class="n{" hot" if v >= 5 else ""}">{v}</td>' for v in grid[b])
-        + "</tr>"
-        for b in range(3)
-    )
-    inner = (
-        f'<div class="big-num">{big}</div>'
-        f'<table class="t heat"><thead><tr><th></th>{head}</tr></thead><tbody>{rows}</tbody></table>'
-    )
-    return card("", "来院しやすい曜日・時間帯", inner, 5, extra=f"過去1年の来院{len(d['visits'])}回")
+    return heat_card(grid, BANDS, big, len(d["visits"]))
 
 
 def _cancel(d):
@@ -336,21 +321,17 @@ def _cancel(d):
 def _next(d):
     today_txt = "、".join(a["reception_text"] or a["treatment"] for a in d["today"])
     nx = d["next"]
-    nxt = ""
+    body, chips = "", []
     if nx:
-        who = " ".join(x for x in [D.ROLE_NAME.get(nx["staff_role"], ""), nx["staff_name"],
-                                   f"{nx['minutes']}分枠" if nx["minutes"] else "", nx["timing"]] if x)
-        nxt = f'<div class="next-big">{h(nx["body"])}<small>{h(who)}</small></div>'
-    booked = "".join(
-        f'<div class="kv">{D.ja_date(b["appt_date"])} {D.ROLE_NAME.get(b["role"], "")} {h(b["staff_name"])} '
-        f'{h(b["reception_text"])}</div>' for b in d["booked"]
-    )
-    inner = (
-        f'<div><div class="lbl">今日</div><div class="kv">{h(today_txt)}</div></div>'
-        f'<div data-part="next-appointment"><div class="lbl">次回</div>{nxt}</div>'
-        f'<div data-part="booked-appointment"><div class="lbl">予約済み</div>{booked}</div>'
-    )
-    return card("", "処置と次回の予約", inner, 4)
+        body = nx["body"]
+        who = " ".join(x for x in [D.ROLE_NAME.get(nx["staff_role"], ""), nx["staff_name"]] if x)
+        chips = [x for x in [who, f"{nx['minutes']}分枠" if nx["minutes"] else "", nx["timing"]] if x]
+    booked = [
+        (D.ja_date(b["appt_date"]),
+         " ".join(x for x in [D.ROLE_NAME.get(b["role"], ""), b["staff_name"], b["reception_text"]] if x))
+        for b in d["booked"]
+    ]
+    return next_card(today_txt, body, chips, booked)
 
 
 def _goods(d):

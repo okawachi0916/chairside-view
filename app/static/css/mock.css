@@ -123,7 +123,7 @@ body {
 }
 .body.doctor { grid-template-rows: 1fr 0.95fr; }
 .body.hygienist { grid-template-rows: 0.85fr 1fr; }
-.body.reception { grid-template-rows: 0.95fr 1fr; }
+.body.reception { grid-template-rows: 0.9fr 1fr; }
 
 .card {
   position: relative;
@@ -242,3 +242,49 @@ table.perio td.pl { padding: 0; }
 table.perio td.pl svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 table.perio tr { height: 11%; }
 table.perio tr.plq { height: 22%; }
+
+/* 受付 */
+.reserve-card { gap: 10px; }
+.reserve-card .when { display: flex; align-items: baseline; gap: 14px; }
+.reserve-card .when b { font-size: 30px; line-height: 1.3; font-weight: 800; }
+.lbl2 { display: inline-block; min-width: 56px; font-size: 16px; font-weight: 700; color: #5a6572; }
+.recent { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-between; }
+.recent .rv { display: flex; align-items: baseline; gap: 22px; padding: 6px 0; border-bottom: 1px solid #e3e7ec; font-size: 20px; line-height: 1.3; }
+.recent .rv .d { min-width: 190px; }
+.recent .rv .p { font-weight: 700; }
+
+/* 来院しやすい曜日・時間帯 */
+.big-num { font-size: 40px; line-height: 1.3; }
+.heat-cal { flex: 1; min-height: 0; display: grid; grid-template-columns: 120px repeat(6, 1fr); grid-template-rows: auto repeat(3, 1fr); gap: 6px; }
+.hc-day { text-align: center; font-size: 20px; font-weight: 800; color: #3a4552; }
+.hc-time { display: flex; align-items: center; gap: 8px; color: #3a4552; }
+.hc-time svg { width: 34px; height: 34px; flex: none; }
+.hc-time b { display: block; font-size: 20px; line-height: 1.2; }
+.hc-time small { display: block; font-size: 14px; color: #5a6572; }
+.hc-cell { display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 34px; font-weight: 800; min-height: 0; }
+.hc-cell.l0 { background: #f1f3f6; color: #b3bac3; font-weight: 600; }
+.hc-cell.l1 { background: #fde8d0; color: #8a4b08; }
+.hc-cell.l2 { background: #fbc98e; color: #6d3a05; }
+.hc-cell.l3 { background: #f59e42; color: #fff; }
+.hc-cell.l4 { background: #d9480f; color: #fff; }
+.hc-cell.top { outline: 4px solid var(--role); outline-offset: -4px; }
+
+/* 処置と次回の予約 */
+.next-card { gap: 10px; }
+.next-card .blk { border-radius: 8px; padding: 8px 14px; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+.next-card .tag { align-self: flex-start; background: #5a6572; color: #fff; font-size: 16px; font-weight: 800; padding: 1px 12px; border-radius: 4px; }
+.next-card .tag.big { background: var(--role); font-size: 30px; padding: 0 18px; line-height: 1.3; }
+.next-card .today { background: #f3f5f8; flex-direction: row; align-items: center; gap: 14px; }
+.next-card .today-txt { font-size: 20px; font-weight: 700; }
+.next-card .next { flex: 1; border: 4px solid var(--role); background: #f6f0fb; justify-content: center; }
+.next-card .next-main { font-size: 40px; font-weight: 800; line-height: 1.3; }
+.next-card .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.next-card .chip { background: var(--role); color: #fff; font-size: 28px; font-weight: 800; line-height: 1.3; padding: 0 14px; border-radius: 6px; }
+.next-card .booked { border: 2px solid #5a6572; }
+.next-card .bk { font-size: 20px; line-height: 1.5; }
+.next-card .bk b { font-size: 26px; font-weight: 800; margin-right: 14px; }
+.card-back { font-size: 22px; line-height: 1.5; }
+.body.reception table.t td, .body.reception table.t th { padding: 7px 8px; }
+.body.reception table.t td { font-size: 19px; }
+.body.reception table.t th { font-size: 15px; }
+.body.reception .kv { font-size: 20px; line-height: 1.5; }
