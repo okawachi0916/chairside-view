@@ -1,0 +1,7 @@
+{
+  "button1": "Ctrl+Shift+F6",
+  "button2": "Ctrl+Shift+F7",
+  "button3": "Ctrl+Shift+F8",
+  "double_press_ms": 5000,
+  "quick_press_ms": 400
+}
