@@ -128,6 +128,9 @@
       }
       say("「" + t + "」");
       window.CVActions.run(res.action, res.arg);
+    } else if (res.kind === "質問" && window.CVAsk && !window.CVActions.isHidden()) {
+      say("「" + t + "」 調べています");
+      window.CVAsk(t); // 質問だけ Claude に聞く（actions/ai.js）。無関係と聞き取り失敗は送らない
     } else {
       say("「" + t + "」 " + (res.message || ""));
     }
