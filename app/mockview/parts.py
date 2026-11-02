@@ -6,8 +6,14 @@ MIC = (
     "</svg>"
 )
 
-FULL = '<button class="mini" type="button" data-action="fullscreen">全画面</button>'
-PHONE = '<button class="mini" type="button" data-action="phone">スマホ</button>'
+# 全画面: 角を丸めた「広げる」記号つき。スマホ: 黒地に白抜きで、全画面と色を変える
+EXPAND = (
+    '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" '
+    'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">'
+    '<path d="M3 7V5a2 2 0 0 1 2-2h2M13 3h2a2 2 0 0 1 2 2v2M17 13v2a2 2 0 0 1-2 2h-2M7 17H5a2 2 0 0 1-2-2v-2"/></svg>'
+)
+FULL = f'<button class="mini full" type="button" data-action="fullscreen">{EXPAND}<span>全画面</span></button>'
+PHONE = '<button class="mini phone" type="button" data-action="phone">スマホで写真をやり取り</button>'
 
 PATIENT = (
     '<b class="pname">見本 花子</b> 様 '

@@ -1,8 +1,8 @@
 /* 見本画面の共通の見た目。基準は 1920×1030。 */
 :root {
-  --navy: #1f3a68;
-  --green: #1f7a4d;
-  --purple: #6a3d9a;
+  --navy: #2b4f8c;
+  --green: #2a8f5c;
+  --purple: #7c4bb0;
   --red: #c62828;
   --red-bg: #fdecea;
   --line: #cfd6df;
@@ -104,8 +104,8 @@ body {
   border-radius: 4px;
 }
 .band .lines { font-size: 26px; line-height: 1.3; font-weight: 700; }
-.band.alert { background: #b71c1c; border-color: #b71c1c; }
-.band.alert h2 { background: #fff; color: #b71c1c; border: 2px solid #b71c1c; top: -15px; font-size: 20px; font-weight: 800; }
+.band.alert { background: #db0e0e; border-color: #db0e0e; }
+.band.alert h2 { background: #fff; color: #db0e0e; border: 2px solid #db0e0e; top: -15px; font-size: 20px; font-weight: 800; }
 .band.alert .lines { color: #fff; font-size: 34px; line-height: 1.3; font-weight: 800; }
 .band .big { font-size: 28px; line-height: 1.3; font-weight: 700; }
 .band .meds { list-style: disc; margin: 0; padding-left: 26px; font-size: 24px; line-height: 1.3; font-weight: 700; overflow-y: auto; flex: 1; min-height: 0; }
@@ -291,7 +291,7 @@ table.perio tr.plq { height: 22%; }
 
 /* 帯の色。縁取りは付けない */
 .band[data-part="medical-history"] { background: #fbe9dc; border-color: #fbe9dc; }
-.band.alert { border-color: #b71c1c; }
+.band.alert { border-color: #db0e0e; }
 
 /* 欄の題は枠にかぶせた見出し（帯と同じ形） */
 .body { margin-top: 8px; row-gap: 24px; }
@@ -317,3 +317,7 @@ table.perio tr.plq { height: 22%; }
 table.perio th.grp { width: 64px; font-size: 22px; font-weight: 800; background: #e3e8ef; }
 table.perio th.row { width: 150px; }
 table.perio tr.no th.row { text-align: center; padding-left: 0; font-size: 22px; }
+
+/* 全画面とスマホのボタン */
+.mini.full { display: inline-flex; align-items: center; gap: 5px; font-size: 14px; font-weight: 700; padding: 3px 10px; }
+.mini.phone { background: #000; color: #fff; border-color: #000; font-size: 14px; font-weight: 700; padding: 3px 12px; }
