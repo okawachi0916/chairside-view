@@ -50,7 +50,7 @@ async def transcribe(request: Request):
 async def interpret_text(request: Request):
     """聞き取った言葉を手元で照合する（Claude は使わない）。"""
     body = await request.json()
-    return JSONResponse(interpret(str(body.get("text", "")), str(body.get("screen", "unit"))))
+    return JSONResponse(interpret(str(body.get("text") or ""), str(body.get("screen") or "unit")))
 
 
 @router.get("/voice/commands")

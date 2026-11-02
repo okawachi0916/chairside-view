@@ -61,11 +61,71 @@
     });
   }
 
+  // ---- 口腔内写真（番号で呼ぶ）----
+  function photoPanel() { return document.querySelector('[data-fs-panel="intraoral-photos"]'); }
+  function photoItems() {
+    var p = photoPanel();
+    if (p) return p.querySelectorAll(".fs-item");
+    var t = document.querySelector('template[data-fs="intraoral-photos"]');
+    return t ? t.content.querySelectorAll(".fs-item") : [];
+  }
+  function selectPhotos(items) {
+    var p = photoPanel();
+    if (!p || !items.length) return;
+    var box = p.querySelector(".fs-big-box");
+    box.textContent = "";
+    p.querySelectorAll(".fs-item").forEach(function (el) { el.classList.toggle("sel", items.indexOf(el) >= 0); });
+    items.forEach(function (it) {
+      var fig = document.createElement("figure");
+      fig.className = "fs-fig";
+      fig.setAttribute("data-n", it.dataset.n);
+      var img = document.createElement("img");
+      img.src = it.dataset.src;
+      img.alt = "";
+      var cap = document.createElement("figcaption");
+      cap.textContent = "写真 " + it.dataset.n + " " + it.dataset.date;
+      fig.appendChild(img);
+      fig.appendChild(cap);
+      box.appendChild(fig);
+    });
+    items[0].scrollIntoView({ block: "nearest" });
+  }
+  function byNumber(n) {
+    var found = null;
+    photoItems().forEach(function (it) { if (Number(it.dataset.n) === n) found = it; });
+    return found;
+  }
+  // 番号の写真を左に出す。無い番号があれば何も変えず、言い方を返す。
+  function showPhotos(numbers) {
+    var list = [], bad = [];
+    (numbers || []).forEach(function (n) {
+      var it = byNumber(n);
+      if (!it) bad.push(n);
+      else if (list.indexOf(it) < 0) list.push(it);
+    });
+    if (bad.length || !list.length) return "その番号はありません";
+    if (!photoPanel()) window.CVActions.run("fs-open", "intraoral-photos");
+    selectPhotos(list.map(function (it) { return byNumber(Number(it.dataset.n)); }));
+    return "";
+  }
+  CVActions.register("photos-opened", function (p) {
+    var items = p.querySelectorAll(".fs-item");
+    if (items.length) selectPhotos([items[0]]); // 一覧は新しい順。一番新しい写真から
+  });
+  CVActions.register("fs-photo", function (el) { selectPhotos([el]); });
+  CVActions.register("photo-show", showPhotos);
+  CVActions.register("photo-list", function () { CVActions.run("fs-close"); });
+
   // ---- 聞き取った言葉を操作にする ----
   function apply(res) {
     var t = res.text || "";
     if (res.kind === "操作" && res.action) {
       if (window.CVActions.isHidden()) { say("「" + t + "」 画面を隠しています"); return res; }
+      if (res.action === "photo-show") {
+        var msg = showPhotos(res.numbers);
+        say("「" + t + "」" + (msg ? " " + msg : ""));
+        return res;
+      }
       say("「" + t + "」");
       window.CVActions.run(res.action, res.arg);
     } else {

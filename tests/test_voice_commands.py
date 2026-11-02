@@ -20,22 +20,32 @@ UNRELATED_WORDS = [
 
 def test_table_shape():
     rows = load_table()
-    assert len(rows) >= 40
+    assert len(rows) >= 50
     for r in rows:
         assert set(r) == {"言葉", "使える画面", "状態", "結果"}
         assert r["状態"] in ("使える", "未実装")
 
 
+def _fill(word):
+    """{n1} などの欄は、試験では 3, 5, 10 に置き換えて言う。"""
+    for k, n in (("{n1}", "3"), ("{n2}", "5"), ("{n3}", "10")):
+        word = word.replace(k, n)
+    return word
+
+
 def test_every_row_gives_its_result():
     for r in load_table():
-        for word in {r["言葉"], r["言葉"][:-2] + "する" if r["言葉"].endswith("して") else r["言葉"]}:
-            res = interpret(word)
-            assert res["kind"] == OP, word
+        word = _fill(r["言葉"])
+        for w in {word, word[:-2] + "する" if word.endswith("して") else word}:
+            res = interpret(w)
+            assert res["kind"] == OP, w
             if r["状態"] == "使える":
-                assert res["action"] == r["結果"]["action"], word
-                assert res["arg"] == r["結果"].get("arg"), word
+                assert res["action"] == r["結果"]["action"], w
+                assert res["arg"] == r["結果"].get("arg"), w
+                if "{n1}" in r["言葉"]:
+                    assert res["numbers"] == [3, 5, 10][: r["言葉"].count("番")], w
             else:
-                assert res["action"] is None and res["message"] == "まだ開けません", word
+                assert res["action"] is None and res["message"] == "まだ開けません", w
 
 
 def test_only_three_fullscreens_are_ready():
