@@ -82,7 +82,7 @@ body {
 .band {
   position: relative;
   background: #fff;
-  border: 2px solid #5a6572;
+  border: 1px solid var(--line);
   border-radius: 6px;
   padding: 18px 14px 8px;
   display: flex;
@@ -104,8 +104,8 @@ body {
   border-radius: 4px;
 }
 .band .lines { font-size: 26px; line-height: 1.3; font-weight: 700; }
-.band.alert { background: #ff0000; border-color: #ff0000; }
-.band.alert h2 { background: #fff; color: #ff0000; border: 2px solid #ff0000; top: -15px; font-size: 20px; font-weight: 800; }
+.band.alert { background: #b71c1c; border-color: #b71c1c; }
+.band.alert h2 { background: #fff; color: #b71c1c; border: 2px solid #b71c1c; top: -15px; font-size: 20px; font-weight: 800; }
 .band.alert .lines { color: #fff; font-size: 34px; line-height: 1.3; font-weight: 800; }
 .band .big { font-size: 28px; line-height: 1.3; font-weight: 700; }
 .band .meds { list-style: disc; margin: 0; padding-left: 26px; font-size: 24px; line-height: 1.3; font-weight: 700; overflow-y: auto; flex: 1; min-height: 0; }
@@ -288,3 +288,32 @@ table.perio tr.plq { height: 22%; }
 .body.reception table.t td { font-size: 19px; }
 .body.reception table.t th { font-size: 15px; }
 .body.reception .kv { font-size: 20px; line-height: 1.5; }
+
+/* 帯の色。縁取りは付けない */
+.band[data-part="medical-history"] { background: #fbe9dc; border-color: #fbe9dc; }
+.band.alert { border-color: #b71c1c; }
+
+/* 欄の題は枠にかぶせた見出し（帯と同じ形） */
+.body { margin-top: 8px; row-gap: 24px; }
+.card { overflow: visible; padding: 26px 12px 10px; border: 1px solid var(--line); }
+.card .head { position: static; margin-top: -40px; min-height: 0; }
+.card .head h2 {
+  background: #5a6572; color: #fff; font-size: 18px; line-height: 1.4; font-weight: 700;
+  padding: 2px 14px; border-radius: 4px; white-space: nowrap;
+}
+.card .head .actions { position: absolute; top: -13px; right: 14px; margin: 0; }
+.card .head .meta { font-size: 16px; }
+.stack { display: grid; grid-template-rows: auto 1fr; gap: 24px; min-height: 0; }
+.stack .card { grid-column: auto; }
+.kv .prev { font-size: 18px; color: #3a4552; margin-left: 10px; }
+.kv b { font-size: 28px; }
+
+/* 歯周基本検査 */
+.perio-stats { display: flex; gap: 44px; flex: none; }
+.perio-stats .st { display: flex; flex-direction: column; line-height: 1.2; }
+.perio-stats small { font-size: 15px; color: #5a6572; font-weight: 700; }
+.perio-stats b { font-size: 38px; font-weight: 800; line-height: 1.3; }
+.perio-stats em { font-size: 15px; font-style: normal; color: #5a6572; }
+table.perio th.grp { width: 64px; font-size: 22px; font-weight: 800; background: #e3e8ef; }
+table.perio th.row { width: 150px; }
+table.perio tr.no th.row { text-align: center; padding-left: 0; font-size: 22px; }
