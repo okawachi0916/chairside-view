@@ -126,7 +126,8 @@ def test_question_and_unrelated_messages_and_no_move(server, browser):  # noqa: 
     for word in UNRELATED_WORDS:
         pg.evaluate("w => window.cvTyped(w)", word)
     pg.evaluate("window.cvTyped('前回は何をした')")
-    pg.wait_for_function("document.getElementById('heard').textContent.includes('まだ答えられません')")
+    # G16 から質問は Claude に聞く（試験では偽物の口が「分からない」を返す）。画面は動かさない
+    pg.wait_for_function("document.body.dataset.answer === 'retry'")
     pg.evaluate("window.cvTyped('えっと')")
     pg.wait_for_function("document.getElementById('heard').textContent.includes('もう一度お願いします')")
     assert pg.locator("[data-fs-panel]").count() == 0

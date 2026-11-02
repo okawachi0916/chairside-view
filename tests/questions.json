@@ -1,0 +1,26 @@
+{
+  "patient": {"name": "見本 花子", "chart_no": "0123"},
+  "note": "G16 で固定した10例。あとから問いを変えない。ref は app/ai/records.py の印。",
+  "cases": [
+    {"id": 1, "text": "前回は何をした？", "kind": "質問", "sends": 1,
+     "expect": {"result": "found", "ref": "note:2026-10-23", "source": "出どころ: 2026年10月23日の診療記録"}},
+    {"id": 2, "text": "アレルギーは？", "kind": "質問", "sends": 1,
+     "expect": {"result": "found", "ref": "important:1", "source": "出どころ: 重要事項", "contains": "ペニシリン"}},
+    {"id": 3, "text": "飲んでいる薬は？", "kind": "質問", "sends": 1,
+     "expect": {"result": "found", "ref": "medical", "source": "出どころ: 全身既往・服薬"}},
+    {"id": 4, "text": "次は何をする予定？", "kind": "質問", "sends": 1,
+     "expect": {"result": "found", "ref": "plan:1", "source": "出どころ: 治療計画", "contains": "右下6番"}},
+    {"id": 5, "text": "右下6番の根管治療を始めたのはいつ？", "kind": "質問", "sends": 1,
+     "expect": {"result": "found", "ref": "note:2026-10-09", "source": "出どころ: 2026年10月9日の診療記録"}},
+    {"id": 6, "text": "最後の歯周検査はいつ？", "kind": "質問", "sends": 1,
+     "expect": {"result": "found", "ref": "perio:2026-08-07", "source": "出どころ: 2026年8月7日の歯周検査"}},
+    {"id": 7, "text": "インプラントの記録は？", "kind": "質問", "sends": 1,
+     "expect": {"result": "none", "message": "記録がありません"}, "absent": ["インプラント"]},
+    {"id": 8, "text": "親知らずを抜いたのはいつ？", "kind": "質問", "sends": 1,
+     "expect": {"result": "none", "message": "記録がありません"}, "absent": ["親知らず", "智歯", "8番"]},
+    {"id": 9, "text": "去年の CT の結果は？", "kind": "質問", "sends": 1,
+     "expect": {"result": "none", "message": "記録がありません"}, "absent": ["CT", "ＣＴ", "CBCT"]},
+    {"id": 10, "text": "あの、えっと、その", "kind": "聞き取り失敗", "sends": 0,
+     "expect": {"result": "skip", "message": "もう一度お願いします"}}
+  ]
+}
