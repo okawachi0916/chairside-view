@@ -2,7 +2,7 @@
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
-from app.mockview import doctor, hygienist
+from app.mockview import doctor, hygienist, reception
 
 router = APIRouter(prefix="/mock")
 
@@ -15,3 +15,8 @@ def mock_doctor():
 @router.get("/hygienist", response_class=HTMLResponse)
 def mock_hygienist():
     return hygienist.render()
+
+
+@router.get("/reception", response_class=HTMLResponse)
+def mock_reception():
+    return reception.render()

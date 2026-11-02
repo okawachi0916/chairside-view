@@ -201,7 +201,7 @@ table.t td.n, table.t th.n { text-align: center; }
 .kv { font-size: 16px; }
 .kv b { font-size: 20px; }
 .heat td.hot { background: #f4b183; font-weight: 800; }
-.big-num { font-size: 40px; font-weight: 800; line-height: 1.1; }
+.big-num { font-size: 40px; font-weight: 800; line-height: 1.4; }
 .card-back { flex: 1; background: var(--gray); border-radius: 4px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 18px; font-weight: 700; padding: 10px; }
 .next-big { font-size: 24px; font-weight: 800; line-height: 1.3; }
 .next-big small { display: block; font-size: 15px; font-weight: 400; }
