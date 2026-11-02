@@ -100,27 +100,43 @@ def build() -> dict:
         r.add("cancellations", patient_id=pid, appointment_id=ca, cancel_date=d, no_show=0, reason=reason)
 
     # 今日の予約 (予約一覧の6行)
-    appt(H, TODAY, "14:30", "15:30", "doctor", "RCT", 2, status="booked", detail="右下6番 根管充填",
-         sub="根管治療 3回目", recep="右下第一大臼歯 RCT", staff="大川内")
+    today_h_doc = appt(H, TODAY, "14:30", "15:30", "doctor", "RCT", 2, status="booked", detail="右下6番 根管充填",
+                       sub="根管治療 3回目", recep="右下第一大臼歯 RCT", staff="大川内")
     appt(I, TODAY, "14:30", "15:00", "hygienist", "SPT", 1, status="booked", recep="SPT", staff="田中")
     appt(T, TODAY, "14:30", "15:00", "doctor", "義歯調整", 3, status="booked", recep="義歯調整", staff="大川内")
     appt(K, TODAY, "15:00", "15:30", "doctor", "CR", 3, status="booked", recep="CR", staff="大川内")
-    appt(H, TODAY, "15:30", "16:00", "hygienist", "SPT", 2, status="booked", recep="SPT＋TBI", staff="田中")
+    today_h_hyg = appt(H, TODAY, "15:30", "16:00", "hygienist", "SPT", 2, status="booked", recep="SPT＋TBI",
+                       staff="田中")
     appt(M, TODAY, "15:30", "16:00", "doctor", "インレー", 3, status="booked", recep="インレー", staff="大川内")
+    # 花子の今日の診療回 (診察を始めると作られる) と、話した内容の下書き。下書きは確定するまで記録ではない。
+    tv_doc = r.add("visits", patient_id=H, appointment_id=today_h_doc, visit_date=TODAY, start_time="14:30",
+                   role="doctor", unit=2, status="open")
+    tv_hyg = r.add("visits", patient_id=H, appointment_id=today_h_hyg, visit_date=TODAY, start_time="15:30",
+                   role="hygienist", unit=2, status="open")
+    r.add("drafts", patient_id=H, visit_id=tv_doc, kind="spoken_summary", status="draft",
+          body="右下6番 根管充填、側方加圧\nデンタルで確認、問題なし\n次回 支台築造と形成、2週間後ごろ",
+          transcript="右下6番、根管充填をします。側方加圧で詰めました。デンタルで確認して、問題ありませんでした。"
+                     "次回は支台築造と形成です。二週間後ごろでお願いします。",
+          created_at=TODAY + " 14:50")
+    r.add("drafts", patient_id=H, visit_id=tv_hyg, kind="spoken_summary", status="draft",
+          body="右下奥の清掃を指導\n寝る前の歯間ブラシを継続",
+          transcript="右下の奥は磨き残しが出やすいので、清掃の仕方をお伝えしました。寝る前の歯間ブラシは続けてください。",
+          created_at=TODAY + " 15:40")
     # 予約済みの次の予約
     appt(H, "2027-02-05", "14:30", "15:00", "hygienist", "SPT", 2, status="booked",
          recep="3か月SPT", staff="田中")
 
     # ---- 重要事項・全身既往と服薬・申し送り・受付メモ ----
     for pid, items in {
-        H: ["ペニシリン系抗菌薬アレルギー", "ビスホスホネート製剤服用中"],
-        I: ["金属アレルギー（ニッケル）"],
-        T: ["ワルファリン服用中"],
-        K: ["関節リウマチ 手に力が入りにくい"],
-        M: ["ラテックスアレルギー"],
+        H: [("ペニシリン系抗菌薬アレルギー", "2019年", "全身の発疹。アモキシシリン服用後"),
+            ("ビスホスホネート製剤服用中", "2021年", "骨粗鬆症の治療で開始")],
+        I: [("金属アレルギー（ニッケル）", "2015年", "装飾品で皮膚炎")],
+        T: [("ワルファリン服用中", "2020年", "心房細動の治療で開始")],
+        K: [("関節リウマチ 手に力が入りにくい", "2012年", "診断を受けた")],
+        M: [("ラテックスアレルギー", "2018年", "手袋で手がかゆくなった")],
     }.items():
-        for i, b in enumerate(items, 1):
-            r.add("important_notes", patient_id=pid, seq=i, body=b)
+        for i, (b, period, detail) in enumerate(items, 1):
+            r.add("important_notes", patient_id=pid, seq=i, body=b, period=period, detail=detail)
     for pid, items in {
         H: [("高血圧", "アムロジピン内服中"), ("脂質異常症", "ロスバスタチン内服中"),
             ("骨粗鬆症", "BP製剤内服中"), ("ペニシリン系抗菌薬アレルギー", "")],

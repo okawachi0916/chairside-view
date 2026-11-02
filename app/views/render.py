@@ -79,6 +79,40 @@ def spoken(d, cols):
     return card("spoken-summary", "話した内容の整理", f'<ul class="summary">{li}</ul>', cols, actions=FULL)
 
 
+def fullscreen_templates(d):
+    """全画面にする3つの部品の中身。<template> なので、開くまでページの文字には出ない。"""
+    rows = "".join(
+        f'<div class="fs-row"><b>{h(x["body"])}</b> '
+        + (f'<span>{h(" ".join(v for v in (x["period"], x["detail"]) if v))}</span>' if x["period"] or x["detail"] else "")
+        + "</div>"
+        for x in d["important_full"]
+    )
+    important_t = (
+        '<template data-fs="important" data-title="重要事項">'
+        f'<div class="fs-scroll fs-important">{rows}</div></template>'
+    )
+    items = "".join(
+        f'<button type="button" class="fs-item" data-action="fs-photo" data-n="{x["number"]}" '
+        f'data-date="{D.ja_date(x["taken_on"])}"><span class="ph">{x["number"]}</span>'
+        f'<span>{D.ja_date(x["taken_on"])}</span></button>'
+        for x in d["photo_rows"]
+    )
+    photos_t = (
+        '<template data-fs="intraoral-photos" data-title="口腔内写真"><div class="fs-photos">'
+        '<div class="fs-big"><div class="fs-big-box"></div><div class="fs-big-cap"></div></div>'
+        f'<div class="fs-scroll fs-list">{items}</div></div></template>'
+    )
+    li = "".join(f"<li>{h(x)}</li>" for x in d["summary"])
+    talk = h(d["transcript"])
+    spoken_t = (
+        '<template data-fs="spoken-summary" data-title="話した内容の整理"><div class="fs-cols">'
+        f'<div class="fs-col"><h3>要約</h3><div class="fs-scroll"><ul>{li}</ul></div></div>'
+        f'<div class="fs-col"><h3>話したままの文字</h3><div class="fs-scroll"><p>{talk}</p></div></div>'
+        "</div></template>"
+    )
+    return important_t + photos_t + spoken_t
+
+
 # ---------- 歯科医師 ----------
 def _months_since(s):
     """経過した月数。日数から四捨五入する (2026年5月8日から6か月)。"""
@@ -137,7 +171,7 @@ def doctor_page(d):
         + _doctor_today(d) + _doctor_history(d) + intraoral(d, 5, "c4") + _doctor_teeth(d) + spoken(d, 4)
         + "</main>"
     )
-    return top + bands_three(d) + body
+    return top + bands_three(d) + body + fullscreen_templates(d)
 
 
 # ---------- 歯科衛生士 ----------
@@ -236,7 +270,7 @@ def hygienist_page(d):
         + intraoral(d, 6, "c6") + spoken(d, 3) + _hyg_side(d) + _perio(d)
         + "</main>"
     )
-    return top + bands_three(d) + body
+    return top + bands_three(d) + body + fullscreen_templates(d)
 
 
 # ---------- 受付 ----------

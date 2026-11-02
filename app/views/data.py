@@ -8,9 +8,15 @@ WEEK = "月火水木金土日"
 ROLE_NAME = {"doctor": "歯科医師", "hygienist": "歯科衛生士"}
 
 
+_ready = set()
+
+
 def con():
-    if not db_path().exists():  # 未設定でも起動できるよう、無ければ初期の状態で作る
+    # 未設定でも起動できるよう、無ければ初期の状態で作る。古ければ足りない分を足す (あるデータは消さない)。
+    key = str(db_path())
+    if key not in _ready or not db_path().exists():
         update()
+        _ready.add(key)
     return connect()
 
 
@@ -70,6 +76,7 @@ def common(c, pid):
         "patient": patient_head(c, pid),
         "important": [r["body"] for r in c.execute(
             "SELECT body FROM important_notes WHERE patient_id = ? ORDER BY seq, id", (pid,))],
+        "important_full": _all(c, "SELECT body, period, detail FROM important_notes WHERE patient_id = ? ORDER BY seq, id", pid),
         "medical": _all(c, "SELECT condition, medication FROM medical_histories WHERE patient_id = ? ORDER BY seq, id", pid),
         "handover": [r["body"] for r in c.execute("SELECT body FROM handovers WHERE patient_id = ? ORDER BY id", (pid,))],
         "memo": [r["body"] for r in c.execute("SELECT body FROM reception_memos WHERE patient_id = ? ORDER BY id", (pid,))],
@@ -97,9 +104,11 @@ def unit_data(appt, role):
             "SELECT number FROM photos WHERE patient_id = ? ORDER BY number", (pid,))]
         d["mucosal"] = _all(c, "SELECT site, name FROM mucosal_conditions WHERE patient_id = ? ORDER BY id", pid)
         d["dentures"] = _all(c, "SELECT site, kind, made_by, made_on FROM dentures WHERE patient_id = ? ORDER BY id", pid)
-        d["summary"] = [r["body"] for r in c.execute(
-            "SELECT d.body FROM drafts d JOIN visits v ON v.id = d.visit_id "
-            "WHERE d.patient_id = ? AND v.visit_date = ? ORDER BY d.id", (pid, TODAY)) if r["body"]]
+        d["drafts"] = _all(c, "SELECT d.body, d.transcript FROM drafts d JOIN visits v ON v.id = d.visit_id "
+                              "WHERE d.patient_id = ? AND v.visit_date = ? AND v.role = ? ORDER BY d.id", pid, TODAY, role)
+        d["summary"] = [x for dr in d["drafts"] for x in dr["body"].split("\n") if x]
+        d["transcript"] = "\n".join(dr["transcript"] for dr in d["drafts"] if dr["transcript"])
+        d["photo_rows"] = _all(c, "SELECT number, taken_on FROM photos WHERE patient_id = ? ORDER BY number", pid)
         d["interval"] = c.execute("SELECT months, last_date FROM maintenance_intervals WHERE patient_id = ?", (pid,)).fetchone()
         d["care"] = _all(c, "SELECT item, last_date FROM care_purchases WHERE patient_id = ? ORDER BY last_date DESC, id", pid)
         d["perio"] = _perio(c, pid)

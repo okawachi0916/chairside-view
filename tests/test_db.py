@@ -56,7 +56,8 @@ def test_seed_twice_same(tmp_path):
     for pid in range(1, 6):
         nums = [n for p, n, _ in p1 if p == pid]
         assert nums == list(range(1, len(nums) + 1))
-    assert con.execute("SELECT COUNT(*) FROM drafts").fetchone()[0] == 0
+    # 下書きは花子の今日の2件だけ。確定前なので記録ではない
+    assert [tuple(r) for r in con.execute("SELECT patient_id, status FROM drafts")] == [(1, "draft")] * 2
     con.close()
 
 
@@ -116,13 +117,13 @@ def test_hanako_matches_mock(seeded):
     for w in ("インプラント", "抜歯"):
         assert w not in text
     # 過去1年の来院13回、キャンセル1回 (予約14回)
-    assert len(q("SELECT 1 FROM visits WHERE patient_id=1 AND visit_date>='2025-11-06'")) == 13
+    assert len(q("SELECT 1 FROM visits WHERE patient_id=1 AND visit_date>='2025-11-06' AND visit_date<'2026-11-06'")) == 13
     assert len(q("SELECT 1 FROM cancellations WHERE patient_id=1")) == 1
     assert len(q("SELECT 1 FROM appointments WHERE patient_id=1 AND status IN ('done','cancelled')")) == 14
     # 曜日と時間帯の数が受付の表と合う
     import datetime as dt
     grid = {}
-    for r in q("SELECT visit_date, start_time FROM visits WHERE patient_id=1"):
+    for r in q("SELECT visit_date, start_time FROM visits WHERE patient_id=1 AND visit_date<'2026-11-06'"):
         wd = dt.date.fromisoformat(r[0]).weekday()
         band = 0 if r[1] < "12:00" else (1 if r[1] < "17:00" else 2)
         grid[(band, wd)] = grid.get((band, wd), 0) + 1
