@@ -1,4 +1,5 @@
 from app.mockview.parts import FULL, band, card, important, page, topbar
+from app.mockview.reception_parts import heat_card, next_card, reserve_card
 
 RECENT = [
     ("2026年10月23日", "RCT"),
@@ -27,29 +28,14 @@ RX = [
 
 
 def _reserve():
-    recent = "".join(f"<tr><td>{d}</td><td>{p}</td></tr>" for d, p in RECENT)
-    inner = (
-        '<div class="kv"><div>今回 <b>2026年11月6日 金曜日</b></div>'
-        "<div>時間 <b>14:30〜16:00（1時間30分）</b></div></div>"
-        '<div class="fill"><div class="lbl">最近の来院</div>'
-        f'<table class="t"><tbody>{recent}</tbody></table></div>'
+    return reserve_card(
+        "2026年11月6日 金曜日", "14:30〜16:00（1時間30分）", [(d, p) for d, p in RECENT]
     )
-    return card("", "予約日時", inner, 4)
 
 
 def _heat():
-    head = "".join(f'<th class="n">{d}</th>' for d in "月火水木金土")
-    rows = "".join(
-        f'<tr><th>{t}</th>'
-        + "".join(f'<td class="n{" hot" if v >= 5 else ""}">{v}</td>' for v in vs)
-        + "</tr>"
-        for t, vs in HEAT
-    )
-    inner = (
-        '<div class="big-num">金曜の午後</div>'
-        f'<table class="t heat"><thead><tr><th></th>{head}</tr></thead><tbody>{rows}</tbody></table>'
-    )
-    return card("", "来院しやすい曜日・時間帯", inner, 5, extra="過去1年の来院13回")
+    grid = [vs for _, vs in HEAT]
+    return heat_card(grid, [t for t, _ in HEAT], "金曜の午後", 13)
 
 
 def _cancel():
@@ -63,16 +49,12 @@ def _cancel():
 
 
 def _next():
-    inner = (
-        '<div><div class="lbl">今日</div>'
-        '<div class="kv">右下第一大臼歯 RCT、SPT＋TBI</div></div>'
-        '<div data-part="next-appointment"><div class="lbl">次回</div>'
-        '<div class="next-big">支台築造＋形成印象'
-        "<small>歯科医師 大川内 60分枠 2週間後ごろ</small></div></div>"
-        '<div data-part="booked-appointment"><div class="lbl">予約済み</div>'
-        '<div class="kv">2027年2月5日 歯科衛生士 田中 3か月SPT</div></div>'
+    return next_card(
+        "右下第一大臼歯 RCT、SPT＋TBI",
+        "支台築造＋形成印象",
+        ["歯科医師 大川内", "60分枠", "2週間後ごろ"],
+        [("2027年2月5日", "歯科衛生士 田中 3か月SPT")],
     )
-    return card("", "処置と次回の予約", inner, 4)
 
 
 def _purchases():
