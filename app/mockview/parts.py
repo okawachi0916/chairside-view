@@ -19,7 +19,7 @@ def page(role, title, topbar, bands, body):
         f"<title>{title}</title>"
         "<link rel='stylesheet' href='/static/css/mock.css'>"
         f"</head><body class='role-{role}'>{topbar}{bands}{body}"
-        "</body></html>"
+        "<script src='/static/js/mock_nav.js'></script></body></html>"
     )
 
 

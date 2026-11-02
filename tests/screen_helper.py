@@ -18,15 +18,30 @@ def _up(port):
         return s.connect_ex(("127.0.0.1", port)) == 0
 
 
-@pytest.fixture(scope="module")
+def _serves_mock(port):
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/mock/doctor", timeout=2) as r:
+            return r.status == 200
+    except Exception:
+        return False
+
+
+@pytest.fixture(scope="session")
 def server():
-    if _up(PORT):
+    # 前の試験のサーバーが止まりきるのを待ってから、自分で起動する
+    if _up(PORT) and _serves_mock(PORT):
         yield PORT
         return
+    for _ in range(50):
+        if not _up(PORT):
+            break
+        time.sleep(0.2)
     p = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "app.main:app", "--port", str(PORT)], cwd=ROOT
     )
-    for _ in range(50):
+    for _ in range(100):
         if _up(PORT):
             break
         time.sleep(0.2)
