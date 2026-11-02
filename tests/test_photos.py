@@ -99,7 +99,8 @@ def test_enlarge_words(server, browser):  # noqa: F811
 
 def test_back_to_list_and_pages(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
-    say(pg, "3番を拡大して")
+    pg.set_viewport_size({"width": 1200, "height": 470})  # 一覧が1画面に入らない大きさ
+    say(pg, "12番を拡大して")  # 一覧の先頭（新しい順）。開いたとき一覧は一番上にある
     pg.wait_for_selector('[data-fs-panel="intraoral-photos"]')
     lst = pg.locator(".fs-list")
     assert lst.evaluate("e => e.scrollHeight > e.clientHeight + 1")

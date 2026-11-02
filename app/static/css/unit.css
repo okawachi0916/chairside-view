@@ -22,17 +22,27 @@
   background: var(--c-surface); color: var(--role); cursor: pointer;
 }
 
-/* 全画面。上の行と重要事項の帯は残し、その下を1つの部品が使う */
-body.fs-mode .bands.three > .band:not([data-part="important"]) { display: none; }
-body.fs-mode .bands.three { grid-template-columns: 1fr; }
-body.fs-mode main.body { display: none; }
+/* 全画面。上の行だけ残し、その下を1つの部品が使う。題の札はふつうの欄と同じく枠線にまたがる */
+body.fs-mode .bands, body.fs-mode main.body { display: none; }
+/* AI の答え（actions/ai.js）だけは重要事項の帯を残す */
+body.fs-mode:has(.fs-panel[data-fs-panel="answer"]) .bands { display: grid; grid-template-columns: 1fr; }
+body.fs-mode:has(.fs-panel[data-fs-panel="answer"]) .bands > .band:not([data-part="important"]) { display: none; }
 .fs-panel {
-  flex: 1; min-height: 0; margin: 0 var(--sp-4);
+  position: relative;
+  flex: 1; min-height: 0; margin: var(--sp-6) var(--sp-4) var(--sp-4);
   background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-l);
-  padding: var(--sp-3) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2);
+  padding: var(--sp-8) var(--sp-4) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3);
 }
-.fs-head { flex: none; display: flex; align-items: center; gap: var(--sp-2); }
-.fs-head h2 { margin: 0; font-size: var(--fs-4); line-height: var(--lh-tight); }
+/* 題の札（左）とボタン（右）は、どちらも上の枠線に載せて中の広さを減らさない */
+.fs-head { position: absolute; top: -20px; left: var(--sp-4); right: var(--sp-4); height: 40px; display: flex; align-items: center; gap: var(--sp-2); }
+.fs-head h2 {
+  margin: 0;
+  background: var(--c-sub); color: var(--c-surface);
+  font-size: var(--fs-3); line-height: var(--lh-tight);
+  padding: var(--sp-1) var(--sp-4); border-radius: var(--r-s); white-space: nowrap;
+}
+.fs-panel[data-fs-panel="important"] { border-color: var(--c-alert); }
+.fs-panel[data-fs-panel="important"] .fs-head h2 { background: var(--c-alert); }
 .fs-spacer { flex: 1; }
 .fs-head button {
   font-size: var(--fs-2); font-weight: var(--fw-medium);
@@ -43,9 +53,15 @@ body.fs-mode main.body { display: none; }
 .fs-head button[hidden] { display: none; }
 .fs-head button:disabled { opacity: .4; cursor: default; }
 .fs-scroll { flex: 1; min-height: 0; overflow-y: auto; }
-.fs-important .fs-row { font-size: var(--fs-5); line-height: var(--lh-table); padding: var(--sp-3) 0; border-bottom: 1px solid var(--c-line); }
-.fs-important .fs-row b { color: var(--c-alert); }
-.fs-important .fs-row span { font-size: var(--fs-4); margin-left: var(--sp-5); }
+/* 重要事項: 1件ずつ、題（赤の太字）と中身（墨の普通の字）を上下に分ける */
+.fs-important { display: flex; flex-direction: column; gap: var(--sp-3); }
+.fs-important .fs-row {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-5); background: var(--c-alert-soft);
+  border-left: 6px solid var(--c-alert); border-radius: var(--r-s);
+}
+.fs-important .fs-row b { font-size: var(--fs-5); font-weight: var(--fw-bold); line-height: var(--lh-tight); color: var(--c-alert); }
+.fs-important .fs-row span { font-size: var(--fs-4); font-weight: var(--fw-regular); line-height: var(--lh-text); color: var(--c-ink); }
 .fs-photos { flex: 1; min-height: 0; display: flex; gap: var(--sp-4); }
 .fs-big { flex: 1; min-width: 0; background: var(--c-canvas); border-radius: var(--r-s); display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--c-sub); }
 .fs-big-box { font-size: var(--fs-7); font-weight: var(--fw-bold); }
@@ -58,9 +74,13 @@ body.fs-mode main.body { display: none; }
 }
 .fs-item .ph { width: 72px; height: 54px; background: var(--c-line); border-radius: var(--r-s); display: flex; align-items: center; justify-content: center; font-weight: var(--fw-bold); color: var(--c-sub); }
 .fs-item.sel { border-color: var(--role); background: var(--c-surface); }
-.fs-cols { flex: 1; min-height: 0; display: flex; gap: var(--sp-4); }
-.fs-col { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: var(--sp-2); border: 1px solid var(--c-line); border-radius: var(--r-l); padding: var(--sp-3) var(--sp-4); }
-.fs-col h3 { margin: 0; font-size: var(--fs-2); line-height: var(--lh-tight); color: var(--c-sub); }
+.fs-cols { flex: 1; min-height: 0; display: flex; gap: var(--sp-4); padding-top: var(--sp-3); }
+.fs-col { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: var(--sp-2); border: 1px solid var(--c-line); border-radius: var(--r-l); padding: var(--sp-6) var(--sp-4) var(--sp-3); }
+.fs-col h3 {
+  position: absolute; top: -14px; left: var(--sp-3); margin: 0;
+  background: var(--c-surface); color: var(--c-sub); border: 1px solid var(--c-line-strong);
+  font-size: var(--fs-2); line-height: var(--lh-tight); padding: var(--sp-1) var(--sp-3); border-radius: var(--r-s);
+}
 .fs-col ul { margin: 0; padding-left: var(--sp-6); }
 .fs-col li { font-size: var(--fs-5); line-height: var(--lh-text); }
 .fs-col p { margin: 0; font-size: var(--fs-4); line-height: var(--lh-text); white-space: pre-wrap; }

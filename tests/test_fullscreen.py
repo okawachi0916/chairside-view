@@ -36,9 +36,13 @@ def test_important_fullscreen_open_and_close(server, browser):  # noqa: F811
     assert PEN not in pg.inner_text("body")  # 開くまで出ない
     open_fs(pg, "important")
     text = pg.inner_text("body")
-    assert PEN in text and "ビスホスホネート製剤服用中 2021年" in text
-    # 上の行と重要事項の帯は残り、ほかの帯と本体は隠れる
-    assert pg.locator(".topbar").is_visible() and pg.locator('[data-part="important"]').is_visible()
+    # 題と中身は2行に分けて出す
+    assert "ペニシリン系抗菌薬アレルギー\n2019年 全身の発疹。アモキシシリン服用後" in text
+    assert "ビスホスホネート製剤服用中\n2021年" in text
+    # 上の行だけ残り、帯（重要事項の帯も）と本体は隠れる。全画面のボタンは見えない
+    assert pg.locator(".topbar").is_visible() and not pg.locator('.band[data-part="important"]').is_visible()
+    assert pg.locator('[data-action="fullscreen"]:visible').count() == 0
+    assert pg.locator('[data-fs-panel="important"] .fs-row').count() == 2  # 重要事項は1か所だけ
     assert not pg.locator('[data-part="medical-history"]').is_visible()
     assert not pg.locator('[data-part="today-treatment"]').is_visible()
     assert pg.locator("text=もとに戻す").is_visible()
@@ -61,6 +65,12 @@ def test_photos_fullscreen_select(server, browser):  # noqa: F811
     # 左が選んだ写真、右が一覧
     big, lst = panel.locator(".fs-big").bounding_box(), panel.locator(".fs-list").bounding_box()
     assert big["x"] < lst["x"]
+    # 1枚のときは左は1枚分の幅だけ。残りは一覧が使い、一覧は1段に何枚も並ぶ
+    fig = panel.locator(".fs-fig img").bounding_box()
+    assert big["width"] < fig["width"] + 60 and lst["width"] > 1920 / 2
+    tops = panel.locator(".fs-item").evaluate_all("els => els.map(e => e.getBoundingClientRect().top)")
+    assert tops.count(tops[0]) >= 5
+    assert not pg.locator('.band[data-part="important"]').is_visible()  # 写真の全画面に重要事項の帯は出さない
     panel.locator('.fs-item[data-n="3"]').click()
     assert "写真 3" in panel.locator(".fs-big").inner_text()
     assert "2025年11月25日" in panel.locator(".fs-big").inner_text()
@@ -97,6 +107,7 @@ def test_other_fullscreen_buttons_do_nothing(server, browser):  # noqa: F811
 
 def test_paging_buttons_and_wheel(server, browser):  # noqa: F811
     pg = open_unit(browser, server, H_DOC, "doctor", height=470)  # 低い画面では一覧が1画面に入らない
+    pg.set_viewport_size({"width": 1200, "height": 470})  # 一覧は残りの幅を全部使うので、幅も狭くする
     spy(pg)
     open_fs(pg, "intraoral-photos")
     nxt, prv = pg.locator('[data-action="fs-next"]'), pg.locator('[data-action="fs-prev"]')
