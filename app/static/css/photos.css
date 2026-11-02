@@ -1,22 +1,24 @@
-/* 口腔内写真。一覧の写真の大きさ（--tw × --th）は、ふつうの画面と全画面の右の一覧で同じにする。 */
-:root { --tw: 176px; --th: 132px; }
-
+/* 口腔内写真。一覧の写真の大きさ（--tw × --th、mock.css の :root）は、ふつうの画面と全画面の右の一覧で同じにする。 */
 .photos.pgroups { display: block; overflow-y: auto; }
-.pgroups .pg { margin-bottom: 8px; }
-.pgroups .pg-date { font-size: 14px; font-weight: 700; color: #4a5560; margin: 2px 0 4px; }
-.pgroups .pg-tiles { display: flex; flex-wrap: wrap; gap: 8px; }
-.ph { position: relative; width: var(--tw); height: var(--th); border-radius: 4px; overflow: hidden; background: var(--gray, #e8eaee); flex: none; }
+.pgroups .pg { margin-bottom: var(--sp-2); }
+.pgroups .pg-date { font-size: var(--fs-1); font-weight: var(--fw-medium); color: var(--c-sub); margin: var(--sp-1) 0; }
+.pgroups .pg-tiles { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.ph { position: relative; width: var(--tw); height: var(--th); border-radius: var(--r-s); overflow: hidden; background: var(--c-line); flex: none; }
 .ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.ph .no { position: absolute; left: 4px; top: 4px; min-width: 28px; padding: 0 6px; border-radius: 12px; background: rgba(0,0,0,.65);
-          color: #fff; font-size: 17px; font-weight: 700; line-height: 26px; text-align: center; }
+.ph .no {
+  position: absolute; left: var(--sp-1); top: var(--sp-1);
+  min-width: 28px; padding: 0 var(--sp-2); border-radius: var(--r-l);
+  background: var(--c-ink); color: var(--c-surface);
+  font-size: var(--fs-2); font-weight: var(--fw-bold); line-height: var(--lh-tight); text-align: center;
+}
 
 /* 全画面: 左に選んだ写真（一覧の2.5倍）、右に一覧と同じ大きさの写真 */
-.fs-photos .fs-big { flex: 1; min-width: 0; align-items: flex-start; justify-content: flex-start; background: #f6f7f9; padding: 12px; overflow: auto; }
-.fs-big-box { display: flex; flex-wrap: wrap; gap: 14px; font-size: 16px; font-weight: 400; }
-.fs-fig { margin: 0; display: flex; flex-direction: column; gap: 4px; }
-.fs-fig img { width: calc(var(--tw) * 2.5); height: calc(var(--th) * 2.5); object-fit: cover; border-radius: 4px; display: block; }
-.fs-fig figcaption { font-size: 18px; color: #333; }
-.fs-photos .fs-list { flex: 0 0 calc(var(--tw) * 2 + 40px); display: flex; flex-direction: row; flex-wrap: wrap; align-content: flex-start; gap: 8px; }
-.fs-item { flex-direction: column; align-items: flex-start; gap: 2px; padding: 4px; }
+.fs-photos .fs-big { flex: 1; min-width: 0; align-items: flex-start; justify-content: flex-start; background: var(--c-canvas); padding: var(--sp-3); overflow: auto; }
+.fs-big-box { display: flex; flex-wrap: wrap; gap: var(--sp-4); font-size: var(--fs-2); font-weight: var(--fw-regular); }
+.fs-fig { margin: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.fs-fig img { width: calc(var(--tw) * 2.5); height: calc(var(--th) * 2.5); object-fit: cover; border-radius: var(--r-s); display: block; }
+.fs-fig figcaption { font-size: var(--fs-3); color: var(--c-ink); }
+.fs-photos .fs-list { flex: 0 0 calc(var(--tw) * 2 + 40px); display: flex; flex-direction: row; flex-wrap: wrap; align-content: flex-start; gap: var(--sp-2); }
+.fs-item { flex-direction: column; align-items: flex-start; gap: var(--sp-1); padding: var(--sp-1); }
 .fs-item .ph { width: var(--tw); height: var(--th); }
-.fs-item .dt { font-size: 13px; color: #4a5560; }
+.fs-item .dt { font-size: var(--fs-1); color: var(--c-sub); }

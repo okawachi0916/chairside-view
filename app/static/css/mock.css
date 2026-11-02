@@ -1,90 +1,153 @@
-/* 見本画面の共通の見た目。基準は 1920×1030。 */
+/* 画面の共通の見た目。基準は 1920×1030。
+   色、文字、行間、字間、角丸、余白は :root の変数に集め、下の本文では変数だけを使う。 */
+
+@font-face { font-family: "Noto Sans JP"; font-weight: 400; font-display: swap; src: url("/static/fonts/NotoSansJP-400.woff2") format("woff2"); }
+@font-face { font-family: "Noto Sans JP"; font-weight: 500; font-display: swap; src: url("/static/fonts/NotoSansJP-500.woff2") format("woff2"); }
+@font-face { font-family: "Noto Sans JP"; font-weight: 700; font-display: swap; src: url("/static/fonts/NotoSansJP-700.woff2") format("woff2"); }
+
 :root {
-  --navy: #2b4f8c;
-  --green: #2a8f5c;
-  --purple: #7c4bb0;
-  --red: #c62828;
-  --red-bg: #fdecea;
-  --line: #cfd6df;
-  --bg: #eef1f5;
-  --ink: #1d232b;
-  --gray: #d5d9df;
-  --role: var(--navy);
+  /* 色は13。少し青みのあるグレー6段階、役割3、注意の赤2、警告の琥珀2 */
+  --c-surface: #ffffff;
+  --c-canvas: #f3f5f8;
+  --c-line: #e1e6ec;
+  --c-line-strong: #c3cbd5;
+  --c-sub: #586474;
+  --c-ink: #1b222b;
+  --c-doctor: #2d4f86;
+  --c-hygienist: #26694a;
+  --c-reception: #634699;
+  --c-alert: #c62828;
+  --c-alert-soft: #fdeceb;
+  --c-warn: #8f420c;
+  --c-warn-soft: #fbe8cc;
+
+  /* 文字。大きさ7段階、太さ3つ、行間3段階 */
+  --font: "Noto Sans JP", sans-serif;
+  --fs-1: 14px;
+  --fs-2: 16px;
+  --fs-3: 18px;
+  --fs-4: 22px;
+  --fs-5: 28px;
+  --fs-6: 36px;
+  --fs-7: 56px;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-bold: 700;
+  --lh-tight: 1.25;
+  --lh-table: 1.4;
+  --lh-text: 1.7;
+  --ls-head: 0.02em;
+  --ls-text: 0.03em;
+  --ls-num: 0.04em;
+
+  /* 角丸2つ、余白は4の倍数 */
+  --r-s: 8px;
+  --r-l: 12px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+
+  /* 口腔内写真の一覧の1枚の大きさ */
+  --tw: 176px;
+  --th: 132px;
+
+  --role: var(--c-doctor);
 }
-body.role-hygienist { --role: var(--green); }
-body.role-reception { --role: var(--purple); }
+body.role-hygienist { --role: var(--c-hygienist); }
+body.role-reception { --role: var(--c-reception); }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; }
 body {
-  font: 16px/1.4 "Yu Gothic UI", "Meiryo", sans-serif;
-  color: var(--ink);
-  background: var(--bg);
+  font-family: var(--font);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-table);
+  letter-spacing: var(--ls-text);
+  font-variant-numeric: tabular-nums;
+  color: var(--c-ink);
+  background: var(--c-canvas);
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding-bottom: 18px;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-4);
+}
+b, strong, th, h2, h3 { font-weight: var(--fw-bold); }
+small { font-size: var(--fs-1); }
+button { font-family: inherit; }
+
+/* 見出しとラベルは詰め組み */
+h2, h3, th, button, .role-tag, .lbl, .lbl2, .tag, .chip, .meta, .hc-day, .hc-time, .perio-stats small,
+.today .main, .next-main, .big-num {
+  font-feature-settings: "palt";
+  letter-spacing: var(--ls-head);
 }
 
 /* 上の行 */
 .topbar {
   flex: none;
-  height: 58px;
+  height: 56px;
   background: var(--role);
-  color: #fff;
+  color: var(--c-surface);
   display: flex;
   align-items: center;
-  gap: 44px;
-  padding: 0 14px;
+  gap: var(--sp-4);
+  padding: 0 var(--sp-4);
   white-space: nowrap;
+  font-feature-settings: "palt";
+  letter-spacing: var(--ls-head);
 }
 .role-tag {
-  background: #fff;
+  background: var(--c-surface);
   color: var(--role);
-  font-weight: 800;
-  font-size: 24px;
-  line-height: 1.2;
-  padding: 8px 14px;
-  border-radius: 6px;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-4);
+  line-height: var(--lh-tight);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-s);
 }
-.topbar .patient { font-size: 20px; font-weight: 700; }
-.topbar .patient .pname { font-size: 36px; font-weight: 800; margin-right: 6px; }
-.topbar .patient .pinfo { margin-left: 18px; }
-.topbar .patient .pinfo:first-of-type { margin-left: 8px; }
-.topbar .date { font-size: 20px; }
-.topbar .appt { font-size: 20px; font-weight: 700; }
-.topbar .appt small { font-size: 15px; font-weight: 400; margin-left: 10px; opacity: .9; }
-.topbar .appt .appt2 { font-size: 17px; margin-left: 10px; }
+.topbar .patient { font-size: var(--fs-4); font-weight: var(--fw-medium); }
+.topbar .patient .pname { font-size: var(--fs-6); font-weight: var(--fw-bold); line-height: var(--lh-tight); margin-right: var(--sp-1); }
+.topbar .patient .pinfo { margin-left: var(--sp-3); }
+.topbar .patient .pinfo:first-of-type { margin-left: var(--sp-2); }
+.topbar .date { font-size: var(--fs-4); }
+.topbar .appt { font-size: var(--fs-4); font-weight: var(--fw-bold); }
+.topbar .appt small { font-size: var(--fs-1); font-weight: var(--fw-regular); margin-left: var(--sp-2); }
 .topbar .spacer { flex: 1; }
 .topbar button {
-  font: inherit;
-  font-size: 17px;
-  color: #fff;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-medium);
+  color: var(--c-surface);
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, .8);
-  border-radius: 6px;
-  padding: 6px 14px;
+  border: 1px solid var(--c-surface);
+  border-radius: var(--r-s);
+  padding: var(--sp-1) var(--sp-4);
   cursor: pointer;
 }
-.topbar .mic { width: 30px; height: 30px; fill: #fff; }
+.topbar .mic { width: 28px; height: 28px; fill: var(--c-surface); }
 
-/* 帯。題は枠線にかぶせた見出しにする */
+/* 帯。題は枠線にかぶせた札 */
 .bands {
   flex: none;
-  height: 156px;
-  margin-top: 6px;
+  height: 104px;
+  margin-top: var(--sp-2);
   display: grid;
-  gap: 14px;
-  padding: 0 14px;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-4);
 }
 .bands.three { grid-template-columns: 1fr 1.4fr 1fr; }
 .bands.two { grid-template-columns: 1fr 1fr; }
 .band {
   position: relative;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 18px 14px 8px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-l);
+  padding: var(--sp-4) var(--sp-4) var(--sp-1);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -93,24 +156,38 @@ body {
 .band h2 {
   position: absolute;
   top: -13px;
-  left: 14px;
+  left: var(--sp-4);
   margin: 0;
-  background: #5a6572;
-  color: #fff;
-  font-size: 18px;
-  line-height: 1.3;
-  font-weight: 700;
-  padding: 1px 12px;
-  border-radius: 4px;
+  background: var(--c-sub);
+  color: var(--c-surface);
+  font-size: var(--fs-1);
+  line-height: var(--lh-tight);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-s);
 }
-.band .lines { font-size: 26px; line-height: 1.3; font-weight: 700; }
-.band.alert { background: #db0e0e; border-color: #db0e0e; }
-.band.alert h2 { background: #fff; color: #db0e0e; border: 2px solid #db0e0e; top: -15px; font-size: 20px; font-weight: 800; }
-.band.alert .lines { color: #fff; font-size: 34px; line-height: 1.3; font-weight: 800; }
-.band .big { font-size: 28px; line-height: 1.3; font-weight: 700; }
-.band .meds { list-style: disc; margin: 0; padding-left: 26px; font-size: 24px; line-height: 1.3; font-weight: 700; overflow-y: auto; flex: 1; min-height: 0; }
-.band .meds li { padding: 0; }
-.band .mini { position: absolute; top: 6px; right: 8px; }
+.band .lines { font-size: var(--fs-4); line-height: var(--lh-tight); font-weight: var(--fw-bold); }
+.band .big { font-size: var(--fs-4); line-height: var(--lh-tight); font-weight: var(--fw-medium); }
+.band .meds {
+  list-style: disc;
+  margin: 0;
+  padding-left: var(--sp-5);
+  font-size: var(--fs-2);
+  line-height: var(--lh-tight);
+  font-weight: var(--fw-medium);
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.band .mini { position: absolute; top: var(--sp-1); right: var(--sp-2); }
+
+/* 重要事項は注意の部品。赤地に白、題の札だけ2pxの縁 */
+.band.alert { background: var(--c-alert); border-color: var(--c-alert); }
+.band.alert h2 { background: var(--c-surface); color: var(--c-alert); border: 2px solid var(--c-alert); top: -14px; }
+.band.alert .lines { color: var(--c-surface); }
+
+/* 全身既往・服薬は琥珀の淡い面に同系色の文字 */
+.band[data-part="medical-history"] { background: var(--c-warn-soft); border-color: var(--c-warn-soft); color: var(--c-warn); }
+.band[data-part="medical-history"] h2 { background: var(--c-warn); }
 
 /* 本体 */
 .body {
@@ -118,242 +195,234 @@ body {
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  gap: 14px;
-  padding: 0 14px;
+  column-gap: var(--sp-3);
+  row-gap: var(--sp-6);
+  padding: 0 var(--sp-4);
+  margin-top: var(--sp-2);
 }
-.body.doctor { grid-template-rows: 1fr 0.95fr; }
+.body.doctor { grid-template-rows: 1.1fr 0.9fr; }
 .body.hygienist { grid-template-rows: 0.85fr 1fr; }
 .body.reception { grid-template-rows: 0.9fr 1fr; }
 
+/* 欄。題の札は枠線にまたがる（札の高さの半分 = 14px が枠の上に出る） */
 .card {
+  --pt: 28px;
   position: relative;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 10px 12px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-l);
+  padding: var(--pt) var(--sp-3) var(--sp-3);
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--sp-2);
 }
-.card > h2, .card > .head > h2 { margin: 0; font-size: 22px; line-height: 1.4; }
-.card .head { display: flex; align-items: center; gap: 12px; flex: none; padding-right: 0; }
-.card .head .actions { margin-left: auto; display: flex; gap: 6px; }
-.card .head .meta { font-size: 16px; color: #3a4552; }
-.mini {
-  font: inherit;
-  font-size: 14px;
-  padding: 2px 8px;
-  border: 1px solid #8a94a0;
-  border-radius: 4px;
-  background: #f6f7f9;
-  cursor: pointer;
+.card.has-tools { --pt: 32px; }
+.card .head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: none;
+  margin-top: calc(-1 * var(--pt) - 14px);
+  margin-bottom: calc(var(--pt) - 14px);
 }
-.band .mini { position: absolute; top: 6px; right: 8px; }
+.card .head h2 {
+  margin: 0;
+  background: var(--c-sub);
+  color: var(--c-surface);
+  font-size: var(--fs-2);
+  line-height: var(--lh-tight);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-s);
+  white-space: nowrap;
+}
+.card .tools { position: absolute; top: var(--sp-1); right: var(--sp-3); display: flex; align-items: center; gap: var(--sp-2); }
+.card .tools .meta { font-size: var(--fs-1); color: var(--c-sub); margin-right: var(--sp-1); }
 .card .fill { flex: 1; min-height: 0; }
 .scroll { overflow-y: auto; }
+.stack { display: grid; grid-template-rows: auto 1fr; gap: var(--sp-6); min-height: 0; }
+.stack .card { grid-column: auto; }
+
+/* 小さなボタン。全画面は白、スマホは黒地に白 */
+.mini {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-table);
+  color: var(--c-ink);
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-s);
+  background: var(--c-surface);
+  cursor: pointer;
+}
+.mini.full { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.mini.phone { background: var(--c-ink); color: var(--c-surface); border-color: var(--c-ink); }
 
 /* 表 */
 table.t { width: 100%; border-collapse: collapse; }
-table.t th, table.t td { border-bottom: 1px solid #e3e7ec; padding: 3px 6px; text-align: left; font-weight: 400; }
-table.t th { color: #5a6572; font-size: 14px; font-weight: 600; }
+table.t th, table.t td { border-bottom: 1px solid var(--c-line); padding: var(--sp-1) var(--sp-2); text-align: left; font-weight: var(--fw-regular); line-height: var(--lh-table); }
+table.t th { color: var(--c-sub); font-size: var(--fs-1); font-weight: var(--fw-medium); }
 table.t td.n, table.t th.n { text-align: center; }
 
 /* 今日の処置 */
-.today .main { font-size: 36px; font-weight: 800; line-height: 1.4; }
-.today .sub { font-size: 18px; color: #3a4552; margin-top: -4px; }
-.plan { border: 2px solid var(--role); border-radius: 6px; padding: 6px 10px; flex: none; }
-.plan h3 { margin: 0 0 2px; font-size: 18px; color: var(--role); }
-.plan div { font-size: 17px; }
-.notes-h { margin: 0; font-size: 18px; flex: none; }
+.today .main { font-size: var(--fs-6); font-weight: var(--fw-bold); line-height: var(--lh-tight); }
+.today .sub { font-size: var(--fs-3); color: var(--c-sub); }
+.plan { background: var(--c-canvas); border-radius: var(--r-s); padding: var(--sp-2) var(--sp-3); flex: none; }
+.plan h3 { margin: 0 0 var(--sp-1); font-size: var(--fs-2); line-height: var(--lh-tight); color: var(--role); }
+.plan div { font-size: var(--fs-3); line-height: var(--lh-table); }
+.notes-h { margin: 0; font-size: var(--fs-2); line-height: var(--lh-tight); color: var(--c-sub); flex: none; }
 .notes { flex: 1; min-height: 0; overflow-y: auto; }
-.notes .n { padding: 3px 0; border-bottom: 1px solid #eef0f3; }
-.notes .n.hyg { font-size: 14px; color: #8a929c; padding-left: 22px; }
+.notes .n { padding: var(--sp-1) 0; border-bottom: 1px solid var(--c-line); }
+.notes .n.hyg { font-size: var(--fs-1); color: var(--c-sub); padding-left: var(--sp-6); }
 
-/* 写真の四角 */
-.photos { flex: 1; min-height: 0; display: grid; gap: 8px; }
+/* 写真の四角（見本） */
+.photos { flex: 1; min-height: 0; display: grid; gap: var(--sp-2); }
 .photos.c4 { grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(3, 1fr); }
 .photos.c6 { grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(2, 1fr); }
 .photos .ph {
-  background: var(--gray);
-  border-radius: 4px;
+  background: var(--c-line);
+  border-radius: var(--r-s);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #5a6572;
-  font-size: 22px;
-  font-weight: 700;
+  color: var(--c-sub);
+  font-size: var(--fs-4);
+  font-weight: var(--fw-medium);
   min-height: 0;
 }
 
 /* 歯の状態 */
-.teeth { flex: 1; min-height: 0; display: flex; gap: 14px; }
-.teeth .frame { flex: 0 0 62%; background: var(--gray); border-radius: 4px; }
-.teeth .side { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.teeth .side b { font-size: 16px; color: #5a6572; margin-right: 8px; }
-.teeth .side span { font-size: 18px; }
+.teeth { flex: 1; min-height: 0; display: flex; gap: var(--sp-4); }
+.teeth .frame { flex: 0 0 62%; background: var(--c-canvas); border-radius: var(--r-s); }
+.teeth .side { flex: 1; display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.teeth .side b { font-size: var(--fs-1); font-weight: var(--fw-medium); color: var(--c-sub); margin-right: var(--sp-2); }
+.teeth .side span { font-size: var(--fs-3); }
 
-/* 話した内容 */
-.summary { flex: 1; min-height: 0; margin: -2px 0 0; padding-left: 20px; font-size: 18px; line-height: 1.6; }
+/* 話した内容と録音の小窓 */
+.summary { flex: 1; min-height: 0; margin: 0; padding-left: var(--sp-5); font-size: var(--fs-3); line-height: var(--lh-text); }
 .rec {
   position: fixed;
-  right: 18px;
-  bottom: 18px;
-  background: #fff;
-  border: 2px solid var(--red);
-  border-radius: 8px;
-  padding: 4px 12px;
-  font-size: 16px;
-  font-weight: 700;
+  right: var(--sp-4);
+  bottom: var(--sp-4);
+  background: var(--c-alert-soft);
+  color: var(--c-alert);
+  border: 2px solid var(--c-alert);
+  border-radius: var(--r-s);
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-bold);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-2);
   z-index: 5;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, .2);
 }
-.rec i { width: 10px; height: 10px; border-radius: 50%; background: var(--red); animation: blink 1s infinite; }
+.rec i { width: 10px; height: 10px; border-radius: 50%; background: var(--c-alert); animation: blink 1s infinite; }
 @keyframes blink { 50% { opacity: .15; } }
 
 /* 受付 */
-.kv { font-size: 18px; }
-.kv b { font-size: 22px; }
-.heat td.hot { background: #f4b183; font-weight: 800; }
-.big-num { font-size: 44px; font-weight: 800; line-height: 1.4; }
-.card-back { flex: 1; background: var(--gray); border-radius: 4px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 20px; font-weight: 700; padding: 10px; }
-.next-big { font-size: 26px; font-weight: 800; line-height: 1.3; }
-.next-big small { display: block; font-size: 17px; font-weight: 400; }
-.lbl { font-size: 14px; color: #5a6572; font-weight: 700; }
+.lbl { font-size: var(--fs-1); color: var(--c-sub); font-weight: var(--fw-medium); }
+.kv { font-size: var(--fs-3); line-height: var(--lh-table); }
+.kv b { font-size: var(--fs-5); line-height: var(--lh-tight); }
+.kv .prev { font-size: var(--fs-3); color: var(--c-sub); margin-left: var(--sp-2); }
+.body.reception .kv { font-size: var(--fs-4); }
+.big-num { font-size: var(--fs-6); font-weight: var(--fw-bold); line-height: var(--lh-tight); }
+.card-back {
+  flex: 1;
+  background: var(--c-canvas);
+  border-radius: var(--r-s);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: var(--fs-4);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-table);
+  padding: var(--sp-3);
+}
+.body.reception table.t td, .body.reception table.t th { padding: var(--sp-2); }
+.body.reception table.t td { font-size: var(--fs-3); }
+
+/* 予約日時 */
+.reserve-card { gap: var(--sp-3); }
+.reserve-card .when { display: flex; align-items: baseline; gap: var(--sp-3); }
+.reserve-card .when b { font-size: var(--fs-5); line-height: var(--lh-tight); }
+.lbl2 { display: inline-block; min-width: 56px; font-size: var(--fs-2); font-weight: var(--fw-medium); color: var(--c-sub); }
+.recent { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-between; }
+.recent .rv { display: flex; align-items: baseline; gap: var(--sp-5); padding: var(--sp-2) 0; border-bottom: 1px solid var(--c-line); font-size: var(--fs-4); line-height: var(--lh-tight); }
+.recent .rv .d { min-width: 192px; }
+.recent .rv .p { font-weight: var(--fw-medium); }
+
+/* 来院しやすい曜日・時間帯。数の多いほど琥珀が濃く、一番多い所は役割の色 */
+.heat-cal { flex: 1; min-height: 0; display: grid; grid-template-columns: 120px repeat(6, 1fr); grid-template-rows: auto repeat(3, 1fr); gap: var(--sp-2); }
+.hc-day { text-align: center; font-size: var(--fs-4); font-weight: var(--fw-medium); color: var(--c-sub); }
+.hc-time { display: flex; align-items: center; gap: var(--sp-2); color: var(--c-sub); }
+.hc-time svg { width: 32px; height: 32px; flex: none; }
+.hc-time b { display: block; font-size: var(--fs-4); font-weight: var(--fw-medium); line-height: var(--lh-tight); color: var(--c-ink); }
+.hc-time small { display: block; font-size: var(--fs-1); color: var(--c-sub); }
+.hc-cell { display: flex; align-items: center; justify-content: center; border-radius: var(--r-s); font-size: var(--fs-6); font-weight: var(--fw-bold); line-height: var(--lh-tight); min-height: 0; }
+.hc-cell.l0 { background: var(--c-canvas); color: var(--c-sub); font-weight: var(--fw-regular); }
+.hc-cell.l1 { background: var(--c-warn-soft); color: var(--c-warn); }
+.hc-cell.l2, .hc-cell.l3, .hc-cell.l4 { background: var(--c-warn); color: var(--c-surface); }
+.hc-cell.top { background: var(--role); color: var(--c-surface); }
+
+/* 処置と次回の予約。次回が主役 */
+.next-card { gap: var(--sp-2); }
+.next-card .blk { border-radius: var(--r-l); padding: var(--sp-2) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-1); min-height: 0; }
+.next-card .tag { align-self: flex-start; background: var(--c-sub); color: var(--c-surface); font-size: var(--fs-1); font-weight: var(--fw-bold); line-height: var(--lh-tight); padding: var(--sp-1) var(--sp-3); border-radius: var(--r-s); }
+.next-card .tag.big { background: var(--role); font-size: var(--fs-5); padding: 0 var(--sp-4); }
+.next-card .today { background: var(--c-canvas); flex-direction: row; align-items: center; gap: var(--sp-3); }
+.next-card .today-txt { font-size: var(--fs-4); font-weight: var(--fw-medium); }
+.next-card .next { flex: 1; border: 1px solid var(--role); justify-content: center; }
+.next-card .next-main { font-size: var(--fs-6); font-weight: var(--fw-bold); line-height: var(--lh-tight); }
+.next-card .chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.next-card .chip { background: var(--role); color: var(--c-surface); font-size: var(--fs-5); font-weight: var(--fw-bold); line-height: var(--lh-tight); padding: 0 var(--sp-3); border-radius: var(--r-s); }
+.next-card .booked { border: 1px solid var(--c-line-strong); }
+.next-card .bk { font-size: var(--fs-4); line-height: var(--lh-table); }
+.next-card .bk b { font-size: var(--fs-5); margin-right: var(--sp-3); }
 
 /* 歯周基本検査 */
-.perio-stats { display: flex; gap: 26px; font-size: 19px; flex-wrap: wrap; }
-.perio-stats b { font-size: 22px; }
+.perio-stats { display: flex; gap: var(--sp-10); justify-content: center; flex: none; }
+.perio-card .perio-stats { margin-top: -28px; padding-right: 328px; }
+.perio-stats .st { display: flex; flex-direction: column; line-height: var(--lh-tight); }
+.perio-stats small { font-size: var(--fs-1); color: var(--c-sub); font-weight: var(--fw-medium); }
+.perio-stats .st span { display: flex; align-items: baseline; gap: var(--sp-2); }
+.perio-stats b { font-size: var(--fs-5); line-height: var(--lh-tight); }
+.perio-stats .st i { font-style: normal; font-size: var(--fs-5); line-height: var(--lh-tight); color: var(--c-sub); font-weight: var(--fw-regular); }
 table.perio { width: 100%; border-collapse: collapse; table-layout: fixed; flex: 1; min-height: 0; }
-table.perio th, table.perio td { border: 1px solid #d7dce2; text-align: center; padding: 0; height: 0; position: relative; font-size: 24px; font-weight: 600; }
-table.perio th.row { width: 150px; text-align: left; font-size: 15px; font-weight: 700; padding-left: 8px; background: #f3f5f8; }
-table.perio td.mid { border-left: 4px solid var(--role); }
-table.perio td.deep { background: #f8cfa0; }
-table.perio td.bop { color: #d00000; font-weight: 900; }
-table.perio td.gone { background: #eceff3; color: #9aa3ad; font-size: 20px; }
-table.perio tr.no th.row, table.perio tr.no td { background: var(--role); color: #fff; font-size: 26px; font-weight: 800; border-color: var(--role); }
-table.perio tr.no td.mid { border-left: 4px solid #fff; }
+table.perio th, table.perio td {
+  border: 1px solid var(--c-line);
+  text-align: center;
+  padding: 0;
+  height: 0;
+  position: relative;
+  font-size: var(--fs-4);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-tight);
+}
+table.perio th.grp { width: 64px; font-size: var(--fs-4); font-weight: var(--fw-bold); background: var(--c-canvas); }
+table.perio th.row { width: 152px; text-align: left; font-size: var(--fs-1); font-weight: var(--fw-medium); color: var(--c-sub); padding-left: var(--sp-2); background: var(--c-canvas); }
+table.perio td.mid { border-left: 1px solid var(--c-sub); }
+table.perio td.deep { background: var(--c-warn-soft); }
+table.perio td.bop { color: var(--c-alert); font-weight: var(--fw-bold); }
+table.perio td.gone { background: var(--c-canvas); color: var(--c-sub); font-size: var(--fs-3); font-weight: var(--fw-regular); }
+table.perio tr.no th.row, table.perio tr.no td { background: var(--role); color: var(--c-surface); font-size: var(--fs-5); font-weight: var(--fw-bold); border-color: var(--role); }
+table.perio tr.no th.row { text-align: center; padding-left: 0; font-size: var(--fs-4); }
+table.perio tr.no td.mid { border-left: 1px solid var(--c-surface); }
 table.perio td.pl { padding: 0; }
 table.perio td.pl svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 table.perio tr { height: 11%; }
 table.perio tr.plq { height: 22%; }
+.pq-on { fill: var(--c-warn); }
+.pq-off { fill: var(--c-surface); }
+.pq-line { stroke: var(--c-line-strong); }
 
-/* 受付 */
-.reserve-card { gap: 10px; }
-.reserve-card .when { display: flex; align-items: baseline; gap: 14px; }
-.reserve-card .when b { font-size: 30px; line-height: 1.3; font-weight: 800; }
-.lbl2 { display: inline-block; min-width: 56px; font-size: 16px; font-weight: 700; color: #5a6572; }
-.recent { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-between; }
-.recent .rv { display: flex; align-items: baseline; gap: 22px; padding: 6px 0; border-bottom: 1px solid #e3e7ec; font-size: 20px; line-height: 1.3; }
-.recent .rv .d { min-width: 190px; }
-.recent .rv .p { font-weight: 700; }
-
-/* 来院しやすい曜日・時間帯 */
-.big-num { font-size: 40px; line-height: 1.3; }
-.heat-cal { flex: 1; min-height: 0; display: grid; grid-template-columns: 120px repeat(6, 1fr); grid-template-rows: auto repeat(3, 1fr); gap: 6px; }
-.hc-day { text-align: center; font-size: 20px; font-weight: 800; color: #3a4552; }
-.hc-time { display: flex; align-items: center; gap: 8px; color: #3a4552; }
-.hc-time svg { width: 34px; height: 34px; flex: none; }
-.hc-time b { display: block; font-size: 20px; line-height: 1.2; }
-.hc-time small { display: block; font-size: 14px; color: #5a6572; }
-.hc-cell { display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 34px; font-weight: 800; min-height: 0; }
-.hc-cell.l0 { background: #f1f3f6; color: #b3bac3; font-weight: 600; }
-.hc-cell.l1 { background: #fde8d0; color: #8a4b08; }
-.hc-cell.l2 { background: #fbc98e; color: #6d3a05; }
-.hc-cell.l3 { background: #f59e42; color: #fff; }
-.hc-cell.l4 { background: #d9480f; color: #fff; }
-.hc-cell.top { outline: 4px solid var(--role); outline-offset: -4px; }
-
-/* 処置と次回の予約 */
-.next-card { gap: 10px; }
-.next-card .blk { border-radius: 8px; padding: 8px 14px; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
-.next-card .tag { align-self: flex-start; background: #5a6572; color: #fff; font-size: 16px; font-weight: 800; padding: 1px 12px; border-radius: 4px; }
-.next-card .tag.big { background: var(--role); font-size: 30px; padding: 0 18px; line-height: 1.3; }
-.next-card .today { background: #f3f5f8; flex-direction: row; align-items: center; gap: 14px; }
-.next-card .today-txt { font-size: 20px; font-weight: 700; }
-.next-card .next { flex: 1; border: 4px solid var(--role); background: #f6f0fb; justify-content: center; }
-.next-card .next-main { font-size: 40px; font-weight: 800; line-height: 1.3; }
-.next-card .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.next-card .chip { background: var(--role); color: #fff; font-size: 28px; font-weight: 800; line-height: 1.3; padding: 0 14px; border-radius: 6px; }
-.next-card .booked { border: 2px solid #5a6572; }
-.next-card .bk { font-size: 20px; line-height: 1.5; }
-.next-card .bk b { font-size: 26px; font-weight: 800; margin-right: 14px; }
-.card-back { font-size: 22px; line-height: 1.5; }
-.body.reception table.t td, .body.reception table.t th { padding: 7px 8px; }
-.body.reception table.t td { font-size: 19px; }
-.body.reception table.t th { font-size: 15px; }
-.body.reception .kv { font-size: 20px; line-height: 1.5; }
-
-/* 帯の色。縁取りは付けない */
-.band[data-part="medical-history"] { background: #fbe9dc; border-color: #fbe9dc; }
-.band.alert { border-color: #db0e0e; }
-
-/* 欄の題は枠にかぶせた見出し（帯と同じ形） */
-.body { margin-top: 8px; row-gap: 24px; }
-.card { overflow: visible; padding: 26px 12px 10px; border: 1px solid var(--line); }
-.card .head { position: static; margin-top: -40px; min-height: 0; }
-.card .head h2 {
-  background: #5a6572; color: #fff; font-size: 18px; line-height: 1.4; font-weight: 700;
-  padding: 2px 14px; border-radius: 4px; white-space: nowrap;
-}
-.card .head .actions { position: absolute; top: -13px; right: 14px; margin: 0; }
-.card .head .meta { font-size: 16px; }
-.stack { display: grid; grid-template-rows: auto 1fr; gap: 24px; min-height: 0; }
-.stack .card { grid-column: auto; }
-.kv .prev { font-size: 18px; color: #3a4552; margin-left: 10px; }
-.kv b { font-size: 28px; }
-
-/* 歯周基本検査 */
-.perio-stats { display: flex; gap: 44px; flex: none; }
-.perio-stats .st { display: flex; flex-direction: column; line-height: 1.2; }
-.perio-stats small { font-size: 15px; color: #5a6572; font-weight: 700; }
-.perio-stats b { font-size: 38px; font-weight: 800; line-height: 1.3; }
-.perio-stats em { font-size: 15px; font-style: normal; color: #5a6572; }
-table.perio th.grp { width: 64px; font-size: 22px; font-weight: 800; background: #e3e8ef; }
-table.perio th.row { width: 150px; }
-table.perio tr.no th.row { text-align: center; padding-left: 0; font-size: 22px; }
-
-/* 全画面とスマホのボタン */
-.mini.full { display: inline-flex; align-items: center; gap: 5px; font-size: 14px; font-weight: 700; padding: 3px 10px; }
-.mini.phone { background: #000; color: #fff; border-color: #000; font-size: 14px; font-weight: 700; padding: 3px 12px; }
-
-/* 帯は3分の2の高さ。字も小さくする */
-.bands { height: 104px; }
-.band { padding: 14px 14px 4px; }
-.band h2 { font-size: 15px; top: -12px; }
-.band.alert h2 { font-size: 16px; top: -13px; }
-.band.alert .lines { font-size: 24px; line-height: 1.25; }
-.band .big { font-size: 22px; }
-.band .meds { font-size: 17px; line-height: 1.2; padding-left: 22px; }
-.band .mini { top: 4px; right: 8px; }
-
-/* ボタンと検査日などは枠の中の右上。枠の上には題だけ */
-.card .tools { position: absolute; top: 2px; right: 12px; display: flex; align-items: center; gap: 8px; }
-.card .tools .meta { font-size: 16px; color: #3a4552; margin-right: 6px; }
-.body.doctor { grid-template-rows: 1.1fr 0.9fr; }
-
-/* 歯周基本検査の集計は低く、中央に寄せる */
-.perio-stats { gap: 56px; justify-content: center; }
-.perio-stats small { font-size: 14px; }
-.perio-stats b { font-size: 28px; line-height: 1.3; }
-.perio-stats em { font-size: 14px; }
-.mini.input { font-size: 14px; font-weight: 700; padding: 3px 14px; }
-
-/* 題の札は枠線にまたがる。枠の上に出る分は札の高さの半分 */
-.card { --pt: 26px; padding-top: var(--pt); }
-.card.has-tools { --pt: 29px; }
-.card .head { margin-top: calc(-1 * var(--pt) - 14px); margin-bottom: calc(var(--pt) - 14px); }
-
-/* 全身既往・服薬は背景と同系色の濃い色 */
-.band[data-part="medical-history"] { color: #5b2a0e; }
-.band[data-part="medical-history"] h2 { background: #9a5a2c; }
-
-/* 歯周基本検査の集計は1行に詰める。今の値と（前回）は同じ大きさ */
-.perio-card .perio-stats { margin-top: -27px; padding-right: 330px; gap: 60px; }
-.perio-stats .st span { display: flex; align-items: baseline; gap: 8px; }
-.perio-stats .st i { font-style: normal; font-size: 28px; line-height: 1.3; color: #a3abb5; font-weight: 600; }
+/* 声の部品（actions/voice.js が足す部品）も同じ変数にそろえる */
+body #heard { font-size: var(--fs-1); background: var(--c-surface); color: var(--c-ink); border-color: var(--c-line-strong); border-radius: var(--r-s); }
+body #say-list-btn { font-size: var(--fs-1); color: var(--c-surface); border-color: var(--c-surface); border-radius: var(--r-s); padding: var(--sp-1) var(--sp-3); margin-right: var(--sp-3); }
+body #say-list { background: var(--c-surface); color: var(--c-ink); border: 1px solid var(--c-line-strong); border-radius: var(--r-l); font-size: var(--fs-2); }
+body #typed-box { background: var(--c-surface); border: 1px solid var(--c-line-strong); border-radius: var(--r-s); }
+body #typed-box input { font-size: var(--fs-2); }
+body .topbar .mic.rec { fill: var(--c-alert-soft); }
+body .topbar .mic.none { fill: var(--c-line-strong); }

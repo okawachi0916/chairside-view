@@ -31,7 +31,7 @@ def test_doctor_screen(server, browser):  # noqa: F811
     assert pg.locator("[data-part=treatment-history] tbody tr").count() == 10
     # スマホは黒地に白文字、全画面は別の色で記号つき
     ph = pg.locator("button.phone").first
-    assert ph.evaluate("e => getComputedStyle(e).backgroundColor") == "rgb(0, 0, 0)"
+    assert ph.evaluate("e => getComputedStyle(e).backgroundColor") == "rgb(27, 34, 43)"
     assert ph.evaluate("e => getComputedStyle(e).color") == "rgb(255, 255, 255)"
     assert pg.locator("button.full svg").count() == 6
     # 全身既往・服薬は1行ずつで、4行が全部見える
@@ -40,7 +40,7 @@ def test_doctor_screen(server, browser):  # noqa: F811
     assert meds.evaluate("e => e.scrollHeight <= e.clientHeight + 1")
     # 重要事項は赤地に白文字
     assert pg.locator("[data-part=important]").evaluate(
-        "e => getComputedStyle(e).backgroundColor") == "rgb(219, 14, 14)"
+        "e => getComputedStyle(e).backgroundColor") == "rgb(198, 40, 40)"
     assert pg.locator("[data-part=important] .lines").evaluate(
         "e => getComputedStyle(e).color") == "rgb(255, 255, 255)"
     # 名前は他の項目より大きい

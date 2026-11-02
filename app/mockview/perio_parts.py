@@ -12,7 +12,7 @@ LOWER = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
 
 
 def plaque_svg(sides):
-    """マス目いっぱいの長方形を × で4つに分ける。付いた面（t r b l）を赤くする。"""
+    """マス目いっぱいの長方形を × で4つに分ける。付いた面（t r b l）に色を付ける。色は CSS の変数。"""
     pts = {
         "t": "0,0 100,0 50,50",
         "r": "100,0 100,100 50,50",
@@ -20,12 +20,12 @@ def plaque_svg(sides):
         "l": "0,0 0,100 50,50",
     }
     polys = "".join(
-        f'<polygon points="{p}" fill="{"#d32f2f" if k in sides else "#ffffff"}"/>'
+        f'<polygon class="{"pq-on" if k in sides else "pq-off"}" points="{p}"/>'
         for k, p in pts.items()
     )
     return (
         '<svg viewBox="0 0 100 100" preserveAspectRatio="none">'
-        f'{polys}<g stroke="#6b7480" stroke-width="1.5">'
+        f'{polys}<g class="pq-line" stroke-width="1.5">'
         '<line x1="0" y1="0" x2="100" y2="100" vector-effect="non-scaling-stroke"/>'
         '<line x1="100" y1="0" x2="0" y2="100" vector-effect="non-scaling-stroke"/></g></svg>'
     )
