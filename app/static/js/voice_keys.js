@@ -38,7 +38,7 @@
       band.hidden = false;
       const text = band.querySelector("[data-band-text]");
       const left = band.querySelector("[data-band-left]");
-      text.textContent = texts[n];
+      text.textContent = (opts.textFor && opts.textFor(n)) || texts[n];
       const paint = () => { left.textContent = Math.max(0, Math.ceil((until - Date.now()) / 1000)) + "秒"; };
       paint();
       shown = { n, until, tick: setInterval(paint, 200), hide: setTimeout(hideBand, cfg.double_press_ms) };

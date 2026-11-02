@@ -423,5 +423,8 @@ def shell(kind, title):
         "<link rel='stylesheet' href='/static/css/unit.css'></head>"
         f"<body class='role-{'reception' if kind == 'reception' else 'doctor'}' data-kind='{kind}'>"
         "<div id='view' style='display:contents'></div>"
+        + ("<div id='band' data-part='key-band' hidden><span data-band-text></span><span data-band-left></span></div>"
+           "<script src='/static/js/voice_keys.js'></script>" if kind == "unit" else "")
+        + "<script src='/static/js/actions.js'></script>"
         "<script src='/static/js/view.js'></script></body></html>"
     )

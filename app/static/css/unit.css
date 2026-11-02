@@ -3,3 +3,11 @@
 .band.alert .lines.n4 { font-size: 11px; line-height: 1.1; }
 .band .lines { overflow: hidden; }
 .err { padding: 24px; font-size: 18px; }
+
+/* ボタン3で隠した画面と、ボタンの帯 */
+#band { position: fixed; top: 0; left: 0; right: 0; z-index: 50; background: #1f3b73; color: #fff; padding: 14px 24px;
+        display: flex; justify-content: space-between; font-size: 24px; }
+#band[hidden] { display: none; }
+.hide-panel { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 36px; background: #fff; }
+.hide-msg { font-size: 34px; font-weight: 700; }
+.hide-pick { font: inherit; font-size: 28px; padding: 18px 40px; border-radius: 10px; border: 2px solid var(--role); background: #fff; color: var(--role); cursor: pointer; }
