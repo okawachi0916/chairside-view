@@ -47,7 +47,7 @@ def browser():
 
 def open_page(browser, port, path):
     pg = browser.new_page(viewport={"width": 1920, "height": 1030})
-    pg.goto(f"http://localhost:{port}{path}")
+    pg.goto(f"http://127.0.0.1:{port}{path}")
     return pg
 
 
