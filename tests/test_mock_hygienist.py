@@ -50,7 +50,7 @@ def test_hygienist_screen(server, browser):  # noqa: F811
     assert card.inner_html() == before
     # BOP は赤の太字
     assert t.locator("td.bop").first.evaluate(
-        "e => [getComputedStyle(e).color, getComputedStyle(e).fontWeight].join()") == "rgb(208, 0, 0),900"
+        "e => [getComputedStyle(e).color, getComputedStyle(e).fontWeight].join()") == "rgb(198, 40, 40),700"
     # 歯番は上顎と下顎で共通の1行。8〜1、1〜8
     nums = t.locator("tr.no td").all_inner_texts()
     assert nums == ["8", "7", "6", "5", "4", "3", "2", "1", "1", "2", "3", "4", "5", "6", "7", "8"]

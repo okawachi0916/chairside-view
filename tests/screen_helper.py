@@ -82,7 +82,8 @@ def check_screen(pg, parts, words, png=None, skip_overflow=("past-notes", "photo
     bad = pg.evaluate(
         """(skips) => [...document.querySelectorAll('.card, .band, .topbar, .card *')]
           .filter(e => !e.closest(skips.map(s => `[data-part="${s}"]`).join(',') || 'x'))
-          .filter(e => e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1)
+          // Noto Sans JP は上下の余白（約1.45em）が行間1.25より大きく、字の外の余白だけで数px出る。字は切れないので4pxまで許す
+          .filter(e => e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 4)
           .filter(e => !(e instanceof SVGElement) && e.tagName !== 'TR' && getComputedStyle(e).display !== 'inline')
           .map(e => (e.getAttribute('data-part') || e.className || e.tagName) + ':' + e.scrollWidth + 'x' + e.scrollHeight
                     + '/' + e.clientWidth + 'x' + e.clientHeight)""",
