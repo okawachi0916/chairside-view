@@ -30,16 +30,22 @@ def browser():
         b.close()
 
 
-@pytest.fixture(autouse=True)
-def clean():
-    update.update()
+def _wipe():
     c = connect()
     c.execute("DELETE FROM drafts WHERE recording_id IS NOT NULL")
     c.execute("DELETE FROM recordings")
     c.commit()
     c.close()
+
+
+@pytest.fixture(autouse=True)
+def clean():
+    update.update()
+    _wipe()
     FAKE.write_text(json.dumps({"reply": REPLY, "transcript": TALK}), encoding="utf-8")
     yield
+    time.sleep(0.5)  # 裏の処理が終わってから消す（他の試験の画面に下書きを残さない）
+    _wipe()
     FAKE.write_text(json.dumps({"reply": '{"result":"unclear"}', "delay_ms": 0}), encoding="utf-8")
 
 
