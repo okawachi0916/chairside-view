@@ -148,14 +148,15 @@ SIDE = {0: "l", 1: "r", 2: "t", 3: "b"}  # 近心・遠心・頬側・舌側 →
 
 def _plaque_svg(flags):
     sides = {SIDE[i] for i, c in enumerate(flags) if c == "1"}
-    pts = {"t": "2,2 24,2 13,13", "r": "24,2 24,24 13,13", "b": "2,24 24,24 13,13", "l": "2,2 2,24 13,13"}
+    pts = {"t": "0,0 100,0 50,50", "r": "100,0 100,100 50,50", "b": "0,100 100,100 50,50", "l": "0,0 0,100 50,50"}
     polys = "".join(
         f'<polygon points="{p}" fill="{"#d32f2f" if k in sides else "#ffffff"}"/>' for k, p in pts.items()
     )
     return (
-        '<svg viewBox="0 0 26 26"><g stroke="#8a94a0" stroke-width="1">'
-        f'{polys}<rect x="2" y="2" width="22" height="22" fill="none"/>'
-        '<line x1="2" y1="2" x2="24" y2="24"/><line x1="24" y1="2" x2="2" y2="24"/></g></svg>'
+        '<svg viewBox="0 0 100 100" preserveAspectRatio="none">'
+        f'{polys}<g stroke="#6b7480" stroke-width="1.5">'
+        '<line x1="0" y1="0" x2="100" y2="100" vector-effect="non-scaling-stroke"/>'
+        '<line x1="100" y1="0" x2="0" y2="100" vector-effect="non-scaling-stroke"/></g></svg>'
     )
 
 
@@ -171,9 +172,9 @@ def _perio(d):
             return f'<td class="gone{mid}">―</td>'
         return make(cur["teeth"][t], mid)
 
-    def row(label, teeth, make):
+    def row(label, teeth, make, cls=""):
         cells = "".join(cell(t, " mid" if i == 8 else "", make) for i, t in enumerate(teeth))
-        return f'<tr><th class="row">{label}</th>{cells}</tr>'
+        return f'<tr class="{cls}"><th class="row">{label}</th>{cells}</tr>'
 
     def pocket(t, mid):
         cls = ("deep " if t["pocket"] >= 4 else "") + ("bop " if t["bop"] else "")
@@ -183,18 +184,18 @@ def _perio(d):
         return f'<td class="{mid.strip()}">{t["mobility"]}</td>'
 
     def plaque(t, mid):
-        return f'<td class="{mid.strip()}">{_plaque_svg(t["plaque"])}</td>'
+        return f'<td class="pl {mid.strip()}">{_plaque_svg(t["plaque"])}</td>'
 
+    # 歯番は上顎と下顎で共通。真ん中から外へ 1〜8
     nos = "".join(
-        f'<td class="no{" mid" if i == 8 else ""}"><div>{u}</div><div class="low">{l}</div></td>'
-        for i, (u, l) in enumerate(zip(UPPER, LOWER))
+        f'<td class="{"mid" if i == 8 else ""}">{abs(i - 7.5) + 0.5:.0f}</td>' for i in range(16)
     )
     table = (
         '<table class="perio"><tbody>'
-        + row("上顎 動揺度", UPPER, loose) + row("上顎 プラークチャート", UPPER, plaque)
+        + row("上顎 動揺度", UPPER, loose) + row("上顎 プラークチャート", UPPER, plaque, "plq")
         + row("上顎 ポケット", UPPER, pocket)
-        + f'<tr><th class="row">歯番 上／下</th>{nos}</tr>'
-        + row("下顎 ポケット", LOWER, pocket) + row("下顎 プラークチャート", LOWER, plaque)
+        + f'<tr class="no"><th class="row">歯番</th>{nos}</tr>'
+        + row("下顎 ポケット", LOWER, pocket) + row("下顎 プラークチャート", LOWER, plaque, "plq")
         + row("下顎 動揺度", LOWER, loose)
         + "</tbody></table>"
     )
