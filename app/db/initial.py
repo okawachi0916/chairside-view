@@ -100,27 +100,43 @@ def build() -> dict:
         r.add("cancellations", patient_id=pid, appointment_id=ca, cancel_date=d, no_show=0, reason=reason)
 
     # 今日の予約 (予約一覧の6行)
-    appt(H, TODAY, "14:30", "15:30", "doctor", "RCT", 2, status="booked", detail="右下6番 根管充填",
-         sub="根管治療 3回目", recep="右下第一大臼歯 RCT", staff="大川内")
+    today_h_doc = appt(H, TODAY, "14:30", "15:30", "doctor", "RCT", 2, status="booked", detail="右下6番 根管充填",
+                       sub="根管治療 3回目", recep="右下第一大臼歯 RCT", staff="大川内")
     appt(I, TODAY, "14:30", "15:00", "hygienist", "SPT", 1, status="booked", recep="SPT", staff="田中")
     appt(T, TODAY, "14:30", "15:00", "doctor", "義歯調整", 3, status="booked", recep="義歯調整", staff="大川内")
     appt(K, TODAY, "15:00", "15:30", "doctor", "CR", 3, status="booked", recep="CR", staff="大川内")
-    appt(H, TODAY, "15:30", "16:00", "hygienist", "SPT", 2, status="booked", recep="SPT＋TBI", staff="田中")
+    today_h_hyg = appt(H, TODAY, "15:30", "16:00", "hygienist", "SPT", 2, status="booked", recep="SPT＋TBI",
+                       staff="田中")
     appt(M, TODAY, "15:30", "16:00", "doctor", "インレー", 3, status="booked", recep="インレー", staff="大川内")
+    # 花子の今日の診療回 (診察を始めると作られる) と、話した内容の下書き。下書きは確定するまで記録ではない。
+    tv_doc = r.add("visits", patient_id=H, appointment_id=today_h_doc, visit_date=TODAY, start_time="14:30",
+                   role="doctor", unit=2, status="open")
+    tv_hyg = r.add("visits", patient_id=H, appointment_id=today_h_hyg, visit_date=TODAY, start_time="15:30",
+                   role="hygienist", unit=2, status="open")
+    r.add("drafts", patient_id=H, visit_id=tv_doc, kind="spoken_summary", status="draft",
+          body="右下6番 根管充填、側方加圧\nデンタルで確認、問題なし\n次回 支台築造と形成、2週間後ごろ",
+          transcript="右下6番、根管充填をします。側方加圧で詰めました。デンタルで確認して、問題ありませんでした。"
+                     "次回は支台築造と形成です。二週間後ごろでお願いします。",
+          created_at=TODAY + " 14:50")
+    r.add("drafts", patient_id=H, visit_id=tv_hyg, kind="spoken_summary", status="draft",
+          body="右下奥の清掃を指導\n寝る前の歯間ブラシを継続",
+          transcript="右下の奥は磨き残しが出やすいので、清掃の仕方をお伝えしました。寝る前の歯間ブラシは続けてください。",
+          created_at=TODAY + " 15:40")
     # 予約済みの次の予約
     appt(H, "2027-02-05", "14:30", "15:00", "hygienist", "SPT", 2, status="booked",
          recep="3か月SPT", staff="田中")
 
     # ---- 重要事項・全身既往と服薬・申し送り・受付メモ ----
     for pid, items in {
-        H: ["ペニシリン系抗菌薬アレルギー", "ビスホスホネート製剤服用中"],
-        I: ["金属アレルギー（ニッケル）"],
-        T: ["ワルファリン服用中"],
-        K: ["関節リウマチ 手に力が入りにくい"],
-        M: ["ラテックスアレルギー"],
+        H: [("ペニシリン系抗菌薬アレルギー", "2019年", "全身の発疹。アモキシシリン服用後"),
+            ("ビスホスホネート製剤服用中", "2021年", "骨粗鬆症の治療で開始")],
+        I: [("金属アレルギー（ニッケル）", "2015年", "装飾品で皮膚炎")],
+        T: [("ワルファリン服用中", "2020年", "心房細動の治療で開始")],
+        K: [("関節リウマチ 手に力が入りにくい", "2012年", "診断を受けた")],
+        M: [("ラテックスアレルギー", "2018年", "手袋で手がかゆくなった")],
     }.items():
-        for i, b in enumerate(items, 1):
-            r.add("important_notes", patient_id=pid, seq=i, body=b)
+        for i, (b, period, detail) in enumerate(items, 1):
+            r.add("important_notes", patient_id=pid, seq=i, body=b, period=period, detail=detail)
     for pid, items in {
         H: [("高血圧", "アムロジピン内服中"), ("脂質異常症", "ロスバスタチン内服中"),
             ("骨粗鬆症", "BP製剤内服中"), ("ペニシリン系抗菌薬アレルギー", "")],
@@ -195,16 +211,16 @@ def build() -> dict:
 
     # ---- 治療歴 ----
     for d, site, c in [
-        ("2026-10-23", "右下6番", "根管貼薬・仮封"),
-        ("2026-10-09", "右下6番", "抜髄・貼薬"),
+        ("2026-10-23", "右下6番", "根管貼薬、仮封"),
+        ("2026-10-09", "右下6番", "抜髄、貼薬"),
         ("2026-09-18", "右下6番", "デンタル撮影"),
-        ("2026-07-15", "左下7番", "コンポジットレジン充填"),
+        ("2026-08-07", "全顎", "SPT、歯周検査"),
+        ("2026-07-15", "左下7番", "CR充填"),
         ("2026-06-20", "左下7番", "C2の診断"),
-        ("2026-05-08", "左下", "部分床義歯 装着"),
+        ("2026-05-08", "全顎", "SPT、義歯の作成"),
         ("2026-04-14", "右上5番", "知覚過敏の処置"),
-        ("2026-03-28", "左上6番", "クラウン装着"),
-        ("2026-01-09", "左上6番", "支台築造・形成"),
-        ("2025-12-17", "右下7番", "コンポジットレジン充填"),
+        ("2026-02-06", "全顎", "SPT、歯周検査"),
+        ("2025-11-14", "右上6番", "クラウン装着"),
     ]:
         r.add("treatment_history", patient_id=H, done_date=d, site=site, content=c)
     for pid, rows_ in {
@@ -235,7 +251,7 @@ def build() -> dict:
 
     # ---- 歯の状態 ----
     wisdom = [18, 28, 38, 48]
-    missing = {H: wisdom + [35, 36], I: wisdom, M: wisdom,
+    missing = {H: wisdom + [14, 35], I: wisdom, M: wisdom,
                T: wisdom + [15, 16, 25, 26, 35, 36, 45, 46],  # ブリッジで補う
                K: [t for t in ALL_TEETH if t not in (13, 23, 33, 43)]}  # 義歯で補う
     for pid, items in {
@@ -265,9 +281,9 @@ def build() -> dict:
     # ---- 歯周基本検査 (花子の数字は 4mm以上6本・BOP 15%・PCR 18%、前回 9本・19%・24%) ----
     h_teeth = [t for t in ALL_TEETH if t not in missing[H]]
     nonlast = {t for i, t in enumerate(h_teeth) if i % 4 != 3 and i != 0}
-    _perio(r, H, "2026-05-08", h_teeth, {16, 14, 26, 37, 46, 47, 24, 27, 45}, {16, 14, 26, 37, 46},
+    _perio(r, H, "2026-05-08", h_teeth, {16, 25, 26, 37, 46, 47, 24, 27, 45}, {16, 25, 26, 37, 46},
            set(h_teeth[:-1]))
-    _perio(r, H, "2026-08-07", h_teeth, {16, 14, 26, 37, 46, 47}, {16, 26, 37, 46}, nonlast)
+    _perio(r, H, "2026-08-07", h_teeth, {16, 25, 26, 37, 46, 47}, {16, 26, 37, 46}, nonlast)
     i_teeth = [t for t in ALL_TEETH if t not in missing[I]]
     before = {i_teeth[i] for i in (0, 2, 5, 6, 9, 12, 14, 17, 20, 22, 24, 27)}
     after = {i_teeth[i] for i in (0, 2, 6, 9, 10, 13, 14, 17, 19, 22, 25)}
@@ -294,8 +310,8 @@ def build() -> dict:
         for item, d in items:
             r.add("care_purchases", patient_id=pid, item=item, last_date=d)
     for pid, items in {
-        H: [("2026-10-23", "仮封材用 綿球セット", 1), ("2026-09-18", "歯間ブラシ SS", 2), ("2026-08-07", "フッ素ジェル", 1),
-            ("2026-08-07", "歯ブラシ やわらかめ", 2), ("2026-05-08", "洗口液", 1)],
+        H: [("2026-09-18", "歯間ブラシ SS", 2), ("2026-08-07", "フッ素ジェル", 1),
+            ("2026-08-07", "歯ブラシ やわらかめ", 1), ("2026-05-08", "洗口液", 1), ("2026-02-06", "デンタルフロス", 2)],
         I: [("2026-08-14", "歯間ブラシ M", 2)],
         T: [("2026-09-04", "義歯洗浄剤", 1)],
         K: [("2026-09-25", "義歯洗浄剤", 1)],
@@ -305,7 +321,7 @@ def build() -> dict:
             r.add("goods_purchases", patient_id=pid, bought_on=d, item=item, qty=q)
     for pid, items in {
         H: [("2026-10-09", "ロキソプロフェン錠 60mg", "6錠"), ("2026-09-18", "クラリスロマイシン錠 200mg", "6錠"),
-            ("2026-07-15", "ロキソプロフェン錠 60mg", "3錠")],
+            ("2026-09-18", "ロキソプロフェン錠 60mg", "6錠")],
         I: [("2026-05-15", "ロキソプロフェン錠 60mg", "3錠")],
         T: [("2026-10-16", "ロキソプロフェン錠 60mg", "3錠")],
         K: [("2026-10-30", "ロキソプロフェン錠 60mg", "3錠")],

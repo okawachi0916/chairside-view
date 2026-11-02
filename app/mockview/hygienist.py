@@ -27,20 +27,22 @@ PLAQUE = {
 
 
 def _plaque_svg(sides):
+    """マス目いっぱいの長方形を × で4つに分ける。付いた面を赤くする。"""
     pts = {
-        "t": "2,2 24,2 13,13",
-        "r": "24,2 24,24 13,13",
-        "b": "2,24 24,24 13,13",
-        "l": "2,2 2,24 13,13",
+        "t": "0,0 100,0 50,50",
+        "r": "100,0 100,100 50,50",
+        "b": "0,100 100,100 50,50",
+        "l": "0,0 0,100 50,50",
     }
     polys = "".join(
         f'<polygon points="{p}" fill="{"#d32f2f" if k in sides else "#ffffff"}"/>'
         for k, p in pts.items()
     )
     return (
-        '<svg viewBox="0 0 26 26"><g stroke="#8a94a0" stroke-width="1">'
-        f'{polys}<rect x="2" y="2" width="22" height="22" fill="none"/>'
-        '<line x1="2" y1="2" x2="24" y2="24"/><line x1="24" y1="2" x2="2" y2="24"/></g></svg>'
+        '<svg viewBox="0 0 100 100" preserveAspectRatio="none">'
+        f'{polys}<g stroke="#6b7480" stroke-width="1.5" vector-effect="non-scaling-stroke">'
+        '<line x1="0" y1="0" x2="100" y2="100" vector-effect="non-scaling-stroke"/>'
+        '<line x1="100" y1="0" x2="0" y2="100" vector-effect="non-scaling-stroke"/></g></svg>'
     )
 
 
@@ -55,8 +57,8 @@ def _cells(teeth, make):
     return "".join(out)
 
 
-def _row(label, teeth, make):
-    return f'<tr><th class="row">{label}</th>{_cells(teeth, make)}</tr>'
+def _row(label, teeth, make, cls=""):
+    return f'<tr class="{cls}"><th class="row">{label}</th>{_cells(teeth, make)}</tr>'
 
 
 def _pocket(t, mid):
@@ -70,22 +72,22 @@ def _loose(t, mid):
 
 
 def _plaque(t, mid):
-    return f'<td class="{mid.strip()}">{_plaque_svg(PLAQUE.get(t, ""))}</td>'
+    return f'<td class="pl {mid.strip()}">{_plaque_svg(PLAQUE.get(t, ""))}</td>'
 
 
 def _perio():
+    # 歯番は上顎と下顎で共通。真ん中から外へ 1〜8
     nos = "".join(
-        f'<td class="no{" mid" if i == 8 else ""}"><div>{u}</div><div class="low">{l}</div></td>'
-        for i, (u, l) in enumerate(zip(UPPER, LOWER))
+        f'<td class="{"mid" if i == 8 else ""}">{abs(i - 7.5) + 0.5:.0f}</td>' for i in range(16)
     )
     table = (
         '<table class="perio"><tbody>'
         + _row("上顎 動揺度", UPPER, _loose)
-        + _row("上顎 プラークチャート", UPPER, _plaque)
+        + _row("上顎 プラークチャート", UPPER, _plaque, "plq")
         + _row("上顎 ポケット", UPPER, _pocket)
-        + f'<tr><th class="row">歯番 上／下</th>{nos}</tr>'
+        + f'<tr class="no"><th class="row">歯番</th>{nos}</tr>'
         + _row("下顎 ポケット", LOWER, _pocket)
-        + _row("下顎 プラークチャート", LOWER, _plaque)
+        + _row("下顎 プラークチャート", LOWER, _plaque, "plq")
         + _row("下顎 動揺度", LOWER, _loose)
         + "</tbody></table>"
     )

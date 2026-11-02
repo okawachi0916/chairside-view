@@ -36,5 +36,5 @@ def test_ready_in_edge(server):
         b = p.chromium.launch(channel="msedge")
         pg = b.new_page(viewport={"width": 1920, "height": 1030})
         pg.goto(f"http://localhost:{server}")
-        assert "準備OK" in pg.inner_text("body")
+        assert "予約一覧" in pg.inner_text("body")
         b.close()
