@@ -1,10 +1,12 @@
 # 進捗 core
-- 動く版: G09 完了。データベース app/db（schema・initial・update）、scripts/seed.py、scripts/update_db.py、試験12本。
-  - 架空の5人（花子 0123、一郎 0456、太郎 0789、和子 1024、美咲 2048）と今日の予約6行が data/runtime/app.db に入る。
-  - 花子は見本の3画面と同じ内容（診療メモ8、治療歴10、写真12、歯周検査2回など）。
-  - 診療メモと下書きは (診療回, 患者様) の組で診療回につなぐ。
-- G09 は G02 まで取り込んだ main（85e6a1d）から開始。
-- 写真の画像はまだ無い（file 列は空）。画像は data/runtime/photos に置く前提。
-- 試験: tests/test_db.py（一時フォルダで seed を2回、古いDBへ update_db）。
-- 残り: 画面へのつなぎ（G10 以降）。仕様の質問3つは G02 で決定済み。
-- 次のゴール: G10
+- 動く版: G10 完了。見本の画面をデータベースにつないだ。
+  - / 予約一覧（今日の予約6行、氏名は伏せ字）→ 行を押すと /unit?appt=番号&role=役割。SPT は歯科衛生士、ほかは歯科医師。
+  - /unit ユニットの画面（役割を変える、患者様を変える）。/reception 受付の画面（中で患者様を選ぶ。/unit からは行けない）。
+  - 中身は /api/view/unit、/api/view/reception から毎回読む（no-store）。ブラウザには何も保存しない。
+  - 古い応答は捨てる（app/static/js/view.js の seq）。window.cv.openUnit / openReception が入口。
+  - 重要事項は4行まで帯に入り、行数が多いほど文字が小さい（unit.css の n1〜n4）。
+- 部品: app/views/data.py（読み出し）、render.py（HTML）、app/routers/screens.py（入口）。
+- G10 は G09（78493ff）の次、main を取り込んで開始。
+- 試験: tests/test_screens.py（5人×3画面、人の切り替え、遅れた応答、受付の分離）。
+- 残り: ボタン3（G11）、全画面（G12）。
+- 次のゴール: G11（前提 G08 が入るまで待つ）

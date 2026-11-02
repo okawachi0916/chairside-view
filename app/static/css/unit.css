@@ -1,0 +1,5 @@
+/* 本物の画面に足す分。見本の見た目 (mock.css) は変えない。 */
+.band.alert .lines.n3 { font-size: 14px; line-height: 1.15; }
+.band.alert .lines.n4 { font-size: 11px; line-height: 1.1; }
+.band .lines { overflow: hidden; }
+.err { padding: 24px; font-size: 18px; }
