@@ -49,14 +49,15 @@ def topbar(tag, appt_html, buttons, unit=True, mic=True):
 
 
 def card(part, title, inner, cols, extra="", actions="", cls=""):
-    """cols は横12のうちの数。extra は題の横に出す字。part が空なら data-part は付けない。"""
+    """cols は横12のうちの数。題だけを枠にかぶせ、extra（検査日など）とボタンは枠の中の右上に出す。"""
     meta = f'<span class="meta">{extra}</span>' if extra else ""
-    act = f'<span class="actions">{actions}</span>' if actions else ""
+    tools = f'<div class="tools">{meta}{actions}</div>' if (extra or actions) else ""
     dp = f' data-part="{part}"' if part else ""
-    head = f'<div class="head"><h2>{title}</h2>{meta}{act}</div>' if title else ""
+    head = f'<div class="head"><h2>{title}</h2></div>' if title else ""
+    cls = f"{cls} has-tools" if tools else cls
     return (
         f'<section class="card {cls}"{dp}{f" style=\"grid-column: span {cols}\"" if cols else ""}>'
-        f"{head}{inner}</section>"
+        f"{head}{tools}{inner}</section>"
     )
 
 

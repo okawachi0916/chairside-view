@@ -321,3 +321,25 @@ table.perio tr.no th.row { text-align: center; padding-left: 0; font-size: 22px;
 /* 全画面とスマホのボタン */
 .mini.full { display: inline-flex; align-items: center; gap: 5px; font-size: 14px; font-weight: 700; padding: 3px 10px; }
 .mini.phone { background: #000; color: #fff; border-color: #000; font-size: 14px; font-weight: 700; padding: 3px 12px; }
+
+/* 帯は3分の2の高さ。字も小さくする */
+.bands { height: 104px; }
+.band { padding: 14px 14px 4px; }
+.band h2 { font-size: 15px; top: -12px; }
+.band.alert h2 { font-size: 16px; top: -13px; }
+.band.alert .lines { font-size: 24px; line-height: 1.25; }
+.band .big { font-size: 22px; }
+.band .meds { font-size: 17px; line-height: 1.2; padding-left: 22px; }
+.band .mini { top: 4px; right: 8px; }
+
+/* ボタンと検査日などは枠の中の右上。枠の上には題だけ */
+.card.has-tools { padding-top: 40px; }
+.card .tools { position: absolute; top: 6px; right: 12px; display: flex; align-items: center; gap: 8px; }
+.card .tools .meta { font-size: 16px; color: #3a4552; margin-right: 6px; }
+.body.doctor { grid-template-rows: 1.1fr 0.9fr; }
+
+/* 歯周基本検査の集計は低く、中央に寄せる */
+.perio-stats { gap: 56px; justify-content: center; }
+.perio-stats small { font-size: 14px; }
+.perio-stats b { font-size: 28px; line-height: 1.3; }
+.perio-stats em { font-size: 14px; }
