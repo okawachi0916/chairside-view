@@ -100,10 +100,7 @@
     root().appendChild(p);
     document.body.classList.add("fs-mode");
     scrollers(p).forEach(function (el) { el.addEventListener("scroll", fsUpdate); });
-    if (part === "intraoral-photos") {
-      var items = p.querySelectorAll(".fs-item");
-      if (items.length) fsPhoto(items[items.length - 1]); // 一番新しい写真から
-    }
+    if (part === "intraoral-photos") run("photos-opened", p); // 写真の見せ方は actions/voice.js
     fsUpdate();
   }
 
@@ -122,21 +119,11 @@
     fsUpdate();
   }
 
-  function fsPhoto(item) {
-    var p = panel();
-    if (!p || !item) return;
-    p.querySelectorAll(".fs-item").forEach(function (el) { el.classList.toggle("sel", el === item); });
-    p.querySelector(".fs-big-box").textContent = "写真 " + item.dataset.n;
-    p.querySelector(".fs-big-cap").textContent = item.dataset.date;
-    item.scrollIntoView({ block: "nearest" });
-  }
-
   window.addEventListener("resize", fsUpdate);
   register("fs-open", fsOpen);
   register("fs-close", fsClose);
   register("fs-next", function () { fsPage(1); });
   register("fs-prev", function () { fsPage(-1); });
-  register("fs-photo", fsPhoto);
 
   // 端末に一時的に置いた情報を消す。診療の記録はサーバーにあり、ここでは消さない。
   function clearTransient() {

@@ -66,7 +66,7 @@ def open_page(browser, port, path):
     return pg
 
 
-def check_screen(pg, parts, words, png=None, skip_overflow=("past-notes",)):
+def check_screen(pg, parts, words, png=None, skip_overflow=("past-notes", "photo-list")):
     """data-part、言葉、スクロール、はみ出しを確かめる。"""
     for part in parts:
         assert pg.locator(f'[data-part="{part}"]').count() >= 1, f"data-part {part} が無い"

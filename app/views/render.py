@@ -3,6 +3,7 @@ from html import escape as h
 
 from app.db import TODAY
 from app.mockview.parts import FULL, MIC, PHONE, band, card
+from app.views import photos as PH
 from app.mockview.reception_parts import heat_card, next_card, reserve_card
 from app.mockview.perio_parts import perio_card
 from app.views import data as D
@@ -67,13 +68,26 @@ def appt_text(d):
     return main + small
 
 
-def _photos(numbers, cols_class, n=12):
-    cells = "".join(f'<div class="ph">{x}</div>' for x in numbers)
-    return f'<div class="photos {cols_class}" data-part="photo-list">{cells}</div>'
+def _tile(x):
+    return (f'<div class="ph" data-n="{x["number"]}"><img src="{PH.url_for(x["number"])}" alt="" loading="lazy">'
+            f'<span class="no">{x["number"]}</span></div>')
+
+
+def _photos(rows):
+    """撮影日ごとにまとめ、新しい日から左上へ並べる。古い日はスクロールで見る。"""
+    days = {}
+    for x in rows:
+        days.setdefault(x["taken_on"], []).append(x)
+    groups = "".join(
+        f'<div class="pg"><div class="pg-date">{D.ja_date(day)}</div>'
+        f'<div class="pg-tiles">{"".join(_tile(x) for x in days[day])}</div></div>'
+        for day in sorted(days, reverse=True)
+    )
+    return f'<div class="photos pgroups" data-part="photo-list">{groups}</div>'
 
 
 def intraoral(d, cols, cols_class):
-    return card("intraoral-photos", "口腔内写真", _photos(d["photos"], cols_class), cols, actions=PHONE + FULL)
+    return card("intraoral-photos", "口腔内写真", _photos(d["photo_rows"]), cols, actions=PHONE + FULL)
 
 
 def spoken(d, cols):
@@ -95,13 +109,14 @@ def fullscreen_templates(d):
     )
     items = "".join(
         f'<button type="button" class="fs-item" data-action="fs-photo" data-n="{x["number"]}" '
-        f'data-date="{D.ja_date(x["taken_on"])}"><span class="ph">{x["number"]}</span>'
-        f'<span>{D.ja_date(x["taken_on"])}</span></button>'
-        for x in d["photo_rows"]
+        f'data-date="{D.ja_date(x["taken_on"])}" data-src="{PH.url_for(x["number"])}">'
+        f'<span class="ph"><img src="{PH.url_for(x["number"])}" alt=""><span class="no">{x["number"]}</span></span>'
+        f'<span class="dt">{D.ja_date(x["taken_on"])}</span></button>'
+        for x in reversed(d["photo_rows"])
     )
     photos_t = (
         '<template data-fs="intraoral-photos" data-title="口腔内写真"><div class="fs-photos">'
-        '<div class="fs-big"><div class="fs-big-box"></div><div class="fs-big-cap"></div></div>'
+        '<div class="fs-big"><div class="fs-big-box"></div></div>'
         f'<div class="fs-scroll fs-list">{items}</div></div></template>'
     )
     li = "".join(f"<li>{h(x)}</li>" for x in d["summary"])
@@ -384,7 +399,8 @@ def shell(kind, title):
         f"<!doctype html><html lang='ja'><head><meta charset='utf-8'><title>{title}</title>"
         "<link rel='stylesheet' href='/static/css/mock.css'>"
         "<link rel='stylesheet' href='/static/css/booklist.css'>"
-        "<link rel='stylesheet' href='/static/css/unit.css'></head>"
+        "<link rel='stylesheet' href='/static/css/unit.css'>"
+        "<link rel='stylesheet' href='/static/css/photos.css'></head>"
         f"<body class='role-{'reception' if kind == 'reception' else 'doctor'}' data-kind='{kind}'>"
         "<div id='view' style='display:contents'></div>"
         + ("<div id='band' data-part='key-band' hidden><span data-band-text></span><span data-band-left></span></div>"
