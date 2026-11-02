@@ -4,6 +4,7 @@
   python scripts/real_api_check.py            モデル一覧→最新の Sonnet を config/model.json に書く→短文を1回送る
   python scripts/real_api_check.py --no-write モデル名を書き換えず、今の設定で送るだけ
   python scripts/real_api_check.py --questions G16 の質問9問を本物の Claude に1回ずつ通し、正解と照らす
+  python scripts/real_api_check.py --memo      G17 の話6通りを本物の Claude で5つに分け、期待と照らす
 結果は docs/実API結果.md に追記する。鍵は出力にも記録にも出さない。
 """
 import argparse
@@ -85,11 +86,64 @@ def run_questions() -> int:
     return 0 if ok_all else 1
 
 
+def run_memo() -> int:
+    """tests/memo_cases.json の6通りを本物の Claude で整理する。名前を付けて送り、送った文に名前が残らないことも見る。"""
+    import os
+    import tempfile
+
+    tmp = tempfile.mkdtemp(prefix="cv_g17_")
+    os.environ["CV_DATA_DIR"] = tmp
+    subprocess.run([sys.executable, str(ROOT / "scripts" / "seed.py")], check=True, capture_output=True,
+                   env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+    from app.ai import memo
+    from app.ai.gateway import Gateway, sensitive_from_db
+    from app.db import connect
+    from tests.memo_eval import CASES, judge
+
+    con = connect()
+    sens = sensitive_from_db(con)
+    gw = Gateway(log_dir=Path(tmp) / "sent_log")
+    ok_all, rows, NL = True, [], chr(10)
+    for c in CASES:
+        talk = "見本 花子さんの診療です。" + c["transcript"]  # 名前を入れて送り、伏字を確かめる
+        try:
+            items = memo.organize(talk, sens, gw)
+        except ClaudeUnavailable as e:
+            print(e)
+            return 2
+        except Exception as e:  # noqa: BLE001
+            items, bad = {}, [f"失敗 {type(e).__name__}: {redact_key(str(e))[:80]}"]
+        else:
+            bad = judge(items, c["expect"])
+        ok_all &= not bad
+        rows.append((c["id"], c["title"], bad, items))
+        print(c["id"], "合格" if not bad else "不合格", bad)
+    sent = "".join(p.read_text(encoding="utf-8") for p in (Path(tmp) / "sent_log").glob("*.jsonl"))
+    names_left = [w for w in ("見本", "花子", "ハナコ") if w in sent]
+    if names_left:
+        ok_all = False
+        print("送った文に名前が残っています:", names_left)
+    sample = json.loads(sent.splitlines()[0])["user"][:200] if sent else ""
+    table = "".join(f"  - {r[0]} {r[1]}: {'合格' if not r[2] else '不合格 ' + '; '.join(r[2])}{NL}" for r in rows)
+    with RESULT_MD.open("a", encoding="utf-8") as f:
+        f.write(
+            f"{NL}## {datetime.now():%Y-%m-%d %H:%M} G17 話した内容の整理 6通り{NL}"
+            f"- コミット: {commit_id()}{NL}- モデル: {load_model()}{NL}"
+            f"- 入力（伏字後の1通り目の送信文の先頭）: {sample}{NL}"
+            f"- 送った文に名前が残っていない: {'はい' if not names_left else 'いいえ'}{NL}{table}"
+            f"- 判定: {'全部合格' if ok_all else '不合格あり'}{NL}"
+        )
+    return 0 if ok_all else 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-write", action="store_true")
     ap.add_argument("--questions", action="store_true")
+    ap.add_argument("--memo", action="store_true")
     args = ap.parse_args()
+    if args.memo:
+        return run_memo()
     if args.questions:
         return run_questions()
     try:

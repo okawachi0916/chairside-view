@@ -146,7 +146,11 @@
   }
 
   // ---- 受付（ボタン2）----
-  function fail(stage, msg) { say("止まった場所: " + stage + "（" + msg + "）"); }
+  // 録音（親の画面）が動いているときは、声の指示を聞いている間だけ止める。指示の言葉は録音に入れない
+  function holdRec(on) {
+    try { if (window.parent !== window && window.parent.CVRec) window.parent.CVRec.hold(on); } catch (e) { /* 親が無ければ何もしない */ }
+  }
+  function fail(stage, msg) { holdRec(false); say("止まった場所: " + stage + "（" + msg + "）"); }
 
   function startRec() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -162,6 +166,7 @@
         recorder.onstop = function () { finish(chunks, stream); };
         rec = { recorder: recorder, stream: stream, timer: setTimeout(stopRec, MAX_MS) };
         recorder.start();
+        holdRec(true);
         setMic("rec");
         say("聞いています…");
       } catch (e) {
@@ -190,7 +195,7 @@
       .then(function (r) { return r.json().then(function (b) { return [r.ok, b]; }); })
       .then(function (x) {
         if (!x[0]) return fail(x[1].stage === "audio" ? "録音" : "文字起こし", x[1].error || "");
-        return interpret(x[1].text);
+        return interpret(x[1].text).then(function () { holdRec(false); });
       })
       .catch(function () { fail("接続", "サーバーにつながりません"); });
   }

@@ -71,7 +71,7 @@
       }
       if (act === "change-patient") {
         if (kind === "reception") openReception(0);
-        else location.href = "/";
+        else window.CVActions.run("pick-patient"); // 録音で患者様を固定している間は進めない
       } else if (act === "change-role" && kind === "unit") {
         openUnit(state.appt, state.role === "hygienist" ? "doctor" : "hygienist");
       }

@@ -389,7 +389,8 @@ def list_page(rows):
         "<thead><tr><th>時間</th><th>カルテ番号</th><th>氏名 "
         '<button type="button" class="mini" data-action="reveal-all">すべて表示</button></th>'
         f"<th>処置</th></tr></thead><tbody>{body}</tbody></table></main>"
-        "<script src='/static/js/mock_nav.js'></script></body></html>"
+        "<script src='/static/js/mock_nav.js'></script>"
+        "<script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script></body></html>"
     )
 
 
@@ -406,7 +407,7 @@ def shell(kind, title):
         + ("<div id='band' data-part='key-band' hidden><span data-band-text></span><span data-band-left></span></div>"
            "<script src='/static/js/voice_keys.js'></script>" if kind == "unit" else "")
         + "<script src='/static/js/actions.js'></script>"
-        + ("<script src='/static/js/actions/voice.js'></script><script src='/static/js/actions/ai.js'></script>"
+        + ("<script src='/static/js/actions/voice.js'></script><script src='/static/js/actions/ai.js'></script><script src='/static/js/actions/rec.js'></script>"
            if kind == "unit" else "")
         + "<script src='/static/js/view.js'></script></body></html>"
     )

@@ -225,6 +225,26 @@ TABLES = {
             ("status", "TEXT", "'draft'", True),  # draft=確定前 / confirmed=確定済み
             ("created_at", "TEXT", "''", True),
             ("confirmed_at", "TEXT", None, False),
+            ("recording_id", "INTEGER", None, False),  # もとの録音。1つの録音から下書きは1つだけ
+            ("items", "TEXT", "'{}'", True),  # 5つの項目と抜き出し (JSON)
+        ],
+        "extra": [_PATIENT_FK, _VISIT_FK],
+    },
+    # 録音。患者様なしの録音は patient_id / visit_id が空。状態は日本語の8つ。
+    "recordings": {
+        "cols": [
+            ("rec_no", "INTEGER", "0", True),  # 録音の番号 (開いた順)
+            ("started_at", "TEXT", "''", True),
+            ("duration_sec", "REAL", "0", True),
+            ("patient_id", "INTEGER", None, False),
+            ("visit_id", "INTEGER", None, False),
+            ("audio_file", "TEXT", "''", True),
+            ("state", "TEXT", "'録音中'", True),
+            ("transcript", "TEXT", "''", True),
+            ("error", "TEXT", "''", True),
+            ("attempt", "INTEGER", "0", True),  # 再試行のたびに増やす。古い処理の結果は捨てる
+            ("draft_id", "INTEGER", None, False),
+            ("updated_at", "TEXT", "''", True),
         ],
         "extra": [_PATIENT_FK, _VISIT_FK],
     },
