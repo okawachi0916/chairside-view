@@ -60,6 +60,15 @@
     var a = e.target.closest("[data-action]");
     if (a) {
       var act = a.dataset.action;
+      if (act === "fullscreen") {
+        var part = a.closest("[data-part]");
+        if (part && window.CVActions) CVActions.run("fs-open", part.dataset.part);
+        return;
+      }
+      if (/^fs-/.test(act)) {
+        if (window.CVActions) CVActions.run(act, a);
+        return;
+      }
       if (act === "change-patient") {
         if (kind === "reception") openReception(0);
         else location.href = "/";

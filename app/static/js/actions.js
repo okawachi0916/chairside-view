@@ -52,9 +52,96 @@
     h.scrolls.forEach(function (s) { s[0].scrollTop = s[1]; });
   }
 
+  // ---- 全画面 (重要事項・口腔内写真・話した内容の整理) ----
+  function panel() { return root().querySelector(".fs-panel"); }
+  function scrollers(p) { return p.querySelectorAll(".fs-scroll"); }
+
+  function fsUpdate() {
+    var p = panel();
+    if (!p) return;
+    var over = false, atTop = true, atEnd = true;
+    scrollers(p).forEach(function (el) {
+      if (el.scrollHeight > el.clientHeight + 1) {
+        over = true;
+        if (el.scrollTop > 0) atTop = false;
+        if (el.scrollTop + el.clientHeight < el.scrollHeight - 1) atEnd = false;
+      }
+    });
+    var prev = p.querySelector('[data-action="fs-prev"]'), next = p.querySelector('[data-action="fs-next"]');
+    prev.hidden = next.hidden = !over;
+    prev.disabled = atTop;
+    next.disabled = atEnd;
+  }
+
+  function fsOpen(part) {
+    var tpl = root().querySelector('template[data-fs="' + part + '"]');
+    if (!tpl) return; // ほかの部品の全画面は作らない
+    fsClose();
+    var p = document.createElement("section");
+    p.className = "fs-panel";
+    p.setAttribute("data-fs-panel", part);
+    var head = document.createElement("div");
+    head.className = "fs-head";
+    var h = document.createElement("h2");
+    h.textContent = tpl.dataset.title;
+    head.appendChild(h);
+    var sp = document.createElement("span");
+    sp.className = "fs-spacer";
+    head.appendChild(sp);
+    [["fs-prev", "前のページ"], ["fs-next", "次のページ"], ["fs-close", "もとに戻す"]].forEach(function (b) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.setAttribute("data-action", b[0]);
+      btn.textContent = b[1];
+      head.appendChild(btn);
+    });
+    p.appendChild(head);
+    p.appendChild(tpl.content.cloneNode(true));
+    root().appendChild(p);
+    document.body.classList.add("fs-mode");
+    scrollers(p).forEach(function (el) { el.addEventListener("scroll", fsUpdate); });
+    if (part === "intraoral-photos") {
+      var items = p.querySelectorAll(".fs-item");
+      if (items.length) fsPhoto(items[items.length - 1]); // 一番新しい写真から
+    }
+    fsUpdate();
+  }
+
+  function fsClose() {
+    var p = panel();
+    if (p) p.remove();
+    document.body.classList.remove("fs-mode");
+  }
+
+  function fsPage(dir) {
+    var p = panel();
+    if (!p) return;
+    scrollers(p).forEach(function (el) {
+      el.scrollTop += dir * Math.max(40, Math.floor(el.clientHeight * 0.9));
+    });
+    fsUpdate();
+  }
+
+  function fsPhoto(item) {
+    var p = panel();
+    if (!p || !item) return;
+    p.querySelectorAll(".fs-item").forEach(function (el) { el.classList.toggle("sel", el === item); });
+    p.querySelector(".fs-big-box").textContent = "写真 " + item.dataset.n;
+    p.querySelector(".fs-big-cap").textContent = item.dataset.date;
+    item.scrollIntoView({ block: "nearest" });
+  }
+
+  window.addEventListener("resize", fsUpdate);
+  register("fs-open", fsOpen);
+  register("fs-close", fsClose);
+  register("fs-next", function () { fsPage(1); });
+  register("fs-prev", function () { fsPage(-1); });
+  register("fs-photo", fsPhoto);
+
   // 端末に一時的に置いた情報を消す。診療の記録はサーバーにあり、ここでは消さない。
   function clearTransient() {
     hidden = null;
+    fsClose();
     try { sessionStorage.clear(); localStorage.clear(); } catch (e) { /* 使えなくてもよい */ }
   }
 
