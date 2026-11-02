@@ -177,11 +177,11 @@ def retry(con, rec_id: int) -> dict:
 
 
 def later(con, rec_id: int) -> dict:
-    cur = con.execute("UPDATE recordings SET state = ?, updated_at = ? WHERE id = ? AND state = ?",
-                      (LATER, now(), rec_id, FAILED))
+    cur = con.execute("UPDATE recordings SET state = ?, updated_at = ? WHERE id = ? AND state IN (?, ?)",
+                      (LATER, now(), rec_id, FAILED, DRAFT))
     con.commit()
     if cur.rowcount != 1:
-        raise RecError("失敗した録音だけ「後で直す」にできます", 409)
+        raise RecError("失敗した録音か下書きだけ「後で直す」にできます", 409)
     return get(con, rec_id)
 
 
@@ -299,9 +299,14 @@ def _organize(con, rec_id, attempt, r):
         if not cur or cur["attempt"] != attempt or cur["state"] != ORGANIZING:
             con.rollback()
             return  # 遅れて届いた結果は捨てる
-        d = con.execute("SELECT id FROM drafts WHERE recording_id = ?", (rec_id,)).fetchone()
-        if d:
-            draft_id = d["id"]  # 二重に記録しない
+        d = con.execute("SELECT id, status FROM drafts WHERE recording_id = ?", (rec_id,)).fetchone()
+        if d and d["status"] == "draft":
+            # 整理し直した新しい下書き。人が見てから確定する（二重に作らず、同じ下書きを新しくする）
+            draft_id = d["id"]
+            con.execute("UPDATE drafts SET body = ?, transcript = ?, items = ? WHERE id = ?",
+                        (memo.body_lines(items), cur["transcript"], json.dumps(items, ensure_ascii=False), draft_id))
+        elif d:
+            draft_id = d["id"]  # 確定済みは触らない
         else:
             c2 = con.execute(
                 "INSERT INTO drafts (patient_id, visit_id, kind, body, transcript, status, created_at, "
@@ -315,3 +320,22 @@ def _organize(con, rec_id, attempt, r):
     except Exception:
         con.rollback()
         raise
+
+
+def reorganize(con, rec_id: int, transcript: str) -> dict:
+    """話したままの文字を直して、整理し直す。新しい下書きは人が見てから確定する。"""
+    transcript = (transcript or "").strip()
+    if not transcript:
+        raise RecError("話したままの文字を入れてください")
+    r = get(con, rec_id)
+    if not r:
+        raise RecError("その録音が見つかりません", 404)
+    if not r["patient_id"]:
+        raise RecError("先に患者様と診療回を選んでください", 409)
+    if r["state"] not in (DRAFT, LATER, FAILED):
+        raise RecError(f"今の状態（{r['state']}）では整理し直せません", 409)
+    con.execute("UPDATE recordings SET transcript = ? WHERE id = ? AND state IN (?, ?, ?)",
+                (transcript, rec_id, DRAFT, LATER, FAILED))
+    con.commit()
+    _claim_and_run(con, rec_id, [DRAFT, LATER, FAILED], ORGANIZING)
+    return get(con, rec_id)

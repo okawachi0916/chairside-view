@@ -53,3 +53,20 @@ table.rec .st-転送待ち { color: var(--c-warn); font-weight: var(--fw-bold); 
 .draft-sec li { font-size: var(--fs-4); line-height: var(--lh-table); margin-bottom: var(--sp-2); }
 .draft-sec .qt { display: block; font-size: var(--fs-1); color: var(--c-sub); }
 .draft-sec .empty { color: var(--c-sub); list-style: none; margin-left: calc(var(--sp-6) * -1); }
+
+/* 下書きの直し・確定、今日の診療一覧の印 */
+.draft-bar { display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap; }
+.draft-actions button { font-family: inherit; font-size: var(--fs-3); font-weight: var(--fw-bold); padding: var(--sp-2) var(--sp-5);
+  border: 2px solid var(--c-doctor); border-radius: var(--r-s); background: var(--c-surface); color: var(--c-doctor); cursor: pointer; }
+.draft-actions #btn-confirm { background: var(--c-doctor); color: var(--c-surface); }
+.draft-sec li.row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); list-style: none; margin-left: calc(var(--sp-6) * -1); }
+.draft-sec .tx { flex: 1; min-width: 0; font-family: inherit; font-size: var(--fs-4); padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--c-line-strong); border-radius: var(--r-s); }
+.draft-sec .qt { flex-basis: 100%; }
+.draft-sec button { font-family: inherit; font-size: var(--fs-2); padding: var(--sp-1) var(--sp-3); border: 1px solid var(--c-sub);
+  border-radius: var(--r-s); background: var(--c-canvas); cursor: pointer; }
+.fix-text { width: 100%; height: 200px; font-family: inherit; font-size: var(--fs-3); line-height: var(--lh-text); }
+.draft-left audio { width: 100%; margin-bottom: var(--sp-3); }
+#plan-compare table.rec td { font-size: var(--fs-2); }
+#plan-compare tr.add td { background: var(--c-canvas); }
+.addendum { display: inline-block; margin-left: var(--sp-3); color: var(--c-alert); font-weight: var(--fw-bold); animation: recblink 0.9s infinite; }

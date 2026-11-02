@@ -93,6 +93,7 @@ TABLES = {
             ("staff_name", "TEXT", "''", True),
             ("minutes", "INTEGER", None, False),
             ("timing", "TEXT", "''", True),
+            ("superseded_on", "TEXT", None, False),  # 変更・削除された古い計画。日付を付けて残す（空なら今の計画）
         ],
         "extra": [_PATIENT_FK],
     },

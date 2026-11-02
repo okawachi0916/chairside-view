@@ -95,7 +95,7 @@ def unit_data(appt, role):
         d["appt"], d["role"] = appt, role
         d["day"] = same_day(c, appt)
         d["plan"] = [r["body"] for r in c.execute(
-            "SELECT body FROM treatment_plans WHERE patient_id = ? AND kind = 'plan' ORDER BY seq, id", (pid,))]
+            "SELECT body FROM treatment_plans WHERE patient_id = ? AND kind = 'plan' AND superseded_on IS NULL ORDER BY seq, id", (pid,))]
         d["notes"] = _all(c, "SELECT note_date, author_role, body FROM clinical_notes WHERE patient_id = ? "
                              "ORDER BY note_date DESC, id DESC", pid)
         d["history"] = _all(c, "SELECT done_date, site, content FROM treatment_history WHERE patient_id = ? "

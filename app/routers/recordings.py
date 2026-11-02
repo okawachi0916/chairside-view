@@ -160,29 +160,55 @@ def recordings_page():
         "</main><script src='/static/js/recordings.js'></script></body></html>", headers=NO_STORE)
 
 
-def _draft_html(d, p, v):
+def _draft_html(d, p, v, rec, fix):
     items = json.loads(d["items"] or "{}")
+    done = d["status"] == "confirmed"
+    dis = " disabled" if done else ""
     cols = ""
     for key, title in memo.SECTIONS:
         rows = items.get(key, [])
         body = "".join(
-            f"<li data-quote='{h(r['quote'], quote=True)}'><span class='tx'>{h(r['text'])}</span>"
-            f"<span class='qt'>もとの話: {h(r['quote'])}</span></li>" for r in rows
-        ) or "<li class='empty'>（なし）</li>"
-        cols += f"<section class='draft-sec' data-section='{key}'><h3>{h(title)}</h3><ul>{body}</ul></section>"
+            f"<li class='row' data-quote='{h(r['quote'], quote=True)}'>"
+            f"<input class='tx' type='text' value='{h(r['text'], quote=True)}'{dis}>"
+            f"<button type='button' class='del'{dis}>消す</button>"
+            f"<span class='qt'>もとの話: {h(r['quote'])}</span></li>" for r in rows)
+        cols += (f"<section class='draft-sec' data-section='{key}'><h3>{h(title)}</h3><ul>{body}</ul>"
+                 f"<button type='button' class='add'{dis}>＋ 行を足す</button></section>")
+    mark = "確定済み（診療メモに入りました）" if done else "下書き まだ記録に入っていません"
+    rec_id = rec["id"] if rec else ""
+    state = rec["state"] if rec else ""
+    audio = ""
+    if fix and rec and rec["audio_file"] and not done:
+        audio = f"<audio controls src='/rec/{rec['id']}/audio' data-part='fix-audio'></audio>"
+    if fix and not done:
+        left = (f"{audio}<textarea id='fix-text' class='fix-text'>{h(d['transcript'])}</textarea>"
+                "<button type='button' id='fix-reorg'>この文字で整理し直す</button>")
+    else:
+        left = f"<p>{h(d['transcript'])}</p>"
+    bar = ("" if done else
+           "<span class='draft-actions'><button type='button' id='btn-save'>保存</button> "
+           "<button type='button' id='btn-confirm' data-action='confirm'>確定する</button> "
+           "<button type='button' id='btn-later'>後で直す</button></span>")
     return (
         "<!doctype html><html lang='ja'><head><meta charset='utf-8'><title>下書き</title>" + CSS +
-        f"</head><body class='rec-page' data-page='draft' data-draft-id='{d['id']}'>"
+        f"</head><body class='rec-page' data-page='draft' data-draft-id='{d['id']}' data-rec-id='{rec_id}' "
+        f"data-status='{d['status']}' data-rec-state='{h(state)}' data-fix='{1 if fix else 0}'>"
         f"<header class='rec-head'><span>{h(p['name'])} 様 No. {h(p['chart_no'])}　診療日 {h(v['visit_date'])}</span>"
-        "<a href='/recordings'>録音の一覧へ</a></header>"
-        "<div class='draft-bar'><span class='draft-mark' data-part='draft-mark'>下書き まだ記録に入っていません</span></div>"
-        f"<div class='draft-cols'><div class='draft-left' data-part='draft-transcript'><h3>話したままの文字</h3><p>{h(d['transcript'])}</p></div>"
-        f"<div class='draft-right' data-part='draft-items'>{cols}</div></div></body></html>"
+        "<a href='/recordings'>録音の一覧へ</a><a href='/today'>今日の診療一覧へ</a></header>"
+        f"<div class='draft-bar'><span class='draft-mark' data-part='draft-mark'>{mark}</span>{bar}"
+        "<span id='msg' class='err' role='status'></span></div>"
+        f"<div class='draft-cols'><div class='draft-left' data-part='draft-transcript'><h3>話したままの文字</h3>{left}</div>"
+        f"<div class='draft-right' data-part='draft-items'>{cols}"
+        "<section class='draft-sec' id='plan-compare' data-part='plan-compare'><h3>治療計画の反映（選んだものだけ反映します）</h3>"
+        "<table class='rec'><thead><tr><th>今の計画</th><th>新しい計画</th><th>反映</th></tr></thead>"
+        "<tbody id='plan-rows'></tbody></table></section></div></div>"
+        "<script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script>"
+        "<script src='/static/js/draft.js'></script></body></html>"
     )
 
 
 @router.get("/drafts/{draft_id}", response_class=HTMLResponse)
-def draft_page(draft_id: int, chart: str = ""):
+def draft_page(draft_id: int, chart: str = "", fix: int = 0):
     con = connect()
     try:
         d = con.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,)).fetchone()
@@ -192,7 +218,9 @@ def draft_page(draft_id: int, chart: str = ""):
         v = con.execute("SELECT * FROM visits WHERE id = ? AND patient_id = ?", (d["visit_id"], d["patient_id"])).fetchone()
         if chart and chart != p["chart_no"]:
             raise HTTPException(404)  # 別の患者様の画面では開かない
-        return HTMLResponse(_draft_html(d, p, v), headers=NO_STORE)
+        rec = con.execute("SELECT id, state, audio_file FROM recordings WHERE draft_id = ? OR id = ?",
+                          (draft_id, d["recording_id"] or -1)).fetchone()
+        return HTMLResponse(_draft_html(d, p, v, rec, bool(fix)), headers=NO_STORE)
     finally:
         con.close()
 

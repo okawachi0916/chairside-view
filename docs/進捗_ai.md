@@ -2,23 +2,21 @@
 
 ## 動く版
 - G14b/G15: 鍵と最新 Sonnet の設定、送信口 app/ai/gateway.py と伏字 app/ai/redact.py（直接 Claude を呼ぶのはここだけ）
-- G16: 自由な質問への答え（POST /ai/ask、app/ai/ask.py、actions/ai.js）。質問10例は tests/questions.json
-- G17: 話した内容を下書きにする
-  - 入口は親の画面 /app（録音と右下の窓を持ち、中の画面だけ替える）。ボタン1（REC）で録音、もう一度で止める
-  - 録音の窓は app/static/js/rec.js。患者様・診療回は始めたときに固定。固定中は次の患者様へ進めない（actions/rec.js）
-  - ボタン2の声の指示の間は録音を一時停止（voice.js から CVRec.hold）。OK は画面でも REC 1回でも可。30秒で転送待ち
-  - 流れは app/ai/recpipe.py（録音中→転送待ち→文字起こし中→整理中→下書き／失敗・後で直す）。音声は data/runtime/audio に先に保存
-  - 整理は app/ai/memo.py（5つに分け、抜き出しが話の中に無い行は出さない）。画面は /recordings と /drafts/{番号}
-  - 失敗は理由と再試行。再起動のあとも保存した音声から再試行でき、下書きは1録音に1つ
-  - 文字を貼り付ける口は /recordings の下の欄（POST /rec/paste）
-- 試験: 全体 240 件（偽物の口）。tests/memo_cases.json の6通りは本物の Claude でも全部合格（docs/実API結果.md）
-- 偽物の口: tests/conftest.py の CHAIRSIDE_AI_FAKE_FILE（reply と transcript を書き換えて変える）
+- G16: 自由な質問への答え（POST /ai/ask、app/ai/ask.py）。質問10例は tests/questions.json
+- G17: 話した内容を下書きにする。入口は親の画面 /app（録音と右下の窓）。流れは app/ai/recpipe.py、整理は app/ai/memo.py、画面は /recordings と /drafts/{番号}。話6通りは tests/memo_cases.json（本物の Claude でも全部合格）
+- G19: 下書きの確定と後で直す
+  - /drafts/{番号}: 5項目をキーボードで直す（足す・消す・書き換え）。「確定する」で過去の診療メモ（clinical_notes）に入る。確定前は何も入らない
+  - 治療計画は今の計画と新しい計画を並べ、選んだ「変更・削除・追加」だけ反映。話に出ていない歯の計画は残る。古い計画は treatment_plans.superseded_on に日付を付けて残す
+  - 声・文字: 「確定する」のあと「確定」（window.cvTyped、ボタン2）。確定したら音声を消す（app/ai/confirm.py）
+  - 後で直す: 下書きのまま音声を残す。失敗（下書き無し）も音声と診療回を残して進める。直す画面は /fix/{録音}（音声・文字・再整理。新しい下書きは人が見てから確定）
+  - 次の患者様へ進む前に「確定していない診療メモがあります」で止める（メモを開く／後で直す、actions/rec.js）
+  - /today: 時間・カルテ番号・氏名（伏せ字）・処置・状態。確定していない人に「大川内先生 追記必要」が赤く点滅（確定で消える）。再起動しても残る
+- 試験: 全体 261 件（偽物の口）。送信文・伏字・応答を変えたら real_api_check.py の --questions と --memo を動かし直す
 
 ## 残り
-- 録音は /app から開いたときだけ使える（直接 /unit を開くと「録音は /app から」と出る）
+- 録音は /app から開いたときだけ使える。実機のマイクでの通しは院長の確認待ち（試験は偽物のマイク）
+- 追記必要の印は、録音を始めた診療回の予約の行に付く
 - 治療歴は同じ日の診療メモがあると質問の記録に番号を付けない。電話・住所の列は DB に無い
-- 確定は G18。実機のマイクでの通しは院長の確認待ち（試験は偽物のマイク）
-- 送信文・伏字・応答を変えたら real_api_check.py の --questions と --memo を動かし直す
 
 ## 次のゴール
-- G18（確定と、後で直す）
+- 指示待ち（G20 以降は指示を確認）

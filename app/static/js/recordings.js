@@ -64,11 +64,16 @@
         ops.appendChild(act("再試行", function () { return post("/rec/" + r.id + "/retry"); }));
         ops.appendChild(act("後で直す", function () { return post("/rec/" + r.id + "/later"); }));
       } else if (r.state === "後で直す") {
-        ops.appendChild(act("再試行", function () { return post("/rec/" + r.id + "/retry"); }));
+        var fx = el("a", "直す");
+        fx.href = "/fix/" + r.id;
+        ops.appendChild(fx);
       } else if (r.state === "下書き" && r.draft_id) {
         var a = el("a", "下書きを見る");
         a.href = "/drafts/" + r.draft_id;
         ops.appendChild(a);
+        ops.appendChild(act("後で直す", function () { return post("/rec/" + r.id + "/later"); }));
+      } else if (r.state === "確定") {
+        ops.appendChild(el("span", "診療メモに入りました"));
       }
       tr.appendChild(ops);
       rows.appendChild(tr);

@@ -179,7 +179,7 @@ def test_patientless_recording_survives_screen_changes_and_features_work(server,
     f = inner(pg)
     assert "下書き まだ記録に入っていません" in f.inner_text("[data-part=draft-mark]")
     assert "根管充填" in f.inner_text("[data-part=draft-transcript]")
-    assert "二週間後に土台" in f.inner_text("[data-part=draft-items]")
+    assert "二週間後に土台" in [i.input_value() for i in f.locator("[data-part=draft-items] .tx").all()]
     pg.context.close()
 
 
@@ -199,8 +199,13 @@ def test_fixed_recording_blocks_next_patient_until_stopped(server, browser):  # 
     # 文字起こしと整理は裏で進む。止めずに次の患者様へ進める
     f = inner(pg)
     f.click("[data-action=change-patient]")
-    pg.wait_for_function("document.getElementById('inner').contentWindow.location.pathname === '/'")
-    rows = wait_db(lambda r: r and r[0]["state"] == "下書き")
+    # 整理が先に終わっていれば「確定していない診療メモがあります」で止まる（G19）。後で直すに置いて進む
+    pg.wait_for_function("document.getElementById('inner').contentWindow.location.pathname === '/' || "
+                         "!!document.getElementById('inner').contentDocument.getElementById('memo-block')")
+    if inner(pg).locator("#memo-block").count():
+        inner(pg).click("#memo-block [data-action=memo-later]")
+        pg.wait_for_function("document.getElementById('inner').contentWindow.location.pathname === '/'")
+    rows = wait_db(lambda r: r and r[0]["state"] in ("下書き", "後で直す"))
     c = connect()
     assert c.execute("SELECT chart_no FROM patients WHERE id = ?", (rows[0]["patient_id"],)).fetchone()[0] == "0123"
     pg.context.close()

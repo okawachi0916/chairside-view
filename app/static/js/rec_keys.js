@@ -15,7 +15,15 @@
   document.head.appendChild(style);
   VoiceKeys.init({
     band: band,
-    isActive: function (n) { var r = rec(); return n === 1 && !!(r && r.active()); },
-    onAction: function (n) { var r = rec(); if (n === 1 && r) r.press(); },
+    isActive: function (n) {
+      var r = rec();
+      if (n === 2) return !!(window.CVActive && window.CVActive[2] && window.CVActive[2]()); // 声の指示を聞いている間は1回で止まる
+      return n === 1 && !!(r && r.active());
+    },
+    onAction: function (n) {
+      var r = rec();
+      if (n === 1 && r) r.press();
+      else if (n === 2 && window.CVKeyHooks && window.CVKeyHooks[2]) window.CVKeyHooks[2](); // 下書きの画面の声（draft.js）
+    },
   });
 })();
