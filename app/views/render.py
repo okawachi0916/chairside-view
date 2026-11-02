@@ -6,6 +6,7 @@ from app.mockview.parts import FULL, MIC, PHONE, band, card
 from app.views import photos as PH
 from app.mockview.reception_parts import heat_card, next_card, reserve_card
 from app.mockview.perio_parts import perio_card
+from app.mockview import tooth_chart as TC
 from app.views import data as D
 
 BAND = {1: "n1", 2: "n2", 3: "n3", 4: "n4"}
@@ -176,7 +177,10 @@ def _doctor_teeth(d):
         if x["made_on"]:
             t += f" {D.ja_date(x['made_on'])} 経過期間 {_months_since(x['made_on'])}か月"
         lines += f"<div><b>義歯</b> <span>{h(t)}</span></div>"
-    inner = f'<div class="teeth"><div class="frame"></div><div class="side">{lines}</div></div>'
+    own = TC.own_teeth(d["teeth"], [x["site"] for x in d["history"]], d["dentures"])
+    today = TC.today_teeth(a["detail"] for a in d["day"] if a["role"] == "doctor")
+    svg = TC.chart_svg(d["teeth"], own, today)
+    inner = f'<div class="teeth"><div class="frame">{svg}</div><div class="side">{lines}{TC.LEGEND}</div></div>'
     return card("tooth-chart", "歯の状態", inner, 8)
 
 

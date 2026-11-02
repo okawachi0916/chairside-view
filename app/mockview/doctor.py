@@ -1,3 +1,4 @@
+from app.mockview import tooth_chart as TC
 from app.mockview.parts import FULL, bands_three, card, intraoral, page, spoken, topbar
 
 NOTES = [
@@ -58,9 +59,13 @@ def _teeth():
         '<div class="side">'
         "<div><b>その他粘膜疾患</b> <span>舌左縁 白板症</span></div>"
         "<div><b>義歯</b> <span>左下 部分床義歯 当院作成 2026年5月8日 経過期間 6か月</span></div>"
-        "</div>"
+        f"{TC.LEGEND}</div>"
     )
-    inner = f'<div class="teeth"><div class="frame"></div>{side}</div>'
+    # 花子様の歯（初期データと同じ）
+    status = {t: "欠損" for t in (18, 28, 38, 48, 14, 35)}
+    status.update({46: "RCT中", 37: "CR", 26: "クラウン", 47: "CR", 15: "C2"})
+    svg = TC.chart_svg(status, own={46, 37}, today={46})
+    inner = f'<div class="teeth"><div class="frame">{svg}</div>{side}</div>'
     return card("tooth-chart", "歯の状態", inner, 8)
 
 

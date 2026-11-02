@@ -112,6 +112,8 @@ def unit_data(appt, role):
         d["interval"] = c.execute("SELECT months, last_date FROM maintenance_intervals WHERE patient_id = ?", (pid,)).fetchone()
         d["care"] = _all(c, "SELECT item, last_date FROM care_purchases WHERE patient_id = ? ORDER BY last_date DESC, id", pid)
         d["perio"] = _perio(c, pid)
+        d["teeth"] = {r["tooth"]: r["status"] for r in c.execute(
+            "SELECT tooth, status FROM tooth_status WHERE patient_id = ?", (pid,))}
     return d
 
 
