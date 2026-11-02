@@ -9,8 +9,8 @@ WORDS = [
     "歯科医師用", "見本 花子 様 58歳 女性 No. 0123 ユニット2", "2026年11月6日 金曜日",
     "14:30〜15:30（1時間）", "15:30〜16:00 SPT", "患者様を変える", "役割を変える",
     "重要事項", "ペニシリン系抗菌薬アレルギー", "ビスホスホネート製剤服用中",
-    "全身既往・服薬", "高血圧、アムロジピン内服中", "脂質異常症、ロスバスタチン内服中",
-    "骨粗鬆症、BP製剤内服中", "申し送り", "長く口を開けているのがつらい方です",
+    "全身既往・服薬", "高血圧（アムロジピン内服中）", "脂質異常症（ロスバスタチン内服中）",
+    "骨粗鬆症（BP製剤内服中）", "申し送り", "長く口を開けているのがつらい方です",
     "今日の処置", "右下6番 根管充填", "根管治療 3回目", "治療計画",
     "右下6番 次回 支台築造と形成、そのあとクラウン", "左下7番 3か月様子を見る",
     "その間に 右上5番 の充填", "過去の診療メモ",
@@ -29,5 +29,16 @@ def test_doctor_screen(server, browser):  # noqa: F811
     assert pg.locator("button:has-text('全画面')").count() == 6
     assert pg.locator("[data-part=photo-list] .ph").count() == 12
     assert pg.locator("[data-part=treatment-history] tbody tr").count() == 10
-    # 過去の診療メモだけ縦にスクロールできる
+    # 全身既往・服薬は1行ずつで、4行が全部見える
+    meds = pg.locator("[data-part=medical-history] ul.meds")
+    assert meds.locator("li").count() == 4
+    assert meds.evaluate("e => e.scrollHeight <= e.clientHeight + 1")
+    # 重要事項は赤地に白文字
+    assert pg.locator("[data-part=important]").evaluate(
+        "e => getComputedStyle(e).backgroundColor") == "rgb(255, 0, 0)"
+    assert pg.locator("[data-part=important] .lines").evaluate(
+        "e => getComputedStyle(e).color") == "rgb(255, 255, 255)"
+    # 名前は他の項目より大きい
+    size = lambda sel: pg.locator(sel).first.evaluate("e => parseFloat(getComputedStyle(e).fontSize)")
+    assert size(".pname") > size(".pinfo")
     pg.close()
