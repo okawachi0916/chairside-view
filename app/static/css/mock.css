@@ -6,7 +6,7 @@
 @font-face { font-family: "Noto Sans JP"; font-weight: 700; font-display: swap; src: url("/static/fonts/NotoSansJP-700.woff2") format("woff2"); }
 
 :root {
-  /* 色は13。少し青みのあるグレー6段階、役割3、注意の赤2、警告の琥珀2 */
+  /* 色は14。少し青みのあるグレー6段階、役割3、注意の赤2、警告の琥珀2、失活歯の歯髄のオレンジ */
   --c-surface: #ffffff;
   --c-canvas: #f3f5f8;
   --c-line: #e1e6ec;
@@ -20,6 +20,7 @@
   --c-alert-soft: #fdeceb;
   --c-warn: #8f420c;
   --c-warn-soft: #fbe8cc;
+  --c-pulp-dead: #e8892c;
 
   /* 文字。大きさ7段階、太さ3つ、行間3段階 */
   --font: "Noto Sans JP", sans-serif;
@@ -295,7 +296,7 @@ table.t td.n, table.t th.n { text-align: center; }
 
 /* 歯の状態 */
 .teeth { flex: 1; min-height: 0; display: flex; gap: var(--sp-4); }
-.teeth .frame { flex: 0 0 62%; background: var(--c-canvas); border-radius: var(--r-s); }
+.teeth .frame { flex: 0 0 62%; min-width: 0; background: var(--c-canvas); border-radius: var(--r-s); padding: var(--sp-2); display: flex; }
 .teeth .side { flex: 1; display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
 .teeth .side b { font-size: var(--fs-1); font-weight: var(--fw-medium); color: var(--c-sub); margin-right: var(--sp-2); }
 .teeth .side span { font-size: var(--fs-3); }
@@ -426,3 +427,21 @@ body #typed-box { background: var(--c-surface); border: 1px solid var(--c-line-s
 body #typed-box input { font-size: var(--fs-2); }
 body .topbar .mic.rec { fill: var(--c-alert-soft); }
 body .topbar .mic.none { fill: var(--c-line-strong); }
+
+/* 歯の状態の絵（tooth_chart.py）。生活歯の歯髄は赤、失活歯はオレンジ、クラウンは灰色、修復物は緑 */
+.tooth-svg { width: 100%; height: 100%; display: block; }
+.tc-root { fill: var(--c-surface); stroke: var(--c-line-strong); stroke-width: 1.5; }
+.tc-crown { fill: var(--c-surface); stroke: var(--c-sub); stroke-width: 1.5; }
+.tc-crown.cap { fill: var(--c-line-strong); stroke: var(--c-sub); }
+.tc-fill { fill: var(--c-hygienist); }
+.tc-pulp { fill: var(--c-alert); }
+.tc-pulp.dead { fill: var(--c-pulp-dead); }
+.tc-today { fill: none; stroke: var(--c-doctor); stroke-width: 3; }
+.tc-mid { stroke: var(--c-line-strong); stroke-width: 1; }
+.tc-no { font-size: var(--fs-4); font-weight: var(--fw-medium); text-anchor: middle; fill: var(--c-sub); }
+.tc-no.own { fill: var(--c-doctor); font-weight: var(--fw-bold); }
+.tc-no.other { fill: var(--c-warn); font-weight: var(--fw-bold); }
+.tc-no.gone { fill: var(--c-line-strong); }
+.tc-legend { display: flex; gap: var(--sp-4); font-size: var(--fs-2); font-weight: var(--fw-bold); }
+.tc-legend .own { color: var(--c-doctor); }
+.tc-legend .other { color: var(--c-warn); }
