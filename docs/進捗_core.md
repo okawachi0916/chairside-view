@@ -1,12 +1,11 @@
 # 進捗 core
-- 動く版: G10 完了。見本の画面をデータベースにつないだ。
-  - / 予約一覧（今日の予約6行、氏名は伏せ字）→ 行を押すと /unit?appt=番号&role=役割。SPT は歯科衛生士、ほかは歯科医師。
-  - /unit ユニットの画面（役割を変える、患者様を変える）。/reception 受付の画面（中で患者様を選ぶ。/unit からは行けない）。
-  - 中身は /api/view/unit、/api/view/reception から毎回読む（no-store）。ブラウザには何も保存しない。
-  - 古い応答は捨てる（app/static/js/view.js の seq）。window.cv.openUnit / openReception が入口。
-  - 重要事項は4行まで帯に入り、行数が多いほど文字が小さい（unit.css の n1〜n4）。
-- 部品: app/views/data.py（読み出し）、render.py（HTML）、app/routers/screens.py（入口）。
-- G10 は G09（78493ff）の次、main を取り込んで開始。
-- 試験: tests/test_screens.py（5人×3画面、人の切り替え、遅れた応答、受付の分離）。
-- 残り: ボタン3（G11）、全画面（G12）。
-- 次のゴール: G11（前提 G08 が入るまで待つ）
+- 動く版: G12 完了（G11 の上）。重要事項・口腔内写真・話した内容の整理の全画面。ほかの全画面ボタンは何も起きない。
+  - 全画面の操作は actions.js の入口を通る: fs-open（部品名）、fs-close、fs-next、fs-prev、fs-photo。
+  - 中身は画面の <template data-fs="部品名"> に入れてあり、開くまでページの文字に出ない（render.py の fullscreen_templates）。
+  - 上の行と重要事項の帯は残り、body に fs-mode が付いて本体を隠す。1画面に入らないときだけ「前のページ」「次のページ」が出る。
+  - ボタン3で隠して戻すと全画面まで戻る。次の患者様を開くと全画面は消える。
+- データ: important_notes に period・detail、drafts に transcript を追加。花子の今日の診療回2件と下書き2件を初期データに足した。
+  update_db.py で古いDBにも足せる。app/views/data.py の con() が初回に自動で足りない分を足す。
+- 試験: tests/test_fullscreen.py（7件）。全体 65件通過。
+- 残り: 録音と声の窓（ボタン1・2）は register("button1") などで足す。
+- 次のゴール: 指示待ち

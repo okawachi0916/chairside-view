@@ -1,12 +1,12 @@
 body.role-list { --role: var(--navy); }
 .list { padding: 0 14px; flex: none; }
 table.book { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); }
-table.book th { text-align: left; font-size: 16px; color: #5a6572; padding: 10px 14px; border-bottom: 2px solid var(--line); }
-table.book td { padding: 14px; border-bottom: 1px solid #e3e7ec; font-size: 22px; vertical-align: middle; }
+table.book th { text-align: left; font-size: 18px; color: #5a6572; padding: 10px 14px; border-bottom: 2px solid var(--line); }
+table.book td { padding: 14px; border-bottom: 1px solid #e3e7ec; font-size: 24px; vertical-align: middle; }
 table.book td.no { font-size: 56px; font-weight: 800; line-height: 1.2; letter-spacing: 2px; }
-table.book td.time { font-size: 24px; white-space: nowrap; }
+table.book td.time { font-size: 26px; white-space: nowrap; }
 table.book td.proc { font-weight: 700; }
 table.book tr.row { cursor: pointer; }
 table.book tr.row:hover, table.book tr.row:focus { background: #eef3fb; outline: none; }
 table.book .nm { margin-right: 14px; }
-table.book .mini { font-size: 14px; padding: 4px 12px; }
+table.book .mini { font-size: 16px; padding: 4px 12px; }

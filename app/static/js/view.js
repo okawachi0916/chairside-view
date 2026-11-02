@@ -19,6 +19,7 @@
         document.body.className = "role-" + d.role;
         document.title = d.title;
         state.role = d.role;
+        window.cv.chart = d.chart_no || "";
         root.innerHTML = d.html;
       })
       .catch(function () {
@@ -28,6 +29,7 @@
   }
 
   function openUnit(appt, role) {
+    if (window.CVActions) CVActions.run("clear-transient"); // 前の患者様の隠した画面や一時の情報を消す
     state.appt = appt;
     var q = "appt=" + appt + (role ? "&role=" + role : "");
     history.replaceState(null, "", "/unit?" + q);
@@ -46,6 +48,8 @@
   }
 
   document.addEventListener("click", function (e) {
+    var pick = e.target.closest('[data-action="pick-patient"]');
+    if (pick) return window.CVActions.run("pick-patient");
     var reveal = e.target.closest('[data-action="reveal"]');
     if (reveal) {
       e.stopPropagation();
@@ -56,6 +60,15 @@
     var a = e.target.closest("[data-action]");
     if (a) {
       var act = a.dataset.action;
+      if (act === "fullscreen") {
+        var part = a.closest("[data-part]");
+        if (part && window.CVActions) CVActions.run("fs-open", part.dataset.part);
+        return;
+      }
+      if (/^fs-/.test(act)) {
+        if (window.CVActions) CVActions.run(act, a);
+        return;
+      }
       if (act === "change-patient") {
         if (kind === "reception") openReception(0);
         else location.href = "/";
@@ -73,10 +86,23 @@
     if (pr) openReception(pr.dataset.patient);
   });
 
-  window.cv = { openUnit: openUnit, openReception: openReception };
+  window.cv = {
+    openUnit: openUnit,
+    openReception: openReception,
+    cancel: function () { seq++; }, // 読み込み中の応答を捨てる
+    chart: "",
+  };
 
   var q = new URLSearchParams(location.search);
   if (kind === "unit") {
+    // ボタン1・2・3。押したときの処理は CVActions.run に集める
+    VoiceKeys.init({
+      band: document.getElementById("band"),
+      onAction: function (n) { CVActions.run("button" + n); },
+      textFor: function (n) {
+        return n === 3 && CVActions.isHidden() ? "もう一度【隠】を押したら画面を戻します" : null;
+      },
+    });
     if (q.get("appt")) openUnit(q.get("appt"), q.get("role"));
     else location.href = "/";
   } else {

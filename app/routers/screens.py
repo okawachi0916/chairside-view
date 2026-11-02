@@ -14,8 +14,8 @@ def _html(s):
     return HTMLResponse(s, headers=NO_STORE)
 
 
-def _json(html, role, title):
-    return JSONResponse({"html": html, "role": role, "title": title}, headers=NO_STORE)
+def _json(html, role, title, chart_no=""):
+    return JSONResponse({"html": html, "role": role, "title": title, "chart_no": chart_no}, headers=NO_STORE)
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -42,8 +42,8 @@ def unit_view(appt: int, role: str = ""):
         role = a["role"] if a["role"] in D.ROLE_NAME else "doctor"
     d = D.unit_data(a, role)
     if role == "hygienist":
-        return _json(R.hygienist_page(d), role, "歯科衛生士の画面")
-    return _json(R.doctor_page(d), role, "歯科医師の画面")
+        return _json(R.hygienist_page(d), role, "歯科衛生士の画面", d["patient"]["chart_no"])
+    return _json(R.doctor_page(d), role, "歯科医師の画面", d["patient"]["chart_no"])
 
 
 @router.get("/api/view/reception")

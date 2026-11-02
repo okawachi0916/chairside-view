@@ -79,6 +79,40 @@ def spoken(d, cols):
     return card("spoken-summary", "話した内容の整理", f'<ul class="summary">{li}</ul>', cols, actions=FULL)
 
 
+def fullscreen_templates(d):
+    """全画面にする3つの部品の中身。<template> なので、開くまでページの文字には出ない。"""
+    rows = "".join(
+        f'<div class="fs-row"><b>{h(x["body"])}</b> '
+        + (f'<span>{h(" ".join(v for v in (x["period"], x["detail"]) if v))}</span>' if x["period"] or x["detail"] else "")
+        + "</div>"
+        for x in d["important_full"]
+    )
+    important_t = (
+        '<template data-fs="important" data-title="重要事項">'
+        f'<div class="fs-scroll fs-important">{rows}</div></template>'
+    )
+    items = "".join(
+        f'<button type="button" class="fs-item" data-action="fs-photo" data-n="{x["number"]}" '
+        f'data-date="{D.ja_date(x["taken_on"])}"><span class="ph">{x["number"]}</span>'
+        f'<span>{D.ja_date(x["taken_on"])}</span></button>'
+        for x in d["photo_rows"]
+    )
+    photos_t = (
+        '<template data-fs="intraoral-photos" data-title="口腔内写真"><div class="fs-photos">'
+        '<div class="fs-big"><div class="fs-big-box"></div><div class="fs-big-cap"></div></div>'
+        f'<div class="fs-scroll fs-list">{items}</div></div></template>'
+    )
+    li = "".join(f"<li>{h(x)}</li>" for x in d["summary"])
+    talk = h(d["transcript"])
+    spoken_t = (
+        '<template data-fs="spoken-summary" data-title="話した内容の整理"><div class="fs-cols">'
+        f'<div class="fs-col"><h3>要約</h3><div class="fs-scroll"><ul>{li}</ul></div></div>'
+        f'<div class="fs-col"><h3>話したままの文字</h3><div class="fs-scroll"><p>{talk}</p></div></div>'
+        "</div></template>"
+    )
+    return important_t + photos_t + spoken_t
+
+
 # ---------- 歯科医師 ----------
 def _months_since(s):
     """経過した月数。日数から四捨五入する (2026年5月8日から6か月)。"""
@@ -137,7 +171,7 @@ def doctor_page(d):
         + _doctor_today(d) + _doctor_history(d) + intraoral(d, 5, "c4") + _doctor_teeth(d) + spoken(d, 4)
         + "</main>"
     )
-    return top + bands_three(d) + body
+    return top + bands_three(d) + body + fullscreen_templates(d)
 
 
 # ---------- 歯科衛生士 ----------
@@ -148,14 +182,15 @@ SIDE = {0: "l", 1: "r", 2: "t", 3: "b"}  # 近心・遠心・頬側・舌側 →
 
 def _plaque_svg(flags):
     sides = {SIDE[i] for i, c in enumerate(flags) if c == "1"}
-    pts = {"t": "2,2 24,2 13,13", "r": "24,2 24,24 13,13", "b": "2,24 24,24 13,13", "l": "2,2 2,24 13,13"}
+    pts = {"t": "0,0 100,0 50,50", "r": "100,0 100,100 50,50", "b": "0,100 100,100 50,50", "l": "0,0 0,100 50,50"}
     polys = "".join(
         f'<polygon points="{p}" fill="{"#d32f2f" if k in sides else "#ffffff"}"/>' for k, p in pts.items()
     )
     return (
-        '<svg viewBox="0 0 26 26"><g stroke="#8a94a0" stroke-width="1">'
-        f'{polys}<rect x="2" y="2" width="22" height="22" fill="none"/>'
-        '<line x1="2" y1="2" x2="24" y2="24"/><line x1="24" y1="2" x2="2" y2="24"/></g></svg>'
+        '<svg viewBox="0 0 100 100" preserveAspectRatio="none">'
+        f'{polys}<g stroke="#6b7480" stroke-width="1.5">'
+        '<line x1="0" y1="0" x2="100" y2="100" vector-effect="non-scaling-stroke"/>'
+        '<line x1="100" y1="0" x2="0" y2="100" vector-effect="non-scaling-stroke"/></g></svg>'
     )
 
 
@@ -171,9 +206,9 @@ def _perio(d):
             return f'<td class="gone{mid}">―</td>'
         return make(cur["teeth"][t], mid)
 
-    def row(label, teeth, make):
+    def row(label, teeth, make, cls=""):
         cells = "".join(cell(t, " mid" if i == 8 else "", make) for i, t in enumerate(teeth))
-        return f'<tr><th class="row">{label}</th>{cells}</tr>'
+        return f'<tr class="{cls}"><th class="row">{label}</th>{cells}</tr>'
 
     def pocket(t, mid):
         cls = ("deep " if t["pocket"] >= 4 else "") + ("bop " if t["bop"] else "")
@@ -183,18 +218,18 @@ def _perio(d):
         return f'<td class="{mid.strip()}">{t["mobility"]}</td>'
 
     def plaque(t, mid):
-        return f'<td class="{mid.strip()}">{_plaque_svg(t["plaque"])}</td>'
+        return f'<td class="pl {mid.strip()}">{_plaque_svg(t["plaque"])}</td>'
 
+    # 歯番は上顎と下顎で共通。真ん中から外へ 1〜8
     nos = "".join(
-        f'<td class="no{" mid" if i == 8 else ""}"><div>{u}</div><div class="low">{l}</div></td>'
-        for i, (u, l) in enumerate(zip(UPPER, LOWER))
+        f'<td class="{"mid" if i == 8 else ""}">{abs(i - 7.5) + 0.5:.0f}</td>' for i in range(16)
     )
     table = (
         '<table class="perio"><tbody>'
-        + row("上顎 動揺度", UPPER, loose) + row("上顎 プラークチャート", UPPER, plaque)
+        + row("上顎 動揺度", UPPER, loose) + row("上顎 プラークチャート", UPPER, plaque, "plq")
         + row("上顎 ポケット", UPPER, pocket)
-        + f'<tr><th class="row">歯番 上／下</th>{nos}</tr>'
-        + row("下顎 ポケット", LOWER, pocket) + row("下顎 プラークチャート", LOWER, plaque)
+        + f'<tr class="no"><th class="row">歯番</th>{nos}</tr>'
+        + row("下顎 ポケット", LOWER, pocket) + row("下顎 プラークチャート", LOWER, plaque, "plq")
         + row("下顎 動揺度", LOWER, loose)
         + "</tbody></table>"
     )
@@ -236,7 +271,7 @@ def hygienist_page(d):
         + intraoral(d, 6, "c6") + spoken(d, 3) + _hyg_side(d) + _perio(d)
         + "</main>"
     )
-    return top + bands_three(d) + body
+    return top + bands_three(d) + body + fullscreen_templates(d)
 
 
 # ---------- 受付 ----------
@@ -423,5 +458,8 @@ def shell(kind, title):
         "<link rel='stylesheet' href='/static/css/unit.css'></head>"
         f"<body class='role-{'reception' if kind == 'reception' else 'doctor'}' data-kind='{kind}'>"
         "<div id='view' style='display:contents'></div>"
+        + ("<div id='band' data-part='key-band' hidden><span data-band-text></span><span data-band-left></span></div>"
+           "<script src='/static/js/voice_keys.js'></script>" if kind == "unit" else "")
+        + "<script src='/static/js/actions.js'></script>"
         "<script src='/static/js/view.js'></script></body></html>"
     )

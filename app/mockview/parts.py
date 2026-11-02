@@ -9,7 +9,11 @@ MIC = (
 FULL = '<button class="mini" type="button" data-action="fullscreen">全画面</button>'
 PHONE = '<button class="mini" type="button" data-action="phone">スマホ</button>'
 
-PATIENT = "見本 花子 様 58歳 女性 No. 0123"
+PATIENT = (
+    '<b class="pname">見本 花子</b> 様 '
+    '<span class="pinfo">58歳</span> <span class="pinfo">女性</span> '
+    '<span class="pinfo">No. 0123</span>'
+)
 DATE = "2026年11月6日 金曜日"
 
 
@@ -24,7 +28,7 @@ def page(role, title, topbar, bands, body):
 
 
 def topbar(tag, appt_html, buttons, unit=True, mic=True):
-    unit_s = " ユニット2" if unit else ""
+    unit_s = ' <span class="pinfo">ユニット2</span>' if unit else ""
     right = (MIC if mic else "") + "".join(
         f'<button type="button" data-action="{a}">{t}</button>' for a, t in buttons
     )
@@ -65,13 +69,14 @@ def important():
 
 
 def medical():
-    inner = (
-        '<div class="inline"><span>高血圧、アムロジピン内服中</span>'
-        "<span>脂質異常症、ロスバスタチン内服中</span>"
-        "<span>骨粗鬆症、BP製剤内服中</span>"
-        "<span>ペニシリン系抗菌薬アレルギー</span></div>"
-    )
-    return band("medical-history", "全身既往・服薬", inner)
+    items = [
+        "高血圧（アムロジピン内服中）",
+        "脂質異常症（ロスバスタチン内服中）",
+        "骨粗鬆症（BP製剤内服中）",
+        "ペニシリン系抗菌薬アレルギー",
+    ]
+    li = "".join(f"<li>{x}</li>" for x in items)
+    return band("medical-history", "全身既往・服薬", f'<ul class="meds">{li}</ul>')
 
 
 def note():

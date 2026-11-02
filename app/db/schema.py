@@ -55,6 +55,8 @@ TABLES = {
             ("patient_id", "INTEGER", None, True),
             ("seq", "INTEGER", "0", True),
             ("body", "TEXT", None, True),
+            ("period", "TEXT", "''", True),  # 起きた時期
+            ("detail", "TEXT", "''", True),  # 起きたこと
         ],
         "extra": [_PATIENT_FK],
     },
@@ -218,7 +220,8 @@ TABLES = {
             ("patient_id", "INTEGER", None, True),
             ("visit_id", "INTEGER", None, True),
             ("kind", "TEXT", "'spoken_summary'", True),
-            ("body", "TEXT", "''", True),
+            ("body", "TEXT", "''", True),  # 要約。1行に1項目
+            ("transcript", "TEXT", "''", True),  # 話したままの文字
             ("status", "TEXT", "'draft'", True),  # draft=確定前 / confirmed=確定済み
             ("created_at", "TEXT", "''", True),
             ("confirmed_at", "TEXT", None, False),

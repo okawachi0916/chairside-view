@@ -1,5 +1,5 @@
 # 進捗 look
-- 動く版: G06 完了。見本4画面と予約一覧が動く。部品は app/mockview/、見た目は app/static/css/、つなぎは app/static/js/mock_nav.js。
+- 動く版: G06 完了＋見た目の直し（goal-G03-r3）。見本4画面と予約一覧が動く。部品は app/mockview/、見た目は app/static/css/、つなぎは app/static/js/mock_nav.js。
 - 開始時のコミット: 9dc3e98（main を取り込み済み）
 - 残り: なし（G03〜G06 は main に入れた）。
 - 次のゴール: 指示待ち
