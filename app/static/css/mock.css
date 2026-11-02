@@ -1,0 +1,222 @@
+/* 見本画面の共通の見た目。基準は 1920×1030。 */
+:root {
+  --navy: #1f3a68;
+  --green: #1f7a4d;
+  --purple: #6a3d9a;
+  --red: #c62828;
+  --red-bg: #fdecea;
+  --line: #cfd6df;
+  --bg: #eef1f5;
+  --ink: #1d232b;
+  --gray: #d5d9df;
+  --role: var(--navy);
+}
+body.role-hygienist { --role: var(--green); }
+body.role-reception { --role: var(--purple); }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body {
+  font: 14px/1.4 "Yu Gothic UI", "Meiryo", sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 12px;
+}
+
+/* 上の行 */
+.topbar {
+  flex: none;
+  height: 58px;
+  background: var(--role);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+.role-tag {
+  background: #fff;
+  color: var(--role);
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1.2;
+  padding: 8px 14px;
+  border-radius: 6px;
+}
+.topbar .patient { font-size: 18px; font-weight: 700; }
+.topbar .date { font-size: 18px; }
+.topbar .appt { font-size: 18px; font-weight: 700; }
+.topbar .appt small { font-size: 13px; font-weight: 400; margin-left: 10px; opacity: .9; }
+.topbar .appt .appt2 { font-size: 15px; margin-left: 10px; }
+.topbar .spacer { flex: 1; }
+.topbar button {
+  font: inherit;
+  font-size: 15px;
+  color: #fff;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, .8);
+  border-radius: 6px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.topbar .mic { width: 30px; height: 30px; fill: #fff; }
+
+/* 帯 */
+.bands {
+  flex: none;
+  height: 72px;
+  display: grid;
+  gap: 14px;
+  padding: 0 14px;
+}
+.bands.three { grid-template-columns: 1fr 1.4fr 1fr; }
+.bands.two { grid-template-columns: 1fr 1fr; }
+.band {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 70px 4px 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.band h2 { margin: 0; font-size: 12px; line-height: 1.1; font-weight: 700; color: #5a6572; }
+.band .lines { font-size: 15px; line-height: 1.3; }
+.band.alert { background: var(--red-bg); border-color: var(--red); }
+.band.alert h2 { color: var(--red); }
+.band.alert .lines { color: var(--red); font-weight: 800; font-size: 18px; line-height: 1.2; }
+.band .inline { display: flex; flex-wrap: wrap; column-gap: 14px; font-size: 14px; }
+.band .big { font-size: 18px; font-weight: 700; }
+
+/* 本体 */
+.body {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 14px;
+  padding: 0 14px;
+}
+.body.doctor { grid-template-rows: 500px 346px; }
+.body.hygienist { grid-template-rows: 386px 460px; }
+.body.reception { grid-template-rows: 400px 446px; }
+
+.card {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 12px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.card > h2, .card > .head > h2 { margin: 0; font-size: 20px; line-height: 1.2; }
+.card .head { display: flex; align-items: center; gap: 12px; flex: none; padding-right: 0; }
+.card .head .actions { margin-left: auto; display: flex; gap: 6px; }
+.card .head .meta { font-size: 14px; color: #3a4552; }
+.mini {
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 8px;
+  border: 1px solid #8a94a0;
+  border-radius: 4px;
+  background: #f6f7f9;
+  cursor: pointer;
+}
+.band .mini { position: absolute; top: 6px; right: 8px; }
+.card .fill { flex: 1; min-height: 0; }
+.scroll { overflow-y: auto; }
+
+/* 表 */
+table.t { width: 100%; border-collapse: collapse; }
+table.t th, table.t td { border-bottom: 1px solid #e3e7ec; padding: 3px 6px; text-align: left; font-weight: 400; }
+table.t th { color: #5a6572; font-size: 12px; font-weight: 600; }
+table.t td.n, table.t th.n { text-align: center; }
+
+/* 今日の処置 */
+.today .main { font-size: 32px; font-weight: 800; line-height: 1.4; }
+.today .sub { font-size: 16px; color: #3a4552; margin-top: -4px; }
+.plan { border: 2px solid var(--role); border-radius: 6px; padding: 6px 10px; flex: none; }
+.plan h3 { margin: 0 0 2px; font-size: 16px; color: var(--role); }
+.plan div { font-size: 15px; }
+.notes-h { margin: 0; font-size: 16px; flex: none; }
+.notes { flex: 1; min-height: 0; overflow-y: auto; }
+.notes .n { padding: 3px 0; border-bottom: 1px solid #eef0f3; }
+.notes .n.hyg { font-size: 12px; color: #8a929c; padding-left: 22px; }
+
+/* 写真の四角 */
+.photos { flex: 1; min-height: 0; display: grid; gap: 8px; }
+.photos.c4 { grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(3, 1fr); }
+.photos.c6 { grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(2, 1fr); }
+.photos .ph {
+  background: var(--gray);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #5a6572;
+  font-size: 20px;
+  font-weight: 700;
+  min-height: 0;
+}
+
+/* 歯の状態 */
+.teeth { flex: 1; min-height: 0; display: flex; gap: 14px; }
+.teeth .frame { flex: 0 0 62%; background: var(--gray); border-radius: 4px; }
+.teeth .side { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.teeth .side b { font-size: 14px; color: #5a6572; margin-right: 8px; }
+.teeth .side span { font-size: 16px; }
+
+/* 話した内容 */
+.summary { flex: 1; min-height: 0; margin: 0; padding-left: 20px; font-size: 16px; line-height: 1.6; }
+.rec {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  background: #fff;
+  border: 2px solid var(--red);
+  border-radius: 8px;
+  padding: 4px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 5;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .2);
+}
+.rec i { width: 10px; height: 10px; border-radius: 50%; background: var(--red); animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: .15; } }
+
+/* 受付 */
+.kv { font-size: 16px; }
+.kv b { font-size: 20px; }
+.heat td.hot { background: #f4b183; font-weight: 800; }
+.big-num { font-size: 40px; font-weight: 800; line-height: 1.1; }
+.card-back { flex: 1; background: var(--gray); border-radius: 4px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 18px; font-weight: 700; padding: 10px; }
+.next-big { font-size: 24px; font-weight: 800; line-height: 1.3; }
+.next-big small { display: block; font-size: 15px; font-weight: 400; }
+.lbl { font-size: 12px; color: #5a6572; font-weight: 700; }
+
+/* 歯周基本検査 */
+.perio-stats { display: flex; gap: 18px; font-size: 15px; flex-wrap: wrap; }
+.perio-stats b { font-size: 16px; }
+table.perio { width: 100%; border-collapse: collapse; table-layout: fixed; flex: 1; min-height: 0; }
+table.perio th, table.perio td { border: 1px solid #d7dce2; text-align: center; padding: 0; height: 0; }
+table.perio th.row { width: 130px; text-align: left; font-size: 12px; font-weight: 600; padding-left: 6px; background: #f3f5f8; }
+table.perio td.mid { border-left: 3px solid var(--role); }
+table.perio td.deep { background: #f8cfa0; }
+table.perio td.bop { color: var(--red); font-weight: 800; }
+table.perio td.gone { background: #eceff3; color: #9aa3ad; }
+table.perio td.no { font-size: 13px; line-height: 1.2; }
+table.perio td.no .low { border-top: 1px solid #c3cad2; }
+table.perio svg { width: 26px; height: 26px; display: block; margin: 0 auto; }
