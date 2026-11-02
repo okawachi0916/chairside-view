@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>声の通り道の確認</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: "Yu Gothic UI", sans-serif; margin: 0; padding: 72px 32px 32px; font-size: 22px; }
+  #band { position: fixed; top: 0; left: 0; right: 0; background: #1f3b73; color: #fff; padding: 14px 24px;
+          display: flex; justify-content: space-between; font-size: 24px; }
+  #band[hidden] { display: none; }
+  #mic { display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: #999; vertical-align: middle;
+         text-align: center; line-height: 28px; color: #fff; font-weight: bold; }
+  #mic[data-state="rec"] { background: #d22; animation: blink 0.8s infinite; }
+  #mic[data-state="none"] { background: #fff; color: #d22; border: 3px solid #d22; line-height: 22px; }
+  @keyframes blink { 50% { opacity: 0.2; } }
+  dl { display: grid; grid-template-columns: 14em 1fr; gap: 12px 16px; }
+  dt { color: #555; }
+  #error { color: #b00; font-weight: bold; }
+</style>
+</head>
+<body>
+<div id="band" data-part="key-band" hidden><span data-band-text></span><span data-band-left></span></div>
+<h1>声の通り道の確認</h1>
+<dl>
+  <dt>マイク</dt><dd><span id="mic" data-state="idle"></span> <span id="mic-label">ボタン待ち</span></dd>
+  <dt>最後に押されたキー</dt><dd id="last-key">（まだ）</dd>
+  <dt>聞き取った文字</dt><dd id="text"></dd>
+  <dt>話し終わりから文字が出るまで</dt><dd id="seconds"></dd>
+  <dt>使ったモデル</dt><dd id="model"></dd>
+  <dt>状態</dt><dd id="error"></dd>
+</dl>
+<p>ボタン2（Ctrl+Shift+F7）を2回押すと録音します。もう一度押すか6秒で止まります。</p>
+<script src="/static/js/voice_keys.js"></script>
+<script src="/static/js/voice_test.js"></script>
+</body>
+</html>
