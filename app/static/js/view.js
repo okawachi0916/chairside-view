@@ -99,6 +99,7 @@
     VoiceKeys.init({
       band: document.getElementById("band"),
       onAction: function (n) { CVActions.run("button" + n); },
+      isActive: function (n) { return !!(window.CVActive && window.CVActive[n] && window.CVActive[n]()); }, // 録音中・受付中は1回で止まる
       textFor: function (n) {
         return n === 3 && CVActions.isHidden() ? "もう一度【隠】を押したら画面を戻します" : null;
       },
