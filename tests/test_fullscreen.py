@@ -96,12 +96,101 @@ def test_spoken_fullscreen_two_columns(server, browser):  # noqa: F811
         pg.close()
 
 
-def test_other_fullscreen_buttons_do_nothing(server, browser):  # noqa: F811
+def test_every_fullscreen_button_opens_and_closes(server, browser):  # noqa: F811
+    for appt, role, parts in [
+        (H_DOC, "doctor", ["important", "medical-history", "today-treatment", "treatment-history",
+                           "intraoral-photos", "spoken-summary"]),
+        (H_HYG, "hygienist", ["important", "medical-history", "intraoral-photos", "spoken-summary", "perio-exam"]),
+    ]:
+        pg = open_unit(browser, server, appt, role)
+        for part in parts:
+            open_fs(pg, part)
+            assert pg.locator(f'[data-fs-panel="{part}"]').is_visible()
+            pg.locator('[data-action="fs-close"]').click()
+            assert pg.locator("[data-fs-panel]").count() == 0
+        pg.close()
+
+
+def test_medical_history_table(server, browser):  # noqa: F811
+    for appt, role in [(H_DOC, "doctor"), (H_HYG, "hygienist")]:
+        pg = open_unit(browser, server, appt, role)
+        open_fs(pg, "medical-history")
+        panel = pg.locator('[data-fs-panel="medical-history"]')
+        assert [t.strip() for t in panel.locator("th").all_inner_texts()] == ["病名", "薬", "いつから", "通院先"]
+        rows = [r.split("	") for r in panel.locator("tbody tr").all_inner_texts()]
+        assert ["高血圧", "アムロジピン内服中", "2015年", "みどり内科クリニック"] in rows
+        assert len(rows) == 4
+        pg.close()
+
+
+def test_today_treatment_opens_four_things_together(server, browser):  # noqa: F811
     pg = open_unit(browser, server, H_DOC, "doctor")
-    for part in ["today-treatment", "treatment-history", "medical-history"]:
-        pg.locator(f'[data-part="{part}"] [data-action="fullscreen"]').first.click()
+    open_fs(pg, "today-treatment")
+    text = pg.inner_text('[data-fs-panel="today-treatment"]')
+    for want in ["今日の処置", "治療計画", "治療方針", "過去の診療メモ", "右下6番", "根管充填", "3か月様子を見る", "被せ物で噛める状態"]:
+        assert want in text, want
+    assert pg.locator('[data-fs-panel] .fs-col').count() == 2
+    pg.close()
+
+
+def test_treatment_history_goes_back_with_paging(server, browser):  # noqa: F811
+    pg = open_unit(browser, server, H_DOC, "doctor", height=700)
+    in_card = pg.locator('[data-part="treatment-history"] tbody tr').count()
+    assert in_card == 10  # 欄には新しい10行だけ
+    open_fs(pg, "treatment-history")
+    panel = pg.locator('[data-fs-panel="treatment-history"]')
+    assert panel.locator("tbody tr").count() == 22  # 全画面は行を増やして遡る
+    nxt, prv = pg.locator('[data-action="fs-next"]'), pg.locator('[data-action="fs-prev"]')
+    assert nxt.is_visible() and prv.is_disabled()
+    last = panel.locator("tbody tr").last
+    for _ in range(10):
+        if nxt.is_disabled():
+            break
+        nxt.click()
+    assert nxt.is_disabled() and last.is_visible() and "2024/12/6" in last.inner_text()
+    assert not prv.is_disabled()  # 遡ったので、戻るボタンが効く
+    pg.close()
+
+
+def test_perio_pairs_and_pages(server, browser):  # noqa: F811
+    pg = open_unit(browser, server, H_HYG, "hygienist")
+    open_fs(pg, "perio-exam")
+    panel = pg.locator('[data-fs-panel="perio-exam"]')
+    pages = panel.locator(".fs-page")
+    assert pages.count() == 3  # 4回の検査 → 3組
+    first = pages.nth(0).locator(".pcol")
+    assert "前回 2026年5月8日" in first.nth(0).inner_text() and "今回 2026年8月7日" in first.nth(1).inner_text()
+    assert pages.nth(0).locator(".pcol").nth(0).bounding_box()["x"] < pages.nth(0).locator(".pcol").nth(1).bounding_box()["x"]
+    assert "4mm以上 6本" in first.nth(1).inner_text() and "4mm以上 9本" in first.nth(0).inner_text()
+    nxt, prv = pg.locator('[data-action="fs-next"]'), pg.locator('[data-action="fs-prev"]')
+    assert nxt.is_visible() and prv.is_disabled()
+    nxt.click()
+    pg.wait_for_function("document.querySelector('.fs-scroll[data-pages]').scrollTop > 100")
+    assert pages.nth(1).locator(".pcol").first.is_visible()
+    assert "2026年5月8日" in pages.nth(1).inner_text()  # 一つ前の組が前後に並ぶ
+    nxt.click()
+    pg.wait_for_function("document.querySelector('[data-action=fs-next]').disabled")
+    assert "2025年10月17日" in pages.nth(2).inner_text() and pages.nth(2).locator(".pcol").first.is_visible()
+    prv.click()
+    pg.wait_for_function("!document.querySelector('[data-action=fs-next]').disabled")
+    pg.close()
+
+
+def test_reception_fullscreens_by_mouse(server, browser):  # noqa: F811
+    pg = open_page(browser, server, f"/reception?patient=1")
+    pg.wait_for_selector('[data-part="reception-memo"]')
+    assert "お子さん3人" not in pg.inner_text('[data-part="important"]')
+    pg.locator('[data-part="reception-memo"] [data-action="fullscreen"]').click()
+    panel = pg.locator('[data-fs-panel="reception-memo"]')
+    panel.wait_for()
+    text = panel.inner_text()
+    assert "お子さん3人と同じ時間で予約を取る" in text and "2026年9月" in text  # 書いた時期も出る
+    pg.locator('[data-action="fs-close"]').click()
     assert pg.locator("[data-fs-panel]").count() == 0
-    assert pg.locator('[data-part="today-treatment"]').is_visible()
+    pg.locator('[data-part="important"] [data-action="fullscreen"]').click()
+    t = pg.inner_text('[data-fs-panel="important"]')
+    assert "ペニシリン系抗菌薬アレルギー" in t and "2019年" in t
+    assert pg.evaluate("typeof window.cvTyped") == "undefined"  # 受付に声の言葉は無い
     pg.close()
 
 

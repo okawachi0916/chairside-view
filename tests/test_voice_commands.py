@@ -49,11 +49,17 @@ def test_every_row_gives_its_result():
                     assert res["action"] is None and res["message"] == "まだ開けません", w
 
 
-def test_only_three_fullscreens_are_ready():
-    ready = {r["結果"]["arg"] for r in load_table() if r["状態"] == "使える" and r["結果"]["action"] == "fs-open"}
-    assert ready == {"important", "intraoral-photos", "spoken-summary"}
-    for part in ("全身既往", "今日の処置", "治療歴"):
-        assert interpret(f"{part}を全画面にして")["message"] == "まだ開けません"
+def test_all_fullscreens_are_ready():
+    rows = load_table()
+    assert all(r["状態"] == "使える" for r in rows)  # G22: 未実装の行は無い
+    ready = {r["結果"]["arg"] for r in rows if r["結果"].get("action") == "fs-open"}
+    assert ready == {"important", "intraoral-photos", "spoken-summary", "medical-history", "today-treatment",
+                     "treatment-history", "perio-exam"}  # 受付メモは声の言葉に足さない
+    for part, arg in (("全身既往", "medical-history"), ("今日の処置", "today-treatment"), ("治療歴", "treatment-history"),
+                      ("歯周基本検査", "perio-exam")):
+        res = interpret(f"{part}を全画面にして")
+        assert res["action"] == "fs-open" and res["arg"] == arg
+    assert interpret("受付メモを全画面にして")["action"] is None
 
 
 def test_whole_sentence_only():
@@ -114,11 +120,10 @@ def test_fullscreen_open_and_close_by_voice_words(server, browser):  # noqa: F81
         pg.wait_for_function("document.querySelectorAll('[data-fs-panel]').length === 0")
 
 
-def test_unimplemented_says_not_yet(server, browser):  # noqa: F811
+def test_treatment_history_opens_by_voice(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     pg.evaluate("window.cvTyped('治療歴を全画面にして')")
-    pg.wait_for_function("document.getElementById('heard').textContent.includes('まだ開けません')")
-    assert pg.locator("[data-fs-panel]").count() == 0
+    pg.wait_for_selector('[data-fs-panel="treatment-history"]')
 
 
 def test_question_and_unrelated_messages_and_no_move(server, browser):  # noqa: F811
@@ -159,7 +164,7 @@ def test_say_list_button(server, browser):  # noqa: F811
     pg.click("#say-list-btn")
     pg.wait_for_selector("#say-list li")
     text = pg.inner_text("#say-list")
-    assert "重要事項を全画面にして" in text and "治療歴を全画面にして" not in text
+    assert "重要事項を全画面にして" in text and "治療歴を全画面にして" in text
 
 
 def test_reception_has_no_voice(server, browser):  # noqa: F811

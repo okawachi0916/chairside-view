@@ -115,7 +115,8 @@
     var p = panel();
     if (!p) return;
     scrollers(p).forEach(function (el) {
-      el.scrollTop += dir * Math.max(40, Math.floor(el.clientHeight * 0.9));
+      // 組で1ページの表 (歯周基本検査) は1組ずつ、ほかは9割ずつ送る
+      el.scrollTop += dir * (el.hasAttribute("data-pages") ? el.clientHeight : Math.max(40, Math.floor(el.clientHeight * 0.9)));
     });
     fsUpdate();
   }

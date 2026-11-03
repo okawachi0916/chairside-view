@@ -128,7 +128,88 @@ def fullscreen_templates(d):
         f'<div class="fs-col"><h3>話したままの文字</h3><div class="fs-scroll"><p>{talk}</p></div></div>'
         "</div></template>"
     )
-    return important_t + photos_t + spoken_t
+    return important_t + photos_t + spoken_t + _fs_medical(d) + (_fs_doctor(d) if d["role"] == "doctor" else _fs_perio(d))
+
+
+def _tpl(part, title, inner):
+    return f'<template data-fs="{part}" data-title="{title}">{inner}</template>'
+
+
+def _fs_medical(d):
+    rows = "".join(
+        f'<tr><td class="b">{h(m["condition"])}</td><td>{h(m["medication"])}</td><td>{h(m["since"])}</td><td>{h(m["clinic"])}</td></tr>'
+        for m in d["medical"]
+    )
+    return _tpl("medical-history", "全身既往・服薬",
+                '<div class="fs-scroll"><table class="fs-table"><thead><tr><th>病名</th><th>薬</th><th>いつから</th><th>通院先</th></tr></thead>'
+                f"<tbody>{rows}</tbody></table></div>")
+
+
+def _fs_doctor(d):
+    """今日の処置・治療計画・治療方針・過去の診療メモを同時に広げる。治療歴は行を増やして遡る。"""
+    a = d["appt"]
+    plan = "".join(f"<li>{h(x)}</li>" for x in d["plan"])
+    policy = "".join(f"<p>{h(x)}</p>" for x in d["policy"])
+    notes = "".join(
+        f'<div class="fs-note"><b>{D.ja_date(n["note_date"])}{" 歯科衛生士" if n["author_role"] == "hygienist" else ""}</b> {h(n["body"])}</div>'
+        for n in d["notes"]
+    )
+    today = _tpl("today-treatment", "今日の処置",
+                 '<div class="fs-cols"><div class="fs-col"><div class="fs-scroll">'
+                 f'<h3>今日の処置</h3><p class="fs-big-line">{h(a["detail"] or a["treatment"])}</p><p>{h(a["detail_sub"])}</p>'
+                 f"<h3>治療計画</h3><ul>{plan}</ul><h3>治療方針</h3>{policy}</div></div>"
+                 f'<div class="fs-col"><h3>過去の診療メモ</h3><div class="fs-scroll">{notes}</div></div></div>')
+    rows = "".join(
+        f"<tr><td>{D.slash_date(x['done_date'])}</td><td>{h(x['site'])}</td><td>{h(x['content'])}</td></tr>"
+        for x in d["history"]
+    )
+    hist = _tpl("treatment-history", "治療歴",
+                '<div class="fs-scroll"><table class="fs-table"><thead><tr><th>日付</th><th>部位</th><th>内容</th></tr></thead>'
+                f"<tbody>{rows}</tbody></table></div>")
+    return today + hist
+
+
+UPPER = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]
+LOWER = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
+
+
+def _perio_col(ex, label):
+    def cell(t):
+        v = ex["teeth"].get(t)
+        if not v:
+            return f'<div class="pc none"><i>{t}</i></div>'
+        cls = " deep" if v["pocket"] >= 4 else ""
+        return (f'<div class="pc{cls}"><i>{t}</i><b>{v["pocket"]}</b>'
+                f'<u class="bop">{"●" if v["bop"] else ""}</u>{"<em>動</em>" if v["mobility"] else ""}</div>')
+
+    stats = (f'4mm以上 {ex["deep"]}本　BOP {ex["bop"]}%　PCR {ex["pcr"]}%　動揺 {ex["loose"]}本　検査した歯 {ex["n"]}本')
+    return (f'<div class="fs-col pcol"><h3>{label} {D.ja_date(ex["date"])}</h3><div class="pstat">{stats}</div>'
+            f'<div class="pgrid">{"".join(cell(t) for t in UPPER)}</div>'
+            f'<div class="pgrid">{"".join(cell(t) for t in LOWER)}</div></div>')
+
+
+def _fs_perio(d):
+    """新しい検査から順に、前回と今回を前後に並べる。1ページに1組。ページ送りで過去の検査へ遡る。"""
+    ex = d["perio_all"]
+    if not ex:
+        return _tpl("perio-exam", "歯周基本検査", '<div class="fs-scroll"><p>検査の記録はありません</p></div>')
+    pages = []
+    for i in range(max(1, len(ex) - 1)):
+        new = ex[i]
+        old = ex[i + 1] if i + 1 < len(ex) else None
+        first = i == 0
+        left = _perio_col(old, "前回" if first else "前の検査") if old else ""
+        right = _perio_col(new, "今回" if first else "この検査")
+        pages.append(f'<section class="fs-page"><div class="fs-cols">{left}{right}</div></section>')
+    return _tpl("perio-exam", "歯周基本検査", f'<div class="fs-scroll" data-pages>{"".join(pages)}</div>')
+
+
+def _fs_memo(d):
+    rows = "".join(
+        f'<div class="fs-row"><b>{h(m["body"])}</b> ' + (f'<span>{h(m["written_on"])}</span>' if m["written_on"] else "") + "</div>"
+        for m in d["memo_full"]
+    )
+    return _tpl("reception-memo", "受付メモ", f'<div class="fs-scroll fs-important">{rows}</div>')
 
 
 # ---------- 歯科医師 ----------
@@ -342,14 +423,24 @@ def reception_page(d):
         appt += t if i == 0 else f"<small>{t}</small>"
     top = topbar("受付用", patient_label(d["patient"], d["today"][0]["unit"] if d["today"] else None), appt,
                  [("change-patient", "患者様を変える")], mic=False)
-    memo = band("", "受付メモ", '<div class="big">' + "<br>".join(h(x) for x in d["memo"]) + "</div>")
+    memo = band("reception-memo", "受付メモ", '<div class="big">' + "<br>".join(h(x) for x in d["memo"]) + "</div>")
     bands = f'<div class="bands two">{important(d)}{memo}</div>'
     body = (
         '<main class="body reception">'
         + _reserve(d) + _heat(d) + _cancel(d) + _next(d) + _goods(d) + _rx(d) + _back(d)
         + "</main>"
     )
-    return top + bands + body
+    return top + bands + body + _reception_templates(d)
+
+
+def _reception_templates(d):
+    """受付の全画面は、重要事項と受付メモだけ。マウスで開く (声の言葉には足さない)。"""
+    rows = "".join(
+        f'<div class="fs-row"><b>{h(x["body"])}</b> '
+        + (f'<span>{h(" ".join(v for v in (x["period"], x["detail"]) if v))}</span>' if x["period"] or x["detail"] else "")
+        + "</div>" for x in d["important_full"]
+    )
+    return _tpl("important", "重要事項", f'<div class="fs-scroll fs-important">{rows}</div>') + _fs_memo(d)
 
 
 def reception_chooser(rows):

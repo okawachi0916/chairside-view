@@ -185,7 +185,12 @@ def flow(server, browser):  # noqa: F811
     assert "先に" in inner.inner_text("#msg")  # 「確定する」の前に「確定」だけでは入らない
     inner.evaluate("window.cvTyped('確定する')")
     inner.evaluate("window.cvTyped('確定')")
-    inner.wait_for_function("document.body.dataset.status === 'confirmed'")
+    # 確定すると診療の画面などへ自動で戻るので、画面ではなく記録に入ったことで確かめる
+    for _ in range(100):
+        with D.con() as c:
+            if c.execute("SELECT COUNT(*) FROM clinical_notes").fetchone()[0] == notes_before + 1:
+                break
+        time.sleep(0.1)
     with D.con() as c:
         assert c.execute("SELECT COUNT(*) FROM clinical_notes").fetchone()[0] == notes_before + 1
         assert "根管充填" in c.execute("SELECT body FROM clinical_notes ORDER BY id DESC LIMIT 1").fetchone()[0]
