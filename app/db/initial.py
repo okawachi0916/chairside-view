@@ -101,13 +101,13 @@ def build() -> dict:
 
     # 今日の予約 (予約一覧の6行)
     today_h_doc = appt(H, TODAY, "14:30", "15:30", "doctor", "RCT", 2, status="booked", detail="右下6番 根管充填",
-                       sub="根管治療 3回目", recep="右下第一大臼歯 RCT", staff="山本")
+                       sub="根管治療 3回目", recep="右下第一大臼歯 RCT", staff="大川内")
     appt(I, TODAY, "14:30", "15:00", "hygienist", "SPT", 1, status="booked", recep="SPT", staff="佐藤")
-    appt(T, TODAY, "14:30", "15:00", "doctor", "義歯調整", 3, status="booked", recep="義歯調整", staff="山本")
-    appt(K, TODAY, "15:00", "15:30", "doctor", "CR", 3, status="booked", recep="CR", staff="山本")
+    appt(T, TODAY, "14:30", "15:00", "doctor", "義歯調整", 3, status="booked", recep="義歯調整", staff="大川内")
+    appt(K, TODAY, "15:00", "15:30", "doctor", "CR", 3, status="booked", recep="CR", staff="大川内")
     today_h_hyg = appt(H, TODAY, "15:30", "16:00", "hygienist", "SPT", 2, status="booked", recep="SPT＋TBI",
                        staff="佐藤")
-    appt(M, TODAY, "15:30", "16:00", "doctor", "インレー", 3, status="booked", recep="インレー", staff="山本")
+    appt(M, TODAY, "15:30", "16:00", "doctor", "インレー", 3, status="booked", recep="インレー", staff="大川内")
     # 花子の今日の診療回 (診察を始めると作られる) と、話した内容の下書き。下書きは確定するまで記録ではない。
     tv_doc = r.add("visits", patient_id=H, appointment_id=today_h_doc, visit_date=TODAY, start_time="14:30",
                    role="doctor", unit=2, status="open")
@@ -174,15 +174,15 @@ def build() -> dict:
     # ---- 治療計画・次回の予定 ----
     for pid, plan, nxt in [
         (H, ["右下6番 次回 支台築造と形成、そのあとクラウン", "左下7番 3か月様子を見る", "その間に 右上5番 の充填"],
-         ("支台築造＋形成印象", "doctor", "山本", 60, "2週間後ごろ")),
+         ("支台築造＋形成印象", "doctor", "大川内", 60, "2週間後ごろ")),
         (I, ["全顎の歯周管理を3か月ごとに続ける", "左上6番 経過観察"],
          ("SPT", "hygienist", "佐藤", 30, "3か月後")),
         (T, ["下顎ブリッジ 来月再調整", "上顎左側ブリッジ 経過観察"],
-         ("義歯調整", "doctor", "山本", 30, "4週間後ごろ")),
+         ("義歯調整", "doctor", "大川内", 30, "4週間後ごろ")),
         (K, ["上顎義歯 来月調整", "下顎義歯 経過観察"],
-         ("義歯調整", "doctor", "山本", 30, "1か月後")),
+         ("義歯調整", "doctor", "大川内", 30, "1か月後")),
         (M, ["右上6番 インレー装着", "左下5番 経過観察"],
-         ("インレー装着", "doctor", "山本", 30, "1週間後")),
+         ("インレー装着", "doctor", "大川内", 30, "1週間後")),
     ]:
         for i, b in enumerate(plan, 1):
             r.add("treatment_plans", patient_id=pid, seq=i, kind="plan", body=b)

@@ -232,7 +232,7 @@ def test_later_then_today_mark_then_fix_and_record(server, browser):  # noqa: F8
 
     t = pg  # 戻ってきた今日の診療一覧
     t.wait_for_selector(".addendum")
-    assert "山本先生 追記必要" in t.inner_text(".addendum")
+    assert "大川内先生 追記必要" in t.inner_text(".addendum")
     assert t.evaluate("getComputedStyle(document.querySelector('.addendum')).animationName") == "recblink"  # 点滅
     assert t.evaluate("getComputedStyle(document.querySelector('.addendum')).color") == "rgb(198, 40, 40)"  # 赤
     assert [x.strip() for x in t.locator("thead th").all_inner_texts()] == ["時間", "カルテ番号", "氏名", "処置", "状態"]
