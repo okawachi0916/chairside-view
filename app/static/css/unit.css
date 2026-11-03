@@ -120,7 +120,5 @@ body.fs-mode .bands, body.fs-mode main.body { display: none; }
 .perio-pop button.bleed { color: var(--c-alert); font-weight: var(--fw-bold); }
 .mini.input:disabled { opacity: 0.4; }
 
-/* スマホで写真をやり取りする固定のボタン（どの画面からも押せる） */
-.phone-fab { position: fixed; top: var(--sp-2); right: 488px; z-index: 60; font-family: inherit; font-size: var(--fs-2); font-weight: var(--fw-bold); padding: var(--sp-2) var(--sp-4); border: 2px solid var(--c-surface); border-radius: var(--r-l); background: var(--c-surface); color: var(--c-ink); cursor: pointer; }
-body.fs-mode:has(.fs-panel[data-fs-panel="intraoral-photos"]) .phone-fab { display: none; }
+/* 口腔内写真の全画面の中の「スマホで写真をやり取り」 */
 .fs-head button.phone-btn { background: var(--c-ink); color: var(--c-surface); border-color: var(--c-ink); }
