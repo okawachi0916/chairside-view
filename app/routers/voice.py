@@ -97,3 +97,24 @@ async def timing(request: Request):
     except OSError:
         pass
     return {"ok": True, "line": line}
+
+
+@router.post("/voice/combo")
+async def combo(request: Request):
+    """ボタン1と2の同時押しを、1行だけログへ残す（実物のボタンが2つの信号をほぼ同時に送れるかの確かめ用）。"""
+    try:
+        b = await request.json()
+        first, second, gap = int(b.get("first") or 0), int(b.get("second") or 0), int(b.get("gap_ms") or 0)
+    except Exception:
+        return JSONResponse({"error": "形が違います"}, status_code=400)
+    line = (f"{time.strftime('%Y-%m-%d %H:%M:%S')} ボタン同時押し ボタン{first}→ボタン{second} 間隔 {gap}ms"
+            f" / 動き {str(b.get('action') or '')[:16]} / 判定の種類 {str(b.get('kind') or '')[:8]}")
+    LOG.info(line)
+    try:
+        d = ROOT / "data" / "runtime" / "logs"
+        d.mkdir(parents=True, exist_ok=True)
+        with open(d / "voice_timing.log", "a", encoding="utf-8") as f:
+            f.write(line + chr(10))
+    except OSError:
+        pass
+    return {"ok": True, "line": line}

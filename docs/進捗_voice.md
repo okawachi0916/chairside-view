@@ -1,13 +1,14 @@
 # 進捗 voice
-- 動く版: G25 完了（G14d の上）。スマホで写真を受け渡す（QR・10分・別ポート 8841 の /m/）。
-- G14d まで:ボタン2を押すとどの画面でも暗くなり、その画面で言える例文が出る。
-- いつもの画面: 全体が暗くなり「1番」〜「8番」と質問のボタン。全画面の中: 上の帯だけ暗くして例文。表は config/examples.json（全画面が増えたら足す）。
+- 動く版: G14e 完了（G25 の上）。声で開く全画面をマウスと同じ道にし、答えの画面から重要事項の帯を外し、ボタン1+2の同時押しで「戻して」。
+- G25 まで: スマホで写真を受け渡す（QR・10分・別ポート 8841 の /m/）。QRの宛先は C:\hackathon\public_url.txt、無ければ院内IP。実機のスマホで読み取る確かめは院長側。
+- G14d まで: ボタン2を押すとどの画面でも暗くなり、その画面で言える例文が出る。表は config/examples.json（全画面が増えたら足す）。
 - 番号: config/numbers.json（1 重要事項、2 全身既往、3 今日の処置、4 治療歴、5 口腔内写真、6 話した内容、7 歯周基本検査、8 言える言葉）。4は「よんばん」、7は「ななばん」だけ。
 - 写真の番号は口腔内写真の全画面の中でだけ効く。「並べて」も可。外からは「口腔内写真の3番を拡大して」。
-- 言える言葉は全画面（プルダウンは廃止）。
-- 答えの画面からの戻りは他の全画面と同じ時間（実測）。マイクは先に開いて60秒持つ。時間のログ data/runtime/logs/voice_timing.log（録音の開始も記録）。
+- 全画面を声で開く: view.js の click 経由（actions/voice.js の openPart）。
+- 答えの画面（actions/ai.js）: 答えだけ。重要事項は出さない（unit.css の2行を外した）。
+- ボタン1+2: config/keys.json の combo_ms（300）。voice_keys.js の onCombo → 操作 combo-back → 「戻して」。ログは data/runtime/logs/voice_timing.log（「ボタン同時押し」）と /voice/combo。
+- 時間のログ data/runtime/logs/voice_timing.log（録音の開始も記録）。マイクは先に開いて60秒持つ。
 - /、/recordings で【REC】→ /app の中に同じ画面を開いて録音を始める。
 - 写真: 架空の絵12枚。G08: /voice-test、large-v3。HTTPS の用意は院長側。
-- スマホ: app/mobile（links.py 文字列と期限、server.py）、app/routers/phone.py（QR、起動）、actions/phone.js。QRの宛先は C:\hackathon\public_url.txt、無ければ院内IP。実機のスマホで読み取る確かめは院長側。
-- 残り: なし。
+- 残り: 実物のボタンが2つの信号をほぼ同時に送れるかは院長が試す（ログで確かめる）。
 - 次のゴール: 指示待ち

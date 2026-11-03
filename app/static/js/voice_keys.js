@@ -18,12 +18,13 @@
   }
 
   async function init(opts) {
-    // opts: { onKey(name), onAction(n), isActive(n) -> 1回で止まる状態か, band: 帯の要素, texts }
+    // opts: { onKey(name), onAction(n), onCombo(info) 省略可: ボタン1と2の同時押し, isActive(n) -> 1回で止まる状態か, band: 帯の要素, texts }
     const cfg = await (await fetch("/config/keys.json")).json();
     const keys = { [cfg.button1]: 1, [cfg.button2]: 2, [cfg.button3]: 3 };
     const texts = Object.assign({}, BAND_TEXT, opts.texts || {});
     const band = opts.band;
-    let pending = null; // { n, timer }
+    const comboMs = Number(cfg.combo_ms) || 300; // ボタン1と2が、この時間以内に続いたら同時押し
+    let pending = null; // { n, timer, t }
     let shown = null;   // { n, until, tick, hide }
 
     function hideBand() {
@@ -58,11 +59,19 @@
       if (!n) return;
       e.preventDefault();
       if (opts.isActive && opts.isActive(n)) return act(n); // 録音中などは1回で止まる
+      const now = Date.now();
+      // ボタン1と2の同時押し: 1つ目はまだ帯も出ていない1回目の押しなので、何も動いていない。帯を消して「戻して」だけを動かす
+      if (opts.onCombo && pending && pending.n !== n && pending.n <= 2 && n <= 2 && now - pending.t <= comboMs) {
+        const gap = now - pending.t, first = pending.n;
+        clearPending();
+        hideBand();
+        return opts.onCombo({ first, second: n, gap_ms: gap });
+      }
       if (shown && shown.n === n) return act(n);            // 帯が出ている間の2回目
       if (pending && pending.n === n) return act(n);        // 0.4秒以内の2回目: 帯なしで動く
       clearPending();
       hideBand();                                            // 別のボタンなら切り替え
-      pending = { n, timer: setTimeout(() => { pending = null; showBand(n); }, cfg.quick_press_ms) };
+      pending = { n, t: now, timer: setTimeout(() => { pending = null; showBand(n); }, cfg.quick_press_ms) };
     });
     return cfg;
   }

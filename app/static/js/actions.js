@@ -89,6 +89,14 @@
     var sp = document.createElement("span");
     sp.className = "fs-spacer";
     head.appendChild(sp);
+    if (part === "intraoral-photos") {
+      var ph = document.createElement("button");
+      ph.type = "button";
+      ph.className = "phone-btn";
+      ph.setAttribute("data-action", "phone");
+      ph.textContent = "スマホで写真をやり取り";
+      head.appendChild(ph);
+    }
     [["fs-prev", "前のページ"], ["fs-next", "次のページ"], ["fs-close", "もとに戻す"]].forEach(function (b) {
       var btn = document.createElement("button");
       btn.type = "button";

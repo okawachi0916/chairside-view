@@ -136,6 +136,13 @@
     photoItems().forEach(function (it) { if (Number(it.dataset.n) === n) found = it; });
     return found;
   }
+  // 部品を全画面にする。マウスで「全画面」を押したときと同じ道（view.js の click → fs-open）を通す。
+  // 声で開いても、マウスで開いても、まったく同じ画面になる。全画面のボタンが無い部品だけ、入口を直接呼ぶ。
+  function openPart(key) {
+    var btn = document.querySelector('[data-part="' + key + '"] [data-action="fullscreen"]');
+    if (btn) btn.click();
+    else window.CVActions.run("fs-open", key);
+  }
   // 番号の写真を左に出す。無い番号があれば何も変えず、言い方を返す。
   function showPhotos(numbers) {
     var list = [], bad = [];
@@ -145,7 +152,7 @@
       else if (list.indexOf(it) < 0) list.push(it);
     });
     if (bad.length || !list.length) return "その番号はありません";
-    if (!photoPanel()) window.CVActions.run("fs-open", "intraoral-photos");
+    if (!photoPanel()) openPart("intraoral-photos");
     selectPhotos(list.map(function (it) { return byNumber(Number(it.dataset.n)); }));
     return "";
   }
@@ -272,7 +279,7 @@
     if (key === "say-list") { say("「" + t + "」"); window.CVActions.run("say-list-open"); return; }
     if (!document.querySelector('template[data-fs="' + key + '"]')) { say("「" + t + "」 まだ開けません"); return; }
     say("「" + t + "」");
-    window.CVActions.run("fs-open", key);
+    openPart(key);
   }
 
   // ---- 聞き取った言葉を操作にする ----
@@ -298,7 +305,8 @@
         return res;
       }
       say("「" + t + "」");
-      window.CVActions.run(res.action, res.arg);
+      if (res.action === "fs-open") openPart(res.arg);
+      else window.CVActions.run(res.action, res.arg);
     } else if (res.kind === "質問" && window.CVAsk && !window.CVActions.isHidden()) {
       say("「" + t + "」 調べています");
       window.CVAsk(t); // 質問だけ Claude に聞く（actions/ai.js）。無関係と聞き取り失敗は送らない
@@ -375,10 +383,14 @@
       else keepWarm(stream);
     }).catch(function () { /* 許可が無いときは、始めるときに知らせる */ });
   }
+  var lastBtn1 = 0; // ボタン1を最後に押した時刻（ボタン2がこれに続くときは同時押しなので、マイクを開かない）
   fetch("/config/keys.json").then(function (r) { return r.json(); }).then(function (cfg) {
+    var comboMs = Number(cfg.combo_ms) || 300;
     window.addEventListener("keydown", function (e) {
       if (e.repeat || !window.VoiceKeys) return;
-      if (window.VoiceKeys.keyName(e) === cfg.button2) prewarm(); // 1回目の押しで先にマイクを開く
+      var name = window.VoiceKeys.keyName(e);
+      if (name === cfg.button1) lastBtn1 = Date.now();
+      if (name === cfg.button2 && Date.now() - lastBtn1 > comboMs) prewarm(); // 1回目の押しで先にマイクを開く
     });
   }).catch(function () { /* 先に開けなくても動く */ });
   window.addEventListener("beforeunload", releaseWarm);
@@ -441,6 +453,20 @@
   window.CVActive = window.CVActive || {};
   window.CVActive[2] = function () { return !!rec; }; // 受付中は1回で止まる
   CVActions.register("button2", function () { if (rec) stopRec(); else startRec(); });
+  // ボタン1と2の同時押し（voice_keys.js）= 「戻して」と同じ動き。帯も録音も声の受付も始めない
+  CVActions.register("combo-back", function (info) {
+    releaseWarm(); // 2つ目が先にマイクを開いていたら閉じる（録音はしていない）
+    say("「戻して」（ボタン1+2）");
+    interpret("戻して", null).then(function (res) {
+      var body = {
+        first: (info && info.first) || 0, second: (info && info.second) || 0, gap_ms: Math.round((info && info.gap_ms) || 0),
+        action: (res && res.action) || "", kind: (res && res.kind) || "",
+      };
+      document.body.dataset.combo = JSON.stringify(body);
+      fetch("/voice/combo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), keepalive: true })
+        .catch(function () { /* ログが書けなくても操作は続ける */ });
+    });
+  });
   CVActions.register("voice-role", function (role) {
     var appt = new URLSearchParams(location.search).get("appt");
     if (appt && window.cv) window.cv.openUnit(appt, role);
