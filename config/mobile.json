@@ -1,0 +1,8 @@
+{
+ "ttl_seconds": 600,
+ "max_bytes": 10485760,
+ "max_pixels": 80000000,
+ "max_files_per_link": 60,
+ "default_port": 8841,
+ "public_url_file": "C:\\hackathon\\public_url.txt"
+}

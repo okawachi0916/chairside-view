@@ -11,3 +11,8 @@ def pytest_configure(config):
     f = Path(tempfile.gettempdir()) / f"cv_ai_fake_{os.environ.get('CV_PORT', '8840')}.json"
     f.write_text(json.dumps({"reply": '{"result":"unclear"}', "delay_ms": 0}), encoding="utf-8")
     os.environ["CHAIRSIDE_AI_FAKE_FILE"] = str(f)
+    # スマホ用のサーバーは、試験では自分で動かす（メインの試験サーバーが 8841 を取らないように）。ポートは 8861
+    os.environ["CV_MOBILE_AUTOSTART"] = "0"
+    os.environ["CV_MOBILE_PORT"] = "8861"
+    # QR のアドレスは、試験では public_url.txt を読まず院内のアドレスにする（試験用のファイルは試験が指定する）
+    os.environ.setdefault("CV_PUBLIC_URL_FILE", str(Path(tempfile.gettempdir()) / "cv_no_public_url.txt"))

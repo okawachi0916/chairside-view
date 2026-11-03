@@ -252,6 +252,27 @@ TABLES = {
         ],
         "extra": [_PATIENT_FK, _VISIT_FK],
     },
+    # スマホで写真を受け渡すQR。トークンそのものは持たず、sha256 の値だけ置く。期限は epoch 秒。
+    "phone_links": {
+        "cols": [
+            ("patient_id", "INTEGER", None, True),
+            ("token_hash", "TEXT", None, True),
+            ("created_at", "INTEGER", None, True),
+            ("expires_at", "INTEGER", None, True),
+        ],
+        "extra": [_PATIENT_FK, "UNIQUE (token_hash)"],
+    },
+    # スマホで写真を入れた・取り出した時刻の記録（kind は 入れた / 取り出した）。
+    "phone_events": {
+        "cols": [
+            ("link_id", "INTEGER", None, True),
+            ("patient_id", "INTEGER", None, True),
+            ("kind", "TEXT", None, True),
+            ("photo_number", "INTEGER", None, False),
+            ("at", "TEXT", None, True),
+        ],
+        "extra": [_PATIENT_FK],
+    },
     # 声の聞き取りで後から直したいもの。患者様が決まっていない録音もあるので、診療回は空でもよい。
     "voice_fixes": {
         "cols": [

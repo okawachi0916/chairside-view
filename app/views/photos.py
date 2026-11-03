@@ -18,7 +18,10 @@ def listing() -> list:
         return []
 
 
-def url_for(number: int) -> str:
+def url_for(number: int, file: str = "") -> str:
+    """スマホから入れた写真（file がある）はその画像、無ければ仮の写真。"""
+    if file:
+        return "/photo-up/" + file
     items = listing()
     if not items:
         return ""
