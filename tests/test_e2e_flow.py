@@ -1,6 +1,6 @@
 """G20: 最小版の通しの試験。院長が声で通す流れを、文字の口 (cvTyped) と偽物の Claude で通す。
   seed → 予約一覧で 0123 の RCT → 重要事項の全画面 → 3番の拡大と一覧 → 「前回は何をした？」 →
-  下書きを作って確定 → ボタン3で隠して戻す → 次の患者様 0456 の SPT (前の人が残っていない)。"""
+  録音を止めると自動で下書き→確定 → ボタン3で隠して戻す → 次の患者様 0456 の SPT (前の人が残っていない)。"""
 import json
 import os
 import subprocess
@@ -8,14 +8,13 @@ import sys
 import time
 from pathlib import Path
 
-import httpx
 import pytest
 
 from app.ai import memo
 from app.ai.records import build_records
 from app.db import connect
 from app.views import data as D
-from tests.screen_helper import ROOT, browser, open_page, server  # noqa: F401
+from tests.screen_helper import ROOT, open_page, server  # noqa: F401
 
 FAKE = Path(os.environ["CHAIRSIDE_AI_FAKE_FILE"])
 KEY3 = json.loads((ROOT / "config" / "keys.json").read_text(encoding="utf-8"))["button3"].replace("Ctrl", "Control")
@@ -60,17 +59,21 @@ def with_typed(pg, appt, role):
     time.sleep(0.3)
 
 
-def make_draft(base, appt):
-    with httpx.Client(base_url=base, timeout=20) as h:
-        r = h.post("/rec/start", json={"appt": appt}).json()
-        h.post(f"/rec/{r['id']}/audio?dur=12", content=b"fake-webm-bytes")
-        h.post(f"/rec/{r['id']}/transfer", json={})
-        for _ in range(100):
-            s = h.get(f"/api/recordings/{r['id']}").json()
-            if s["state"] in ("下書き", "失敗"):
-                return s
-            time.sleep(0.1)
-    raise AssertionError("下書きにならない")
+def press(frame, name, times=1):
+    """中の画面でボタンの鍵を押す。2回押しは0.4秒以内。"""
+    for _ in range(times):
+        frame.evaluate("k => window.dispatchEvent(new KeyboardEvent('keydown', {code: k, key: k, ctrlKey: true, shiftKey: true, bubbles: true}))", name)
+        time.sleep(0.08)
+
+
+@pytest.fixture(scope="module")
+def browser():  # noqa: F811
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        b = p.chromium.launch(channel="msedge", args=["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"])
+        yield b
+        b.close()
 
 
 def seed():
@@ -151,24 +154,46 @@ def flow(server, browser):  # noqa: F811
     say(pg, "戻して")
     gone(pg, '[data-fs-panel="answer"]')
 
-    # 6. 架空の話で下書きを作り、確定する (確定するまで診療メモには入らない)
+    # 6. ボタン1で録音を始めて止める。何も押さなくても下書きができ、窓に出て、話した内容の欄が変わる。確定するまで診療メモには入らない
     fake(GOOD)
-    s = make_draft(base, appt)
-    assert s["state"] == "下書き", s
-    d = open_page(browser, server, f"/drafts/{s['draft_id']}")
-    d.wait_for_function("document.body.dataset.ready === '1'")
-    assert "まだ記録に入っていません" in d.inner_text("[data-part=draft-mark]")
     with D.con() as c:
         assert c.execute("SELECT COUNT(*) FROM clinical_notes").fetchone()[0] == notes_before
-    d.evaluate("window.cvTyped('確定')")
-    assert "先に" in d.inner_text("#msg")  # 「確定する」の前に「確定」だけでは入らない
-    d.evaluate("window.cvTyped('確定する')")
-    d.evaluate("window.cvTyped('確定')")
-    d.wait_for_function("document.body.dataset.status === 'confirmed'")
+    ctx = browser.new_context(viewport={"width": 1920, "height": 1030}, permissions=["microphone"])
+    ap = ctx.new_page()
+    ap.goto(base + "/app")
+    ap.wait_for_function("document.body.dataset.rec === 'idle'")
+    ap.evaluate("u => { document.getElementById('inner').src = u }", f"/unit?appt={appt}&role=doctor&typed=1&hide=1")
+    ap.wait_for_function("(() => { const d = document.getElementById('inner').contentDocument; "
+                         "return !!(d && d.querySelector('[data-part=spoken-summary]') && d.getElementById('band')) })()")
+    time.sleep(0.5)
+    inner = next(f for f in ap.frames if f != ap.main_frame)
+    column = lambda: inner.locator('[data-part="spoken-summary"] li').all_inner_texts()  # noqa: E731
+    assert any("側方加圧" in t for t in column())  # 録音の下書きが無いので見本の文
+    press(inner, "F6", 2)
+    ap.wait_for_function("document.body.dataset.rec === 'recording'")
+    time.sleep(0.8)
+    press(inner, "F6", 1)  # 止めるのは1回
+    ap.wait_for_function("document.getElementById('rec-win').textContent.includes('下書きができました')", timeout=20000)
+    assert ap.locator("#rec-win .ok").count() == 0
+    ap.wait_for_function("document.getElementById('inner').contentDocument.querySelector('[data-part=spoken-summary]').innerText.includes('根管充填')")
+    now = column()
+    assert "右下6番の根管充填" in now[0] and not any("側方加圧" in t for t in now)
+    with D.con() as c:
+        assert c.execute("SELECT COUNT(*) FROM clinical_notes").fetchone()[0] == notes_before
+    ap.locator("#rec-win").click()  # 窓を押すと下書きの画面
+    ap.wait_for_function("((d) => !!(d && d.body && d.body.dataset.page === 'draft'))(document.getElementById('inner').contentDocument)")
+    inner = next(f for f in ap.frames if f != ap.main_frame)
+    inner.wait_for_function("document.body.dataset.ready === '1'")
+    assert "まだ記録に入っていません" in inner.inner_text("[data-part=draft-mark]")
+    inner.evaluate("window.cvTyped('確定')")
+    assert "先に" in inner.inner_text("#msg")  # 「確定する」の前に「確定」だけでは入らない
+    inner.evaluate("window.cvTyped('確定する')")
+    inner.evaluate("window.cvTyped('確定')")
+    inner.wait_for_function("document.body.dataset.status === 'confirmed'")
     with D.con() as c:
         assert c.execute("SELECT COUNT(*) FROM clinical_notes").fetchone()[0] == notes_before + 1
         assert "根管充填" in c.execute("SELECT body FROM clinical_notes ORDER BY id DESC LIMIT 1").fetchone()[0]
-    d.close()
+    ctx.close()
 
     # 7. ボタン3で隠して戻す
     with_typed(pg, appt, "doctor")

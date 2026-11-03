@@ -13,7 +13,7 @@ from concurrent.futures import TimeoutError as FutureTimeout
 from datetime import datetime
 from pathlib import Path
 
-from app.ai import fake, memo
+from app.ai import fake, fixtalk, memo
 from app.ai.gateway import sensitive_from_db
 from app.ai.settings import ClaudeUnavailable, redact_key
 from app.db import connect, data_dir
@@ -236,7 +236,8 @@ def _transcribe(audio_path: Path) -> str:
         return fake_text
     from app.voice import transcribe as tr
 
-    res = tr.transcribe(tr.to_pcm(audio_path.read_bytes()))
+    # ボタン1の録音だけ、歯科の短い一文と主な語を渡して聞き違いを減らす（ボタン2の声には使わない）
+    res = tr.transcribe(tr.to_pcm(audio_path.read_bytes()), initial_prompt=fixtalk.initial_prompt() or None)
     return (res.get("text") or "").strip()
 
 
@@ -269,7 +270,7 @@ def _job(rec_id: int, attempt: int):
                 return
             nxt = ORGANIZING if r["patient_id"] else WAITING
             cur = con.execute(
-                "UPDATE recordings SET transcript = ?, state = ?, updated_at = ? "
+                "UPDATE recordings SET transcript = ?, state = ?, updated_at = ?, fix_off = 0 "
                 "WHERE id = ? AND attempt = ? AND state = ?", (text, nxt, now(), rec_id, attempt, TRANSCRIBING))
             con.commit()
             if cur.rowcount != 1 or nxt != ORGANIZING:
@@ -289,7 +290,9 @@ def _organize(con, rec_id, attempt, r):
     try:
         sens = sensitive_from_db(con)
         gw = ai_router.make_gateway()
-        items = _with_timeout(lambda: memo.organize(r["transcript"], sens, gw), timeout_sec("ai"))
+        # 聞き違いを直してから5つに分ける。人が直した文字（fix_off=1）は直さない
+        items, fixed, fixes = _with_timeout(
+            lambda: memo.make_draft(r["transcript"], sens, gw, fix=not r["fix_off"]), timeout_sec("ai"))
     except Exception as e:  # noqa: BLE001
         _fail(con, rec_id, attempt, ORGANIZING, e)
         return
@@ -303,16 +306,17 @@ def _organize(con, rec_id, attempt, r):
         if d and d["status"] == "draft":
             # 整理し直した新しい下書き。人が見てから確定する（二重に作らず、同じ下書きを新しくする）
             draft_id = d["id"]
-            con.execute("UPDATE drafts SET body = ?, transcript = ?, items = ? WHERE id = ?",
-                        (memo.body_lines(items), cur["transcript"], json.dumps(items, ensure_ascii=False), draft_id))
+            con.execute("UPDATE drafts SET body = ?, transcript = ?, items = ?, fixed_transcript = ?, fixes = ? WHERE id = ?",
+                        (memo.body_lines(items), cur["transcript"], json.dumps(items, ensure_ascii=False), fixed,
+                         json.dumps(fixes, ensure_ascii=False), draft_id))
         elif d:
             draft_id = d["id"]  # 確定済みは触らない
         else:
             c2 = con.execute(
                 "INSERT INTO drafts (patient_id, visit_id, kind, body, transcript, status, created_at, "
-                "recording_id, items) VALUES (?, ?, 'spoken_summary', ?, ?, 'draft', ?, ?, ?)",
+                "recording_id, items, fixed_transcript, fixes) VALUES (?, ?, 'spoken_summary', ?, ?, 'draft', ?, ?, ?, ?, ?)",
                 (cur["patient_id"], cur["visit_id"], memo.body_lines(items), cur["transcript"], now(),
-                 rec_id, json.dumps(items, ensure_ascii=False)))
+                 rec_id, json.dumps(items, ensure_ascii=False), fixed, json.dumps(fixes, ensure_ascii=False)))
             draft_id = c2.lastrowid
         con.execute("UPDATE recordings SET state = ?, draft_id = ?, updated_at = ? WHERE id = ?",
                     (DRAFT, draft_id, now(), rec_id))
@@ -334,8 +338,8 @@ def reorganize(con, rec_id: int, transcript: str) -> dict:
         raise RecError("先に患者様と診療回を選んでください", 409)
     if r["state"] not in (DRAFT, LATER, FAILED):
         raise RecError(f"今の状態（{r['state']}）では整理し直せません", 409)
-    con.execute("UPDATE recordings SET transcript = ? WHERE id = ? AND state IN (?, ?, ?)",
-                (transcript, rec_id, DRAFT, LATER, FAILED))
+    con.execute("UPDATE recordings SET transcript = ?, fix_off = 1 WHERE id = ? AND state IN (?, ?, ?)",
+                (transcript, rec_id, DRAFT, LATER, FAILED))  # 人が直した文字は、聞き違いの自動の直しをしない
     con.commit()
     _claim_and_run(con, rec_id, [DRAFT, LATER, FAILED], ORGANIZING)
     return get(con, rec_id)

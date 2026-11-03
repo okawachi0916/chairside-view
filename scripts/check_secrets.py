@@ -14,7 +14,7 @@ PATTERNS = [
 
 
 def git(*args):
-    return subprocess.run(["git", *args], capture_output=True, text=True, encoding="utf-8").stdout
+    return subprocess.run(["git", *args], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout  # 写真などの2進のファイルでも落ちない
 
 
 def main():

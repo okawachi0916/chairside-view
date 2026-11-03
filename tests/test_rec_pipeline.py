@@ -104,7 +104,7 @@ def test_lines_without_real_quote_are_dropped():
         {"text": "投薬", "quote": ""},                        # 抜き出しが空
     ]})
     items = memo.parse_items(reply, spoken)
-    assert [r["text"] for r in items["done"]] == ["根管充填"]
+    assert [r["text"] for r in items["done"]] == ["根管充填。"]
 
 
 @pytest.mark.parametrize("raw", ["", "文章です", "[]", '{"done":[]}', '{"done":[],"explained":[],"next_plan":[],'
@@ -148,7 +148,7 @@ def test_fixed_recording_goes_to_its_visit(env):
     d = c.execute("SELECT * FROM drafts WHERE id = ?", (r["draft_id"],)).fetchone()
     v = c.execute("SELECT * FROM visits WHERE id = ?", (d["visit_id"],)).fetchone()
     assert d["patient_id"] == r["patient_id"] == v["patient_id"] and d["status"] == "draft" and d["recording_id"] == rid
-    assert json.loads(d["items"])["done"][0]["text"] == "根管充填"
+    assert json.loads(d["items"])["done"][0]["text"] == "根管充填。"
 
 
 def test_patientless_recording_stops_after_transcription_until_assigned(env):

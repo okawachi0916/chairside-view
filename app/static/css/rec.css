@@ -17,9 +17,8 @@ body.rec-parent { display: block; padding: 0; background: var(--c-ink); }
 #rec-win[data-mode=paused] .dot { background: var(--c-warn); }
 #rec-win[data-mode=waiting] { cursor: pointer; border-color: var(--c-warn); }
 #rec-win[data-mode=waiting] .dot { background: var(--c-warn); }
-#rec-win .ok { font-family: inherit; font-size: var(--fs-3); font-weight: var(--fw-bold); padding: var(--sp-1) var(--sp-5);
-  border: 2px solid var(--c-doctor); border-radius: var(--r-s); background: var(--c-doctor); color: var(--c-surface); cursor: pointer; }
-#rec-win .ok[hidden] { display: none; }
+#rec-win[data-mode=ready] { cursor: pointer; border-color: var(--c-doctor); }
+#rec-win[data-mode=ready] .dot { background: var(--c-doctor); }
 @keyframes recblink { 50% { opacity: 0.2; } }
 
 /* 録音の一覧と下書きの画面 */
@@ -28,12 +27,12 @@ body.rec-page { display: block; height: auto; min-height: 100%; overflow: auto; 
   font-weight: var(--fw-bold); display: flex; gap: var(--sp-4); align-items: center; }
 .rec-head a { color: var(--c-surface); font-size: var(--fs-2); font-weight: var(--fw-regular); }
 .rec-main { padding: var(--sp-5) var(--sp-6); }
-table.rec { border-collapse: collapse; width: 100%; background: var(--c-surface); }
-table.rec th, table.rec td { border: 1px solid var(--c-line-strong); padding: var(--sp-2) var(--sp-3); text-align: left; font-size: var(--fs-3);
+table.rtab { border-collapse: collapse; width: 100%; background: var(--c-surface); }
+table.rtab th, table.rtab td { border: 1px solid var(--c-line-strong); padding: var(--sp-2) var(--sp-3); text-align: left; font-size: var(--fs-3);
   font-weight: var(--fw-regular); line-height: var(--lh-table); }
-table.rec th { background: var(--c-canvas); font-weight: var(--fw-bold); }
-table.rec .st-失敗 { color: var(--c-alert); font-weight: var(--fw-bold); }
-table.rec .st-転送待ち { color: var(--c-warn); font-weight: var(--fw-bold); }
+table.rtab th { background: var(--c-canvas); font-weight: var(--fw-bold); }
+table.rtab .st-失敗 { color: var(--c-alert); font-weight: var(--fw-bold); }
+table.rtab .st-転送待ち { color: var(--c-warn); font-weight: var(--fw-bold); }
 .rec-main button, .rec-main select, .rec-main textarea { font-family: inherit; font-size: var(--fs-2); }
 .rec-main button { padding: var(--sp-1) var(--sp-3); border: 1px solid var(--c-sub); border-radius: var(--r-s); background: var(--c-canvas); cursor: pointer; }
 .err { color: var(--c-alert); font-size: var(--fs-1); font-weight: var(--fw-regular); }
@@ -43,9 +42,9 @@ table.rec .st-転送待ち { color: var(--c-warn); font-weight: var(--fw-bold); 
 .draft-mark { display: inline-block; background: var(--c-warn-soft); border: 2px solid var(--c-warn); color: var(--c-warn);
   font-size: var(--fs-4); font-weight: var(--fw-bold); padding: var(--sp-2) var(--sp-4); border-radius: var(--r-s); }
 .draft-bar { padding: var(--sp-4) var(--sp-6) 0; }
-.draft-cols { display: flex; gap: var(--sp-5); padding: var(--sp-4) var(--sp-6) var(--sp-6); height: calc(100vh - 150px); }
+.draft-cols { display: flex; align-items: flex-start; gap: var(--sp-5); padding: var(--sp-4) var(--sp-6) var(--sp-6); }
 .draft-left, .draft-right { flex: 1; min-width: 0; background: var(--c-surface); border: 1px solid var(--c-line-strong);
-  border-radius: var(--r-l); padding: var(--sp-3) var(--sp-5); overflow: auto; }
+  border-radius: var(--r-l); padding: var(--sp-3) var(--sp-5); }
 .draft-left h3, .draft-right h3 { margin: 0 0 var(--sp-2); font-size: var(--fs-3); color: var(--c-sub); }
 .draft-left p { white-space: pre-wrap; font-size: var(--fs-4); line-height: var(--lh-text); margin: 0; }
 .draft-sec { margin-bottom: var(--sp-4); }
@@ -67,6 +66,23 @@ table.rec .st-転送待ち { color: var(--c-warn); font-weight: var(--fw-bold); 
   border-radius: var(--r-s); background: var(--c-canvas); cursor: pointer; }
 .fix-text { width: 100%; height: 200px; font-family: inherit; font-size: var(--fs-3); line-height: var(--lh-text); }
 .draft-left audio { width: 100%; margin-bottom: var(--sp-3); }
-#plan-compare table.rec td { font-size: var(--fs-2); }
+/* 治療計画の変更: 2つの列の下に、全部の幅で置く（右の項目を隠さない） */
+.plan-block { margin: 0 var(--sp-6) var(--sp-8); background: var(--c-surface); border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-l); padding: var(--sp-4) var(--sp-5); }
+.plan-block h2 { margin: 0 0 var(--sp-2); font-size: var(--fs-4); color: var(--c-ink); }
+.plan-hint { margin: 0 0 var(--sp-3); font-size: var(--fs-2); color: var(--c-sub); }
+.plan-table { table-layout: fixed; }
+.plan-table th:nth-child(1), .plan-table th:nth-child(2) { width: 38%; }
+#plan-compare table.rtab td { font-size: var(--fs-3); }
 #plan-compare tr.add td { background: var(--c-canvas); }
+#plan-compare label { display: inline-block; margin-right: var(--sp-3); font-size: var(--fs-3); }
+
+.rec-head a.back { font-size: var(--fs-3); font-weight: var(--fw-bold); padding: var(--sp-1) var(--sp-4); border: 2px solid var(--c-surface);
+  border-radius: var(--r-s); text-decoration: none; }
+.fx-title { margin-top: var(--sp-5); }
+.fixes { margin: 0; padding-left: var(--sp-6); }
+.fixes li { font-size: var(--fs-3); line-height: var(--lh-table); }
+.fx-from { color: var(--c-alert); }
+.fx-to { font-weight: var(--fw-bold); }
+.nofix { margin: 0; font-size: var(--fs-2); color: var(--c-sub); }
 .addendum { display: inline-block; margin-left: var(--sp-3); color: var(--c-alert); font-weight: var(--fw-bold); animation: recblink 0.9s infinite; }

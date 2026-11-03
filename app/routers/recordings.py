@@ -151,7 +151,7 @@ def recordings_page():
         "<!doctype html><html lang='ja'><head><meta charset='utf-8'><title>録音の一覧</title>"
         f"{CSS}</head><body class='rec-page' data-page='recordings'>"
         "<header class='rec-head'><span>録音の一覧</span><a href='/'>予約一覧へ</a></header><main class='rec-main'>"
-        "<table class='rec' data-part='recording-list'><thead><tr><th>時間</th><th>長さ</th><th>カルテ番号</th><th>状態</th><th>操作</th></tr></thead>"
+        "<table class='rtab' data-part='recording-list'><thead><tr><th>時間</th><th>長さ</th><th>カルテ番号</th><th>状態</th><th>操作</th></tr></thead>"
         "<tbody id='rows'></tbody></table>"
         "<div id='paste'><b>文字を貼り付けて下書きにする</b>（録音が使えないとき・試験用）<br>"
         "<textarea id='paste-text' placeholder='話した内容の文字'></textarea><br>"
@@ -160,7 +160,27 @@ def recordings_page():
         "</main><script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script><script src='/static/js/recordings.js'></script></body></html>", headers=NO_STORE)
 
 
-def _draft_html(d, p, v, rec, fix):
+def safe_back(back: str) -> str:
+    """戻り先は、このサーバーの中の道（/ から始まる）だけ。外へは戻さない。無ければ予約一覧。"""
+    b = (back or "").strip()
+    if b.startswith("/") and not b.startswith("//") and not any(c in b for c in ("\\", "\r", "\n", "\t", " ")):
+        return b
+    return "/"
+
+
+def _fixes_html(d):
+    try:
+        fixes = json.loads(d["fixes"] or "[]")
+    except ValueError:
+        fixes = []
+    if not fixes:
+        return "<p class='nofix'>聞き違いの直しはありません</p>"
+    rows = "".join(f"<li><span class='fx-from'>{h(f['from'])}</span> → <span class='fx-to'>{h(f['to'])}</span></li>"
+                   for f in fixes)
+    return f"<ul class='fixes'>{rows}</ul>"
+
+
+def _draft_html(d, p, v, rec, fix, back="/"):
     items = json.loads(d["items"] or "{}")
     done = d["status"] == "confirmed"
     dis = " disabled" if done else ""
@@ -186,29 +206,30 @@ def _draft_html(d, p, v, rec, fix):
     else:
         left = f"<p>{h(d['transcript'])}</p>"
     bar = ("" if done else
-           "<span class='draft-actions'><button type='button' id='btn-save'>保存</button> "
-           "<button type='button' id='btn-confirm' data-action='confirm'>確定する</button> "
-           "<button type='button' id='btn-later'>後で直す</button></span>")
+           "<span class='draft-actions'><button type='button' id='btn-confirm' data-action='confirm'>カルテに記録する</button> "
+           "<button type='button' id='btn-later'>あとで直す</button></span>")
     return (
         "<!doctype html><html lang='ja'><head><meta charset='utf-8'><title>下書き</title>" + CSS +
         f"</head><body class='rec-page' data-page='draft' data-draft-id='{d['id']}' data-rec-id='{rec_id}' "
-        f"data-status='{d['status']}' data-rec-state='{h(state)}' data-fix='{1 if fix else 0}'>"
-        f"<header class='rec-head'><span>{h(p['name'])} 様 No. {h(p['chart_no'])}　診療日 {h(v['visit_date'])}</span>"
-        "<a href='/recordings'>録音の一覧へ</a><a href='/today'>今日の診療一覧へ</a></header>"
+        f"data-status='{d['status']}' data-rec-state='{h(state)}' data-fix='{1 if fix else 0}' data-back='{h(back, quote=True)}'>"
+        f"<header class='rec-head'><a id='btn-back' class='back' href='{h(back, quote=True)}'>戻る</a>"
+        f"<span>{h(p['name'])} 様 No. {h(p['chart_no'])}　診療日 {h(v['visit_date'])}</span></header>"
         f"<div class='draft-bar'><span class='draft-mark' data-part='draft-mark'>{mark}</span>{bar}"
         "<span id='msg' class='err' role='status'></span></div>"
-        f"<div class='draft-cols'><div class='draft-left' data-part='draft-transcript'><h3>話したままの文字</h3>{left}</div>"
-        f"<div class='draft-right' data-part='draft-items'>{cols}"
-        "<section class='draft-sec' id='plan-compare' data-part='plan-compare'><h3>治療計画の反映（選んだものだけ反映します）</h3>"
-        "<table class='rec'><thead><tr><th>今の計画</th><th>新しい計画</th><th>反映</th></tr></thead>"
-        "<tbody id='plan-rows'></tbody></table></section></div></div>"
+        f"<div class='draft-cols'><div class='draft-left' data-part='draft-transcript'><h3>話したままの文字</h3>{left}"
+        f"<h3 class='fx-title'>直した聞き違い（元 → 直し）</h3><div data-part='draft-fixes'>{_fixes_html(d)}</div></div>"
+        f"<div class='draft-right' data-part='draft-items'>{cols}</div></div>"
+        "<section class='plan-block' id='plan-compare' data-part='plan-compare'><h2>治療計画の変更</h2>"
+        "<p class='plan-hint'>話に出ていない計画は、そのまま残します。変えたいものだけ印を付けてください。</p>"
+        "<table class='rtab plan-table'><thead><tr><th>今の計画</th><th>新しい計画</th><th>操作</th></tr></thead>"
+        "<tbody id='plan-rows'></tbody></table></section>"
         "<script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script>"
         "<script src='/static/js/draft.js'></script></body></html>"
     )
 
 
 @router.get("/drafts/{draft_id}", response_class=HTMLResponse)
-def draft_page(draft_id: int, chart: str = "", fix: int = 0):
+def draft_page(draft_id: int, chart: str = "", fix: int = 0, back: str = ""):
     con = connect()
     try:
         d = con.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,)).fetchone()
@@ -220,7 +241,7 @@ def draft_page(draft_id: int, chart: str = "", fix: int = 0):
             raise HTTPException(404)  # 別の患者様の画面では開かない
         rec = con.execute("SELECT id, state, audio_file FROM recordings WHERE draft_id = ? OR id = ?",
                           (draft_id, d["recording_id"] or -1)).fetchone()
-        return HTMLResponse(_draft_html(d, p, v, rec, bool(fix)), headers=NO_STORE)
+        return HTMLResponse(_draft_html(d, p, v, rec, bool(fix), safe_back(back)), headers=NO_STORE)
     finally:
         con.close()
 
@@ -236,7 +257,6 @@ def parent_app(go: str = ""):
         "<link rel='stylesheet' href='/static/css/mock.css'><link rel='stylesheet' href='/static/css/rec.css'></head><body class='rec-parent'>"
         "<iframe id='inner' title='画面' src='" + html.escape(go, quote=True) + "'></iframe>"
         "<div id='band' data-part='key-band' hidden><span data-band-text></span><span data-band-left></span></div>"
-        "<div id='rec-win' data-part='rec-window' hidden><span class='dot'></span><span class='msg'></span>"
-        "<button type='button' class='ok' hidden>OK</button></div>"
+        "<div id='rec-win' data-part='rec-window' hidden><span class='dot'></span><span class='msg'></span></div>"
         "<script src='/static/js/voice_keys.js'></script><script src='/static/js/rec.js'></script></body></html>",
         headers=NO_STORE)

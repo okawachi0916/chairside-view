@@ -200,7 +200,7 @@ def test_reorganize_after_fixing_transcript_gives_new_draft_to_review(env):
     r2 = wait_state(env, rid, ["下書き", "失敗"])
     assert r2["state"] == "下書き" and r2["draft_id"] == r["draft_id"]
     d = items_of(env, r["draft_id"])
-    assert d["status"] == "draft" and d["transcript"] == new_talk and d["items"]["done"][0]["text"] == "左下5番のレジン充填"
+    assert d["status"] == "draft" and d["transcript"] == new_talk and d["items"]["done"][0]["text"] == "左下5番のレジン充填。"
     assert counts(env) == before  # 人が見て確定するまで入らない
     assert api(env, "post", f"/rec/{rid}/reorganize", json={"transcript": " "})[0] == 400
 

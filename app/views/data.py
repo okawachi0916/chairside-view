@@ -104,8 +104,11 @@ def unit_data(appt, role):
             "SELECT number FROM photos WHERE patient_id = ? ORDER BY number", (pid,))]
         d["mucosal"] = _all(c, "SELECT site, name FROM mucosal_conditions WHERE patient_id = ? ORDER BY id", pid)
         d["dentures"] = _all(c, "SELECT site, kind, made_by, made_on FROM dentures WHERE patient_id = ? ORDER BY id", pid)
-        d["drafts"] = _all(c, "SELECT d.body, d.transcript FROM drafts d JOIN visits v ON v.id = d.visit_id "
-                              "WHERE d.patient_id = ? AND v.visit_date = ? AND v.role = ? ORDER BY d.id", pid, TODAY, role)
+        # 録音の下書きがあれば、一番新しいものを先頭に出し、見本の文は出さない。無いときだけ見本の文を出す
+        base = ("SELECT d.body, d.transcript FROM drafts d JOIN visits v ON v.id = d.visit_id "
+                "WHERE d.patient_id = ? AND v.visit_date = ? AND v.role = ? ")
+        d["drafts"] = (_all(c, base + "AND d.recording_id IS NOT NULL ORDER BY d.id DESC", pid, TODAY, role)
+                       or _all(c, base + "ORDER BY d.id", pid, TODAY, role))
         d["summary"] = [x for dr in d["drafts"] for x in dr["body"].split("\n") if x]
         d["transcript"] = "\n".join(dr["transcript"] for dr in d["drafts"] if dr["transcript"])
         d["photo_rows"] = _all(c, "SELECT number, taken_on FROM photos WHERE patient_id = ? ORDER BY number", pid)

@@ -36,6 +36,31 @@
     load("/api/view/unit?" + q);
   }
 
+  // 話した内容の整理の欄だけ読み直す (録音から下書きができたとき)。ほかの欄・全画面以外の状態は替えない。
+  // 画面を隠している間は読み直さず、戻したときに読み直す (隠した画面に新しい内容を出さないため)。
+  var stale = false;
+  function refreshSummary(appt) {
+    if (kind !== "unit" || String(state.appt) !== String(appt)) return;
+    if (window.CVActions && CVActions.isHidden()) { stale = true; return; }
+    stale = false;
+    var my = seq;
+    fetch("/api/view/unit?appt=" + state.appt + (state.role ? "&role=" + state.role : ""), { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (d) {
+        if (my !== seq) return;
+        if (window.CVActions && CVActions.isHidden()) { stale = true; return; }
+        var t = document.createElement("div");
+        t.innerHTML = d.html;
+        var open = root.querySelector('[data-fs-panel="spoken-summary"]');
+        ['[data-part="spoken-summary"]', 'template[data-fs="spoken-summary"]'].forEach(function (sel) {
+          var o = root.querySelector(sel), n = t.querySelector(sel);
+          if (o && n) o.replaceWith(n);
+        });
+        if (open && window.CVActions) CVActions.run("fs-open", "spoken-summary");
+      })
+      .catch(function () { /* 読み直せなければ今の表示のまま */ });
+  }
+
   function openReception(patient) {
     history.replaceState(null, "", patient ? "/reception?patient=" + patient : "/reception");
     load("/api/view/reception" + (patient ? "?patient=" + patient : ""));
@@ -90,6 +115,8 @@
     openUnit: openUnit,
     openReception: openReception,
     cancel: function () { seq++; }, // 読み込み中の応答を捨てる
+    refreshSummary: refreshSummary,
+    restored: function () { if (stale) refreshSummary(state.appt); }, // 隠している間に下書きができていたら、戻したときに読み直す
     chart: "",
   };
 

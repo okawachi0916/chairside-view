@@ -14,13 +14,20 @@ ENV = "CHAIRSIDE_AI_FAKE_FILE"
 
 
 class ScriptedMouth:
-    """決めた応答を返し、送られた回数と文を覚える。"""
+    """決めた応答を返し、送られた回数と文を覚える。聞き違いを直す送信（purpose=fix）は fix_reply を返し、fix_sent に覚える
+    （sent の数は、5つに分ける送信など、ほかの送信だけ数える）。"""
 
-    def __init__(self, reply="", delay_ms=0):
-        self.reply, self.delay_ms = reply, delay_ms
+    wants_purpose = True
+
+    def __init__(self, reply="", delay_ms=0, fix_reply="[]"):
+        self.reply, self.delay_ms, self.fix_reply = reply, delay_ms, fix_reply
         self.sent = []
+        self.fix_sent = []
 
-    def complete(self, system, user, max_tokens):
+    def complete(self, system, user, max_tokens, purpose=""):
+        if purpose == "fix":
+            self.fix_sent.append((system, user))
+            return self.fix_reply
         self.sent.append((system, user))
         if self.delay_ms:
             time.sleep(self.delay_ms / 1000)
@@ -32,8 +39,12 @@ def config() -> dict:
 
 
 class FileMouth:
-    def complete(self, system, user, max_tokens):
+    wants_purpose = True
+
+    def complete(self, system, user, max_tokens, purpose=""):
         cfg = config()
+        if purpose == "fix":  # 聞き違いを直す送信。ファイルに fix_reply が無ければ「直す所なし」
+            return cfg.get("fix_reply", "[]")
         if cfg.get("delay_ms"):
             time.sleep(cfg["delay_ms"] / 1000)
         return cfg.get("reply", "")

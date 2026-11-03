@@ -6,7 +6,8 @@
   python scripts/real_api_check.py --questions G16 の質問9問を本物の Claude に1回ずつ通し、正解と照らす
       --claude-only  よく聞く質問の表を使わず、全部 Claude に聞く（モデルの比較用）
       --model 名前    質問だけ別のモデルで試す（config は書き換えない）
-  python scripts/real_api_check.py --memo      G17 の話6通りを本物の Claude で5つに分け、期待と照らす
+  python scripts/real_api_check.py --memo      G17 の話6通りを本物の Claude で（聞き違いを直してから）5つに分け、期待と照らす
+  python scripts/real_api_check.py --fix       聞き違いを直す段を、作り直した録音1・2の文字で確かめる（根管充填・排膿・支台築造・TeC）
 結果は docs/実API結果.md に追記する。鍵は出力にも記録にも出さない。
 """
 import argparse
@@ -127,17 +128,17 @@ def run_memo() -> int:
     for c in CASES:
         talk = "見本 花子さんの診療です。" + c["transcript"]  # 名前を入れて送り、伏字を確かめる
         try:
-            items = memo.organize(talk, sens, gw)
+            items, _fixed, _fixes = memo.make_draft(talk, sens, gw)  # 聞き違いを直してから5つに分ける（本番と同じ）
         except ClaudeUnavailable as e:
             print(e)
             return 2
         except Exception as e:  # noqa: BLE001
-            items, bad = {}, [f"失敗 {type(e).__name__}: {redact_key(str(e))[:80]}"]
+            items, bad, _fixes = {}, [f"失敗 {type(e).__name__}: {redact_key(str(e))[:80]}"], []
         else:
             bad = judge(items, c["expect"])
         ok_all &= not bad
         rows.append((c["id"], c["title"], bad, items))
-        print(c["id"], "合格" if not bad else "不合格", bad)
+        print(c["id"], "合格" if not bad else "不合格", bad, "直し", [(f["from"], f["to"]) for f in _fixes])
     sent = "".join(p.read_text(encoding="utf-8") for p in (Path(tmp) / "sent_log").glob("*.jsonl"))
     names_left = [w for w in ("見本", "花子", "ハナコ") if w in sent]
     if names_left:
@@ -156,14 +157,71 @@ def run_memo() -> int:
     return 0 if ok_all else 1
 
 
+def run_fix() -> int:
+    """聞き違いを直す段を、本物の Claude で確かめる。録音1・2の文字は、院長の聞き違いの例から作り直した架空の文。"""
+    import os
+    import tempfile
+
+    tmp = tempfile.mkdtemp(prefix="cv_fix_")
+    os.environ["CV_DATA_DIR"] = tmp
+    subprocess.run([sys.executable, str(ROOT / "scripts" / "seed.py")], check=True, capture_output=True,
+                   env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+    from app.ai import memo
+    from app.ai.gateway import Gateway, sensitive_from_db
+    from app.db import connect
+    from tests.test_fixtalk import REC1, REC2
+
+    con = connect()
+    sens = sensitive_from_db(con)
+    gw = Gateway(log_dir=Path(tmp) / "sent_log")
+    digits = lambda t: [c for c in t if c in "0123456789"]  # noqa: E731
+    cases = [("録音1", REC1, ["根管充填", "排膿", "支台築造"]), ("録音2", REC2, ["支台築造", "TeC"])]
+    NL, ok_all, rows = chr(10), True, []
+    for name, talk, want in cases:
+        try:
+            items, fixed, fixes = memo.make_draft("見本 花子さんの診療です。" + talk, sens, gw)
+        except ClaudeUnavailable as e:
+            print(e)
+            return 2
+        body = memo.body_lines(items)
+        bad = [w for w in want if w not in fixed]
+        bad += [f"項目に無い: {w}" for w in want if w not in body]
+        bad += [w for w in ("根幹重点", "肺脳", "次第蓄造", "次第地駆動", "TEK") if w in fixed or w in body]
+        if digits(fixed) != digits("見本 花子さんの診療です。" + talk):
+            bad.append("数字が変わった")
+        ok_all &= not bad
+        rows.append((name, fixes, bad, fixed, body))
+        print(name, "合格" if not bad else "不合格", bad, [(f["from"], f["to"]) for f in fixes])
+    sent = "".join(p.read_text(encoding="utf-8") for p in (Path(tmp) / "sent_log").glob("*.jsonl"))
+    left = [w for w in ("見本", "花子", "ハナコ") if w in sent]
+    if left:
+        ok_all = False
+        print("送った文に名前が残っています:", left)
+    sample = json.loads(sent.splitlines()[0])["user"][:200] if sent else ""
+    table = "".join(f"  - {r[0]}: {'合格' if not r[2] else '不合格 ' + '; '.join(r[2])}。直し: "
+                    f"{', '.join(f['from'] + '→' + f['to'] for f in r[1]) or 'なし'}{NL}" for r in rows)
+    with RESULT_MD.open("a", encoding="utf-8") as f:
+        f.write(
+            f"{NL}## {datetime.now():%Y-%m-%d %H:%M} 聞き違いを直す段（録音1・2の文字）{NL}"
+            f"- コミット: {commit_id()}{NL}- モデル: {load_model()}{NL}"
+            f"- 入力（伏字後の送信文の先頭）: {sample}{NL}"
+            f"- 送った文に名前が残っていない: {'はい' if not left else 'いいえ'}{NL}{table}"
+            f"- 判定: {'全部合格' if ok_all else '不合格あり'}{NL}"
+        )
+    return 0 if ok_all else 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-write", action="store_true")
     ap.add_argument("--questions", action="store_true")
     ap.add_argument("--memo", action="store_true")
+    ap.add_argument("--fix", action="store_true")
     ap.add_argument("--claude-only", action="store_true", help="--questions で、表を使わず全部 Claude に聞く")
     ap.add_argument("--model", default="", help="--questions で、質問だけこのモデルで試す")
     args = ap.parse_args()
+    if args.fix:
+        return run_fix()
     if args.memo:
         return run_memo()
     if args.questions:

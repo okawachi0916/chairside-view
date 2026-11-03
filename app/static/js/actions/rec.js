@@ -15,12 +15,19 @@
   }
 
   window.CVActive = window.CVActive || {};
-  window.CVActive[1] = function () { var r = rec(); return !!(r && r.active()); }; // 録音中・OK待ちは1回で動く
+  window.CVActive[1] = function () { var r = rec(); return !!(r && r.active()); }; // 録音中は1回で止まる
 
   CVActions.register("button1", function () {
     var r = rec();
     if (r) r.press();
     else toApp(); // 親の画面が無いときは、/app の中に同じ画面を開いて録音を始める
+  });
+
+  // 「下書きを開いて」。右下の窓に「下書きができました」と出ているときだけ開く
+  CVActions.register("draft-open", function () {
+    var r = rec();
+    if (r && r.openDraft()) return;
+    say("開ける下書きはありません");
   });
 
   var style = document.createElement("style");
@@ -45,7 +52,8 @@
       "<button type='button' data-action='memo-later'>後で直す</button></div>";
     document.body.appendChild(d);
     d.querySelector("[data-action=memo-open]").addEventListener("click", function () {
-      location.href = first.draft_id ? "/drafts/" + first.draft_id : "/recordings";
+      var here = encodeURIComponent(location.pathname + location.search);   // 記録したあと、この診療の画面へ戻る
+      location.href = first.draft_id ? "/drafts/" + first.draft_id + "?back=" + here : "/recordings";
     });
     d.querySelector("[data-action=memo-later]").addEventListener("click", function () {
       fetch("/api/pending-memo/later", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appt: Number(appt) }) })

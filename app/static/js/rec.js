@@ -2,17 +2,16 @@
 // 録音を始めたときの患者様と診療回をサーバーに固定する。患者様を開いていなければ「患者様なし」。
 (function () {
   var q = new URLSearchParams(location.search);
-  var OK_WAIT_MS = (Number(q.get("okwait")) || 30) * 1000; // OK が押されなければ「転送待ち」にするまで
   var inner = document.getElementById("inner");
   var win = document.getElementById("rec-win");
   var msg = win.querySelector(".msg");
-  var okBtn = win.querySelector(".ok");
 
-  // mode: idle / recording / paused / okwait（録音が終わりました・OK待ち）
+  // mode: idle / recording / paused / saving（止めて音声を保存している間）
   var mode = "idle";
-  var cur = null;      // { id, fixed, recorder, stream, chunks, activeMs, last }
-  var done = null;     // OK待ちの録音 { id, fixed, timer }
-  var pending = 0;     // 転送待ちの件数
+  var cur = null;      // { id, fixed, appt, recorder, stream, chunks, activeMs, last }
+  var jobs = [];       // 止めたあと、自動で転送して下書きになるのを待っている録音 { id, appt }
+  var ready = null;    // 下書きができた最新の録音 { id, draftId, appt }
+  var pending = 0;     // 転送待ちの件数（患者様なしの録音）
   var flash = null;    // 一時の知らせ { text, until }
   var tick = null;
 
@@ -24,23 +23,25 @@
   function setMode(m) { mode = m; document.body.dataset.rec = m; }
 
   function paint() {
-    var text = "", wmode = "", showOk = false;
+    var text = "", wmode = "";
     if (flash && Date.now() < flash.until) {
       text = flash.text; wmode = "flash";
     } else if (mode === "recording" || mode === "paused") {
       var ms = cur.activeMs + (mode === "recording" ? Date.now() - cur.last : 0);
       text = (mode === "paused" ? "一時停止中 " : "録音中 ") + mmss(ms);
       wmode = mode;
-    } else if (mode === "okwait") {
-      text = "録音が終わりました"; wmode = "okwait"; showOk = true;
+    } else if (ready) {
+      text = "下書きができました"; wmode = "ready";
+    } else if (jobs.length > 0 || mode === "saving") {
+      text = "下書きにしています…"; wmode = "working";
     } else if (pending > 0) {
       text = "転送待ち " + pending + "件"; wmode = "waiting";
     }
     win.hidden = !text;
     win.dataset.mode = wmode;
     msg.textContent = text;
-    okBtn.hidden = !showOk;
     document.body.dataset.recText = text;
+    document.body.dataset.draftReady = ready ? String(ready.draftId) : "";
   }
 
   function toast(text, ms) { flash = { text: text, until: Date.now() + (ms || 3000) }; paint(); setTimeout(paint, (ms || 3000) + 50); }
@@ -70,7 +71,7 @@
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
       return post("/rec/start", { appt: appt }).then(function (r) {
         var recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-        cur = { id: r.id, fixed: r.patient_id != null, recorder: recorder, stream: stream, chunks: [], activeMs: 0, last: Date.now() };
+        cur = { id: r.id, fixed: r.patient_id != null, appt: appt, recorder: recorder, stream: stream, chunks: [], activeMs: 0, last: Date.now() };
         recorder.ondataavailable = function (e) { if (e.data.size) cur.chunks.push(e.data); };
         recorder.start(1000);
         setMode("recording");
@@ -93,7 +94,7 @@
       var dur = c.activeMs / 1000;
       fetch("/rec/" + c.id + "/audio?dur=" + dur.toFixed(1), { method: "POST", body: blob })
         .then(function (r) { return r.json().then(function (b) { if (!r.ok) throw new Error(b.error || r.status); return b; }); })
-        .then(function () { awaitOk(c); })
+        .then(function () { saved(c); })
         .catch(function (e) { setMode("idle"); cur = null; toast("録音を保存できませんでした（" + e.message + "）", 5000); });
     };
     setMode("saving");
@@ -102,38 +103,58 @@
     paint();
   }
 
-  function awaitOk(c) {
-    done = { id: c.id, fixed: c.fixed, timer: setTimeout(timeout, OK_WAIT_MS) };
-    setMode("okwait");
+  // 止めて音声を保存できたら、OK を待たずに自動で転送し、文字起こしと下書きまで進める。
+  // 患者様なしの録音は、患者様と診療回を選ぶまで転送待ちにする。
+  function saved(c) {
+    setMode("idle");
+    if (!c.fixed) { toast("転送待ちにしました"); refreshPending(); return; }
+    post("/rec/" + c.id + "/transfer", {}).then(function () {
+      jobs.push({ id: c.id, appt: c.appt });
+      paint();
+      watch();
+    }).catch(function (e) { toast("転送できません（" + e.message + "）", 5000); refreshPending(); });
+  }
+
+  var watching = null;
+  function watch() {
+    if (watching || !jobs.length) return;
+    watching = setInterval(function () {
+      jobs.slice().forEach(function (j) {
+        fetch("/api/recordings/" + j.id, { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (s) {
+          if (s.state === "文字起こし中" || s.state === "整理中" || s.state === "転送待ち") return;
+          jobs = jobs.filter(function (x) { return x.id !== j.id; });
+          if (s.state === "下書き" && s.draft_id) {
+            ready = { id: j.id, draftId: s.draft_id, appt: j.appt };
+            refreshInner(j.appt);
+          } else {
+            toast("下書きにできませんでした（録音の一覧で直せます）", 5000);
+          }
+          paint();
+          if (!jobs.length) { clearInterval(watching); watching = null; }
+        }).catch(function () { /* つながらないときは次の回に */ });
+      });
+    }, 700);
+  }
+
+  // いま中の画面に同じ患者様 (予約) が開いていれば、話した内容の整理の欄だけ読み直す。画面全体は替えない
+  function refreshInner(appt) {
+    try {
+      if (context() === appt && inner.contentWindow.cv) inner.contentWindow.cv.refreshSummary(appt);
+    } catch (e) { /* 中の画面が別の物のとき */ }
+  }
+
+  function openDraft() {
+    if (!ready) return false;
+    var id = ready.draftId;
+    ready = null;
     paint();
-  }
-
-  function timeout() { // 30秒たっても押されなかった: どちらも転送待ち
-    done = null;
-    setMode("idle");
-    refreshPending();
-  }
-
-  function ok() {
-    var d = done;
-    if (!d) return;
-    clearTimeout(d.timer);
-    done = null;
-    setMode("idle");
-    if (d.fixed) {
-      post("/rec/" + d.id + "/transfer", {}).then(function () { toast("転送しました（下書きにしています）"); })
-        .catch(function (e) { toast("転送できません（" + e.message + "）", 5000); })
-        .then(refreshPending);
-    } else {
-      toast("転送待ちにしました");
-      refreshPending();
-    }
+    inner.src = "/drafts/" + id;
+    return true;
   }
 
   function press() {
     if (mode === "idle") start();
     else if (mode === "recording" || mode === "paused") stop();
-    else if (mode === "okwait") ok();
   }
 
   // 声の指示を聞いている間だけ、録音を止める (ボタン2)。指示の言葉は録音に入れない
@@ -151,15 +172,16 @@
     paint();
   }
 
-  okBtn.addEventListener("click", ok);
-  win.addEventListener("click", function (e) {
-    if (e.target === okBtn) return;
-    if (mode === "idle" && pending > 0) inner.src = "/recordings";
+  win.addEventListener("click", function () {
+    if (mode !== "idle") return;
+    if (ready) openDraft();
+    else if (pending > 0) inner.src = "/recordings";
   });
 
   window.CVRec = {
-    press: press, hold: hold, toast: toast,
-    active: function () { return mode === "recording" || mode === "paused" || mode === "okwait"; }, // 1回で止まる・OKできる
+    press: press, hold: hold, toast: toast, openDraft: openDraft,
+    hasDraft: function () { return !!ready; },
+    active: function () { return mode === "recording" || mode === "paused"; }, // 1回で止まる
     locked: function () { return !!cur && cur.fixed && (mode === "recording" || mode === "paused"); }, // 患者様を固定した録音の間
     mode: function () { return mode; },
   };

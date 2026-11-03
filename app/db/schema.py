@@ -228,6 +228,8 @@ TABLES = {
             ("confirmed_at", "TEXT", None, False),
             ("recording_id", "INTEGER", None, False),  # もとの録音。1つの録音から下書きは1つだけ
             ("items", "TEXT", "'{}'", True),  # 5つの項目と抜き出し (JSON)
+            ("fixed_transcript", "TEXT", "''", True),  # 聞き違いを直した文字。5つに分けるのはこちら（空なら直していない）
+            ("fixes", "TEXT", "'[]'", True),  # 直した聞き違い [{"from","to","by"}]。画面で「元→直し」を見せる
         ],
         "extra": [_PATIENT_FK, _VISIT_FK],
     },
@@ -246,6 +248,7 @@ TABLES = {
             ("attempt", "INTEGER", "0", True),  # 再試行のたびに増やす。古い処理の結果は捨てる
             ("draft_id", "INTEGER", None, False),
             ("updated_at", "TEXT", "''", True),
+            ("fix_off", "INTEGER", "0", True),  # 1=人が直した文字なので、聞き違いの自動の直しをしない
         ],
         "extra": [_PATIENT_FK, _VISIT_FK],
     },

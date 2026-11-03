@@ -44,10 +44,12 @@ def _model(name: str):
     return _models[name]
 
 
-def transcribe(audio: np.ndarray, model: str | None = None) -> dict:
+def transcribe(audio: np.ndarray, model: str | None = None, initial_prompt: str | None = None) -> dict:
+    """initial_prompt は、ボタン1の録音の文字起こしだけが渡す（歯科の短い一文と主な語）。ボタン2の声の指示には渡さない。"""
     name = model or settings()["model"]
     m = _model(name)
     t0 = time.perf_counter()
-    segs, _ = m.transcribe(audio, language="ja", beam_size=1, vad_filter=False)
+    extra = {"initial_prompt": initial_prompt} if initial_prompt else {}
+    segs, _ = m.transcribe(audio, language="ja", beam_size=1, vad_filter=False, **extra)
     text = "".join(s.text for s in segs).strip()
     return {"text": text, "model": name, "seconds": round(time.perf_counter() - t0, 2)}
