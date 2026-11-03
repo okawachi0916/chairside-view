@@ -17,3 +17,11 @@ body.sent-page { display: block; height: auto; min-height: 100%; overflow: auto;
 mark.masked { background: var(--c-warn-soft); color: var(--c-warn); font-weight: var(--fw-bold); border-radius: var(--r-s);
   padding: 0 var(--sp-1); }
 .none { font-size: var(--fs-3); color: var(--c-sub); }
+/* G07e: スクロールを出さず、ページ送りのボタンで見る（actions/look.js） */
+body.sent-page { height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+body.sent-page .sent-main { flex: 1; min-height: 0; overflow: hidden; }
+.sent-head .fs-spacer { flex: 1; }
+.sent-head .sent-page-btn { font-family: inherit; font-size: var(--fs-3); font-weight: var(--fw-bold); padding: var(--sp-1) var(--sp-4);
+  border: 2px solid var(--c-surface); border-radius: var(--r-s); background: transparent; color: var(--c-surface); cursor: pointer; }
+.sent-head .sent-page-btn[hidden] { display: none; }
+.sent-head .sent-page-btn:disabled { opacity: .4; cursor: default; }
