@@ -405,6 +405,12 @@ def test_fullscreen_top_band_dark_with_examples_that_work(server, browser, name)
         say(pg, w)
         pg.wait_for_function("document.querySelectorAll('#num-band').length === 0")  # 聞き取りが終わったら元に戻る
         if w == "戻して":
+            if pg.locator("#phone-modal").count():  # 前の例文で QR が開いている（G14i）: 1回目は QR だけ閉じる
+                pg.wait_for_function("!document.getElementById('phone-modal')")
+                assert pg.locator(f'[data-fs-panel="{name}"]').count() == 1
+                pg.evaluate("window.cvNumbers(true)")
+                say(pg, w)
+                pg.wait_for_function("document.querySelectorAll('#num-band').length === 0")
             pg.wait_for_function("document.querySelectorAll('[data-fs-panel]').length === 0")
         elif "拡大" in w or "並べて" in w:
             assert pg.evaluate("Array.from(document.querySelectorAll('.fs-fig')).map(e => Number(e.dataset.n))") == [1, 3]
