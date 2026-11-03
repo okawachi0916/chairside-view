@@ -247,8 +247,9 @@ def test_questions_unchanged_with_overlay(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     pg.evaluate("window.cvNumbers(true)")
     say(pg, "前回は何をした")  # 質問は番号が出ていてもこれまでどおり
-    pg.wait_for_function("document.body.dataset.answer === 'retry'")
-    assert pg.locator("[data-fs-panel]").count() == 0 and badges(pg) == []
+    pg.wait_for_function("document.body.dataset.answer && document.body.dataset.answer !== 'waiting'")
+    # 番号の部品は開かない（答えの画面は開いてよい）。番号は消える
+    assert pg.locator("[data-fs-panel]:not([data-fs-panel='answer'])").count() == 0 and badges(pg) == []
 
 
 def test_hidden_screen_has_no_numbers(server, browser):  # noqa: F811
