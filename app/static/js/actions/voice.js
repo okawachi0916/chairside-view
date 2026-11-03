@@ -18,7 +18,7 @@
     "body[data-numbers] .ph .no{display:none}" +
     "#num-dim{position:fixed;left:0;top:0;right:0;bottom:0;z-index:30;background:rgba(0,0,0,.55);pointer-events:none}" +
     "body[data-numbers] [data-action=phone]{position:relative;z-index:31}" + // 暗い幕より前に出して、明るく見せる
-    ".num-badge{position:fixed;z-index:35;transform:translate(-50%,-50%);height:76px;padding:0 16px;border-radius:38px;box-sizing:border-box;white-space:nowrap;" +
+    ".num-badge{position:fixed;z-index:35;height:76px;padding:0 16px;border-radius:38px;box-sizing:border-box;white-space:nowrap;" +
     "background:#ffd43b;color:#111;border:4px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.6);" +
     "font-size:48px;font-weight:800;line-height:68px;text-align:center;pointer-events:none}" +
     "#num-questions{position:fixed;z-index:35;left:0;right:0;bottom:36px;display:flex;justify-content:center;gap:20px;pointer-events:none}" +
@@ -189,6 +189,16 @@
     return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < window.innerHeight && r.right > 0 && r.left < window.innerWidth;
   }
   // 番号を付ける先: ふだんの画面にある全画面ボタンと「言える言葉」。全画面の中には付けない
+  // QR の画面など、ふだんの画面の上に出ている箱。見えているボタンに左から 1番、2番…を付ける
+  function modalEl() { return document.getElementById("phone-modal"); }
+  function modalTargets() {
+    var m = modalEl(), out = [];
+    if (!m) return out;
+    m.querySelectorAll("button").forEach(function (b) {
+      if (inView(b)) out.push({ n: out.length + 1, key: "modal:" + (b.dataset.act || "btn"), el: b });
+    });
+    return out;
+  }
   function numberTargets() {
     if (!numCfg || window.CVActions.isHidden() || document.querySelector(".fs-panel")) return [];
     var out = [];
@@ -223,8 +233,81 @@
     if (sc.pages && next && !next.hidden) words = words.concat(ex.page_words || []);
     return { words: words.concat(sc.words || []), message: sc.message || "" };
   }
+  function rectOf(el) { var r = el.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom }; }
+  function hit(a, b) { return a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t; }
+  // 札はボタンの少し上へ。上の端からはみ出すときだけ下へ。札どうし・ボタンとは重ねない
+  function placeBadges(items) {
+    var GAP = 8, W = window.innerWidth;
+    var taken = [];
+    var obstacles = [];
+    document.querySelectorAll("button, [data-action], a[href]").forEach(function (e) { if (inView(e)) obstacles.push(rectOf(e)); });
+    items.forEach(function (x) {
+      var r = rectOf(x.el), bw = x.badge.offsetWidth, bh = x.badge.offsetHeight;
+      var cands = [];
+      [-1, 1].forEach(function (side) { // -1 上、1 下
+        var top = side < 0 ? r.t - GAP - bh : r.b + GAP;
+        if (side < 0 && top < 0) return; // 上からはみ出すときだけ下
+        [0, -1, 1, -2, 2, -3, 3].forEach(function (k) {
+          var left = (r.l + r.r) / 2 - bw / 2 + k * (bw / 2 + GAP + (r.r - r.l) / 2);
+          cands.push({ l: left, t: top, r: left + bw, b: top + bh });
+        });
+      });
+      var inside = function (c) { return c.l >= 0 && c.r <= W && c.t >= 0 && c.b <= window.innerHeight; };
+      var pick = null;
+      for (var i = 0; i < cands.length && !pick; i++) {
+        var c = cands[i];
+        if (!inside(c)) continue;
+        if (taken.some(function (t) { return hit(c, t); })) continue;
+        if (obstacles.some(function (o) { return hit(c, o); })) continue;
+        pick = c;
+      }
+      if (!pick) { // どこも空かないときは、ほかの札とボタンの両方を避ける所だけ探し、無ければ真上
+        pick = cands.filter(inside).filter(function (c) { return !taken.some(function (t) { return hit(c, t); }); })[0] || cands[0] || { l: r.l, t: r.t - GAP - bh, r: r.l + bw, b: r.t - GAP };
+      }
+      taken.push(pick);
+      x.badge.style.left = Math.round(pick.l) + "px";
+      x.badge.style.top = Math.round(pick.t) + "px";
+    });
+  }
+  // 暗い幕。ボタンの所だけ穴を開けて、ボタンは明るいまま見せる
+  function dimWithHoles(items, z) {
+    var dim = document.createElement("div");
+    dim.id = "num-dim";
+    var W = window.innerWidth, H = window.innerHeight;
+    var d = "M0 0H" + W + "V" + H + "H0Z";
+    items.forEach(function (x) {
+      var r = x.el.getBoundingClientRect();
+      d += "M" + Math.round(r.left) + " " + Math.round(r.top) + "h" + Math.round(r.width) + "v" + Math.round(r.height) + "h-" + Math.round(r.width) + "Z";
+    });
+    dim.style.clipPath = 'path(evenodd, "' + d + '")';
+    if (z) dim.style.zIndex = z;
+    document.body.appendChild(dim);
+  }
+  function addBadges(list, z) {
+    var items = list.map(function (x) {
+      var b = document.createElement("div");
+      b.className = "num-badge";
+      b.dataset.n = x.n;
+      b.dataset.key = x.key;
+      b.textContent = x.n + "番";
+      b.style.left = "0px";
+      b.style.top = "0px";
+      if (z) b.style.zIndex = z + 1;
+      document.body.appendChild(b);
+      return { el: x.el, badge: b };
+    });
+    placeBadges(items);
+  }
   function showNumbers() {
     hideNumbers();
+    var mt = modalTargets();
+    if (mt.length) { // QR の画面など: 箱の「閉じる」にも番号。箱より前で暗くする
+      dimWithHoles(mt, 90);
+      addBadges(mt, 90);
+      document.body.dataset.numbers = "1";
+      document.body.dataset.guide = "modal";
+      return;
+    }
     var key = screenKey();
     if (key) { // 全画面（と隠した画面）: 上の帯だけ暗くする
       var top = document.querySelector(".topbar");
@@ -242,20 +325,8 @@
     }
     var list = numberTargets();
     if (!list.length) return;
-    var dim = document.createElement("div");
-    dim.id = "num-dim";
-    document.body.appendChild(dim);
-    list.forEach(function (x) {
-      var r = x.el.getBoundingClientRect();
-      var b = document.createElement("div");
-      b.className = "num-badge";
-      b.dataset.n = x.n;
-      b.dataset.key = x.key;
-      b.textContent = x.n + "番";
-      b.style.left = Math.round(r.left + r.width / 2) + "px";
-      b.style.top = Math.round(r.top + r.height / 2) + "px";
-      document.body.appendChild(b);
-    });
+    dimWithHoles(list);
+    addBadges(list);
     var qs = (exCfg && exCfg.normal && exCfg.normal.questions) || [];
     if (qs.length) {
       var bar = document.createElement("div");
@@ -286,6 +357,12 @@
     if (!shown) { say("「" + t + "」 番号は出ていません"); return; }
     var key = shown[n];
     if (!key) { say("「" + t + "」 その番号はありません"); return; }
+    if (key.indexOf("modal:") === 0) { // 箱のボタン（閉じる など）はマウスで押したのと同じ
+      var mb = document.querySelector('#phone-modal [data-act="' + key.slice(6) + '"]');
+      say("「" + t + "」");
+      if (mb) mb.click();
+      return;
+    }
     if (key === "say-list") { say("「" + t + "」"); window.CVActions.run("say-list-open"); return; }
     if (key === "phone") { say("「" + t + "」"); openPhone(); return; }
     if (key === "change-role") { // マウスで「役割を変える」を押したのと同じ（view.js の click）
@@ -306,6 +383,10 @@
     if (res.kind === "操作" && res.action) {
       if (window.CVActions.isHidden()) { say("「" + t + "」 画面を隠しています"); return res; }
       var nums = res.numbers || (res.arg ? [res.arg] : []);
+      if (res.action === "part-number" && nums.length === 1 && shown && String(shown[nums[0]] || "").indexOf("modal:") === 0) {
+        callNumber(nums[0], shown, t);
+        return res;
+      }
       if (res.action === "part-number" || res.action === "photo-show") {
         if (photoPanel()) { // 写真の番号は、口腔内写真の全画面の中でだけ効く
           var m = showPhotos(nums);

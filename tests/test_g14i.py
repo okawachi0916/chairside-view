@@ -145,3 +145,46 @@ def test_button3_closes_qr_then_hides(qr):
     double(qr, 3)  # 戻す
     qr.wait_for_selector(".hide-panel", state="detached")
     assert modal(qr) == 0
+
+
+# ---------- G14j: QR の画面の「閉じる」にも番号 ----------
+def test_qr_close_button_gets_number_1_and_stays_bright(qr):
+    assert qr.evaluate("window.cvNumbers(true)") == 1
+    b = qr.locator(".num-badge")
+    assert b.inner_text() == "1番" and b.get_attribute("data-key") == "modal:close"
+    btn = qr.locator('#phone-modal [data-act="close"]').bounding_box()
+    bb = b.bounding_box()
+    assert not (bb["x"] < btn["x"] + btn["width"] and bb["x"] + bb["width"] > btn["x"] and bb["y"] < btn["y"] + btn["height"] and bb["y"] + bb["height"] > btn["y"])
+    assert 0 <= btn["y"] - (bb["y"] + bb["height"]) <= 40  # 少し上
+    assert qr.locator("#num-dim").count() == 1
+    assert qr.locator("#num-dim").evaluate("e => e.style.clipPath").count("Z") == 2  # ボタンの所に穴
+    assert qr.evaluate("window.cvNumbers(false)") == 0 and qr.locator("#num-dim").count() == 0
+    assert modal(qr) == 1  # 番号を消しても QR は開いたまま
+
+
+def test_qr_number_1_by_voice_closes_only_qr(qr):
+    qr.evaluate("window.cvNumbers(true)")
+    qr.evaluate("window.cvTyped('1番')")
+    back_to_photos(qr)
+
+
+def test_qr_button2_double_press_shows_numbers_and_again_hides(server, mobile):  # noqa: F811
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        b = p.chromium.launch(channel="msedge", args=["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"])
+        ctx = b.new_context(viewport={"width": 1920, "height": 1030})
+        ctx.grant_permissions(["microphone"], origin=f"http://127.0.0.1:{server}")
+        pg = ctx.new_page()
+        pg.goto(f"http://127.0.0.1:{server}{UNIT.replace('&typed=1&hide=1', '')}")
+        pg.wait_for_selector('[data-part="important"]')
+        pg.wait_for_function("!!(window.VoiceKeys && document.body.dataset.numbersReady)")
+        pg.wait_for_timeout(500)
+        open_qr(pg)
+        double(pg, 2)
+        pg.wait_for_selector(".num-badge")
+        assert pg.locator(".num-badge").inner_text() == "1番" and pg.locator("#num-dim").count() == 1
+        tap(pg, 2)  # もう1回押したら番号を消す
+        pg.wait_for_function("!document.querySelector('.num-badge')", timeout=5000)
+        assert modal(pg) == 1
+        b.close()
