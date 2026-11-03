@@ -65,13 +65,27 @@
     return null;
   }
 
+  // 録音を始めた画面そのもの（全画面を開いていればそれも）。下書きを記録したあと、ここへ戻す
+  var autoOrigin = q.get("start") === "1" ? q.get("go") : null;   // 親の無い画面から移ってきたときは、渡された場所
+  function origin() {
+    var o = autoOrigin;
+    autoOrigin = null;
+    if (o) return o;
+    try {
+      if (inner.contentWindow.CVReturn) return inner.contentWindow.CVReturn.here();
+      var l = inner.contentWindow.location;
+      return l.pathname + l.search;
+    } catch (e) { return "/"; }
+  }
+
   function start() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return toast("この接続ではマイクを使えません");
     var appt = context(); // 押した瞬間の画面で固定する
+    var from = origin();
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
       return post("/rec/start", { appt: appt }).then(function (r) {
         var recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-        cur = { id: r.id, fixed: r.patient_id != null, appt: appt, recorder: recorder, stream: stream, chunks: [], activeMs: 0, last: Date.now() };
+        cur = { id: r.id, fixed: r.patient_id != null, appt: appt, origin: from, recorder: recorder, stream: stream, chunks: [], activeMs: 0, last: Date.now() };
         recorder.ondataavailable = function (e) { if (e.data.size) cur.chunks.push(e.data); };
         recorder.start(1000);
         setMode("recording");
@@ -109,7 +123,7 @@
     setMode("idle");
     if (!c.fixed) { toast("転送待ちにしました"); refreshPending(); return; }
     post("/rec/" + c.id + "/transfer", {}).then(function () {
-      jobs.push({ id: c.id, appt: c.appt });
+      jobs.push({ id: c.id, appt: c.appt, origin: c.origin });
       paint();
       watch();
     }).catch(function (e) { toast("転送できません（" + e.message + "）", 5000); refreshPending(); });
@@ -124,7 +138,7 @@
           if (s.state === "文字起こし中" || s.state === "整理中" || s.state === "転送待ち") return;
           jobs = jobs.filter(function (x) { return x.id !== j.id; });
           if (s.state === "下書き" && s.draft_id) {
-            ready = { id: j.id, draftId: s.draft_id, appt: j.appt };
+            ready = { id: j.id, draftId: s.draft_id, appt: j.appt, origin: j.origin };
             refreshInner(j.appt);
           } else {
             toast("下書きにできませんでした（録音の一覧で直せます）", 5000);
@@ -145,10 +159,10 @@
 
   function openDraft() {
     if (!ready) return false;
-    var id = ready.draftId;
+    var id = ready.draftId, from = ready.origin || "/";
     ready = null;
     paint();
-    inner.src = "/drafts/" + id;
+    inner.src = "/drafts/" + id + "?back=" + encodeURIComponent(from);
     return true;
   }
 

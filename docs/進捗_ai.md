@@ -14,7 +14,8 @@
 - あとで直す: /fix/{録音}（音声・文字・再整理）。次の患者様の前で止める（actions/rec.js）。/today の印「大川内先生 追記必要」（押すと下書き）
 - G26: /sent（app/routers/sent.py）。Claude へ送った文（質問・下書き・聞き違いの直し）を新しい順に出し、伏字は色付き。出す前にもう一度伏字にするので元の名前は出ない
 - G26b: 点検係4つ（.claude/agents）、/review-all（docs/総点検.md）、コミット前の見張り .claude/hooks/commit_guard.py
-- 試験: 全体 440 件（偽物の口）。送信文・伏字・応答・モデルを変えたら real_api_check.py の --questions、--memo、--fix を動かし直す
+- G26d: 記録・あとで直すのあとは録音を始めた画面へ戻る（全画面と並べた写真も）。場所は actions/rec.js の CVReturn.here、開き直しは view.js。「戻して」は全画面を閉じる動きのまま
+- 試験: 全体 492 件（偽物の口）。送信文・伏字・応答・モデルを変えたら real_api_check.py の --questions、--memo、--fix を動かし直す
 
 ## 残り
 - 録音は /app から開いたときだけ使える。実機のマイクでの通しは院長の確認待ち（試験は偽物のマイク）

@@ -9,9 +9,27 @@
     document.body.dataset.heard = text;
   }
 
+  // いまの画面そのものに戻るための場所。全画面を開いていれば、その部品と並べた写真の番号も付ける（view.js が開き直す）
+  window.CVReturn = {
+    here: function () {
+      var q = new URLSearchParams(location.search);
+      q.delete("fs"); q.delete("ph");
+      var url = location.pathname + (q.toString() ? "?" + q.toString() : "");
+      var p = location.pathname === "/unit" && document.querySelector(".fs-panel[data-fs-panel]");
+      var part = p && p.getAttribute("data-fs-panel");
+      if (!part || !document.querySelector('template[data-fs="' + part + '"]')) return url;   // 言える言葉などは開き直せない
+      url += (q.toString() ? "&" : "?") + "fs=" + encodeURIComponent(part);
+      if (part === "intraoral-photos") {
+        var ns = [].map.call(p.querySelectorAll(".fs-fig[data-n]"), function (f) { return f.getAttribute("data-n"); });
+        if (ns.length) url += "&ph=" + ns.join(",");
+      }
+      return url;
+    },
+  };
+
   function toApp() {
     say("録音の画面に移ります");
-    location.href = "/app?start=1&go=" + encodeURIComponent(location.pathname + location.search);
+    location.href = "/app?start=1&go=" + encodeURIComponent(window.CVReturn.here());
   }
 
   window.CVActive = window.CVActive || {};
@@ -52,7 +70,7 @@
       "<button type='button' data-action='memo-later'>後で直す</button></div>";
     document.body.appendChild(d);
     d.querySelector("[data-action=memo-open]").addEventListener("click", function () {
-      var here = encodeURIComponent(location.pathname + location.search);   // 記録したあと、この診療の画面へ戻る
+      var here = encodeURIComponent(window.CVReturn.here());   // 記録したあと、この診療の画面（全画面も）へ戻る
       location.href = first.draft_id ? "/drafts/" + first.draft_id + "?back=" + here : "/recordings";
     });
     d.querySelector("[data-action=memo-later]").addEventListener("click", function () {

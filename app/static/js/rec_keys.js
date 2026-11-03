@@ -20,7 +20,7 @@
       })(),
       isActive: function () { return false; },
       onAction: function (n) {
-        if (n === 1 && !skip) location.href = "/app?start=1&go=" + encodeURIComponent(location.pathname + location.search);
+        if (n === 1 && !skip) location.href = "/app?start=1&go=" + encodeURIComponent(window.CVReturn ? window.CVReturn.here() : location.pathname + location.search);
         else if (n === 2 && window.CVKeyHooks && window.CVKeyHooks[2]) window.CVKeyHooks[2]();
       },
     });
