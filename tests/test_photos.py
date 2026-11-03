@@ -20,6 +20,9 @@ def open_unit(browser, server, path=UNIT):  # noqa: F811
 
 
 def say(pg, word):
+    # 写真の番号は全画面の中でだけ効く。いつもの画面からは「口腔内写真の」を付けて言う
+    if word.endswith(("拡大して", "大きく", "拡大する")) and pg.locator("[data-fs-panel]").count() == 0:
+        word = "口腔内写真の" + word
     pg.evaluate("w => window.cvTyped(w)", word)
 
 

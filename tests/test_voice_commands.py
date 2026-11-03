@@ -5,7 +5,7 @@ import time
 import pytest
 
 from app.views import data as D
-from app.voice.interpret import FAILED, OP, QUESTION, UNRELATED, interpret, load_table
+from app.voice.interpret import FAILED, OP, QUESTION, UNRELATED, expand, interpret, load_table
 from tests.screen_helper import ROOT, browser, open_page, server  # noqa: F401
 
 ROWS = [r for r in D.today_list() if r["patient_id"] == 1]
@@ -35,17 +35,18 @@ def _fill(word):
 
 def test_every_row_gives_its_result():
     for r in load_table():
-        word = _fill(r["言葉"])
-        for w in {word, word[:-2] + "する" if word.endswith("して") else word}:
-            res = interpret(w)
-            assert res["kind"] == OP, w
-            if r["状態"] == "使える":
-                assert res["action"] == r["結果"]["action"], w
-                assert res["arg"] == r["結果"].get("arg"), w
-                if "{n1}" in r["言葉"]:
-                    assert res["numbers"] == [3, 5, 10][: r["言葉"].count("番")], w
-            else:
-                assert res["action"] is None and res["message"] == "まだ開けません", w
+        for word in expand(r["言葉"]):
+            word = _fill(word)
+            for w in {word, word[:-2] + "する" if word.endswith("して") else word}:
+                res = interpret(w)
+                assert res["kind"] == OP, w
+                if r["状態"] == "使える":
+                    assert res["action"] == r["結果"]["action"], w
+                    assert res["arg"] == r["結果"].get("arg"), w
+                    if "{n1}" in r["言葉"]:
+                        assert res["numbers"] == [3, 5, 10][: r["言葉"].count("{n")], w
+                else:
+                    assert res["action"] is None and res["message"] == "まだ開けません", w
 
 
 def test_only_three_fullscreens_are_ready():

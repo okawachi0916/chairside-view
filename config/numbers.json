@@ -1,0 +1,11 @@
+{
+ "parts": {
+  "important": 1,
+  "medical-history": 2,
+  "today-treatment": 3,
+  "treatment-history": 4,
+  "intraoral-photos": 5,
+  "spoken-summary": 6,
+  "perio-exam": 7
+ }
+}
