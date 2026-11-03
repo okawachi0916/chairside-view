@@ -47,7 +47,7 @@ def ask(pg, text):
 def test_found_dims_surroundings_and_shows_tall_frame(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     reply(json.dumps({"result": "found", "record": number("important:1")}))
-    ask(pg, "アレルギーは？")
+    ask(pg, "ペニシリンの記録は？")
     pg.wait_for_selector('[data-fs-panel="answer"]')
     frame = pg.locator(".ai-frame")
     text = frame.inner_text()
@@ -89,6 +89,15 @@ def test_restore_button_and_voice_close(server, browser):  # noqa: F811
     pg.close()
 
 
+def test_common_question_is_answered_without_claude(server, browser):  # noqa: F811
+    pg = open_unit(browser, server)
+    reply('{"result":"unclear"}')  # Claude に聞いていたら「もう一度」になる。直接なら答えが出る
+    ask(pg, "アレルギーは？")
+    pg.wait_for_selector('[data-fs-panel="answer"]')
+    assert "ペニシリン" in pg.locator(".ai-frame").inner_text()
+    pg.close()
+
+
 def test_none_and_unclear_messages(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     reply('{"result":"none"}')
@@ -104,7 +113,7 @@ def test_none_and_unclear_messages(server, browser):  # noqa: F811
 def test_bad_number_shows_retry_only(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     reply(json.dumps({"result": "found", "record": 9999}))
-    ask(pg, "アレルギーは？")
+    ask(pg, "ペニシリンの記録は？")
     pg.wait_for_function("document.body.dataset.answer === 'retry'")
     assert "もう一度お願いします" in pg.inner_text("#heard")
     assert pg.locator('[data-fs-panel="answer"]').count() == 0
@@ -114,7 +123,7 @@ def test_bad_number_shows_retry_only(server, browser):  # noqa: F811
 def test_late_answer_after_patient_change_is_dropped(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     reply(json.dumps({"result": "found", "record": number("important:1")}), delay_ms=1500)
-    ask(pg, "アレルギーは？")
+    ask(pg, "ペニシリンの記録は？")
     pg.wait_for_function("document.body.dataset.answer === 'waiting'")
     other = appt_of(2)
     pg.evaluate("a => window.cv.openUnit(a, 'doctor')", other)  # 待っている間に患者様を変える
