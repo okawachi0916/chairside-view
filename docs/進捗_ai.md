@@ -17,7 +17,8 @@
 - G26d: 記録・あとで直すのあとは録音を始めた画面へ戻る（全画面と並べた写真も）。場所は actions/rec.js の CVReturn.here、開き直しは view.js。「戻して」は全画面を閉じる動きのまま
 - G19b: 録音を止めたら文字起こしまで（区切り＝状態「文字起こし済み」。auto_summary は config/model.json、既定 false）。話した内容の整理の全画面に区切りを順に並べ、「この区切りを要約」「今日の分をまとめて要約」（recpipe.combine、memo.make_combined：直す段を通して、同じ話は1つ・言い直しは後）「この区切りを消す」（5秒だけ元に戻せる）。API は app/routers/segments.py、画面は render.py の _seg_rows と static/js/segments.js。まとめた下書きは drafts.combined=1（区切りが同じ下書きにつながる）。根幹重点などは spellings の決まりで必ず直る
 - G19c: 区切りは日付 × 役割で分けて並べる（segview.groups、見出しは render の _seg_rows）。recordings.role は録音を始めた画面の役割（rec.js が渡す）、空なら診療回の担当→歯科医師。「今日の分をまとめて要約」は今日（パソコンの日付）・今の役割の区切りだけ。確定した区切りには消すボタンを出さない。見本データに前の日の確定済み区切りあり（花子様の歯科医師の診療回）
-- 試験: 全体 610 件（偽物の口）。送信文・伏字・応答・モデルを変えたら real_api_check.py の --questions、--memo、--fix、--combine を動かし直す
+- G19d: 聞き違いの直しは {from,to,from_yomi,to_yomi}（fixtalk.same_reading。読みが違う・無い直しは捨てる）。readings（dental_terms.json）の決まりが Claude より先（副髄→覆髄など）。terms は80語まで。同じ項目は memo.parse_items が1つにする
+- 試験: 全体 616 件（偽物の口）。送信文・伏字・応答・モデルを変えたら real_api_check.py の --questions、--memo、--fix、--combine を動かし直す
 
 ## 残り
 - 録音は /app から開いたときだけ使える。実機のマイクでの通しは院長の確認待ち（試験は偽物のマイク）

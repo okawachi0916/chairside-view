@@ -7,7 +7,7 @@
       --claude-only  よく聞く質問の表を使わず、全部 Claude に聞く（モデルの比較用）
       --model 名前    質問だけ別のモデルで試す（config は書き換えない）
   python scripts/real_api_check.py --memo      G17 の話6通りを本物の Claude で（聞き違いを直してから）5つに分け、期待と照らす
-  python scripts/real_api_check.py --fix       聞き違いを直す段を、作り直した録音1・2の文字で確かめる（根管充填・排膿・支台築造・TeC）
+  python scripts/real_api_check.py --fix       聞き違いを直す段を、作り直した録音1・2の文字と、副髄→覆髄（抜髄にならない）で確かめる
   python scripts/real_api_check.py --combine   G19b 診療回の区切り3つ（同じ話・言い直しを含む架空の話）を、まとめて1つの要約にする
 結果は docs/実API結果.md に追記する。鍵は出力にも記録にも出さない。
 """
@@ -176,7 +176,9 @@ def run_fix() -> int:
     sens = sensitive_from_db(con)
     gw = Gateway(log_dir=Path(tmp) / "sent_log")
     digits = lambda t: [c for c in t if c in "0123456789"]  # noqa: E731
-    cases = [("録音1", REC1, ["根管充填", "排膿", "支台築造"]), ("録音2", REC2, ["支台築造", "TeC"])]
+    cases = [("録音1", REC1, ["根管充填", "排膿", "支台築造"]), ("録音2", REC2, ["支台築造", "TeC"]),
+             ("副髄", "右下の5番は除去と副髄をします。", ["覆髄"]),   # G19d: 覆髄が抜髄にならない
+             ("抜髄", "右下の5番は抜髄をします。", ["抜髄"])]        # 抜髄と話したら抜髄のまま
     NL, ok_all, rows = chr(10), True, []
     for name, talk, want in cases:
         try:
@@ -188,6 +190,8 @@ def run_fix() -> int:
         bad = [w for w in want if w not in fixed]
         bad += [f"項目に無い: {w}" for w in want if w not in body]
         bad += [w for w in ("根幹重点", "肺脳", "次第蓄造", "次第地駆動", "TEK") if w in fixed or w in body]
+        if name == "副髄":
+            bad += [w for w in ("抜髄", "副髄") if w in fixed or w in body]
         if digits(fixed) != digits("見本 花子さんの診療です。" + talk):
             bad.append("数字が変わった")
         ok_all &= not bad

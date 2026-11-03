@@ -204,7 +204,7 @@ def test_fixes_are_shown_as_from_to_and_original_text_is_kept(server, browser): 
     talk = "今日は右下6番の根幹重点をしました。仮歯はTEKを入れました。"
     set_fake(reply=json.dumps({**{k: [] for k in memo.KEYS},
                                "done": [{"text": "右下6番の根管充填", "quote": "右下6番の根管充填をしました"}]}, ensure_ascii=False),
-             transcript=talk, fix_reply=json.dumps([{"from": "根幹重点", "to": "根管充填"}], ensure_ascii=False))
+             transcript=talk, fix_reply=json.dumps([{"from": "根幹重点", "to": "根管充填", "from_yomi": "あ", "to_yomi": "あ"}], ensure_ascii=False))
     s = make_rec(server)
     assert db_one("SELECT transcript FROM recordings WHERE id = ?", s["id"])[0] == talk  # 話したままの文字は残る
     d = db_one("SELECT transcript, fixed_transcript, fixes FROM drafts WHERE id = ?", s["draft_id"])
