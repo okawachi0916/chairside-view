@@ -6,7 +6,7 @@
   var seq = 0; // 新しく読み始めるたびに増やす。古い応答は番号が合わないので捨てる
   var state = { appt: null, role: null };
 
-  function load(url) {
+  function load(url, after) {
     var my = ++seq;
     root.innerHTML = ""; // 前の患者様の表示を先に消す
     fetch(url, { cache: "no-store" })
@@ -21,6 +21,7 @@
         state.role = d.role;
         window.cv.chart = d.chart_no || "";
         root.innerHTML = d.html;
+        if (after) after();
       })
       .catch(function () {
         if (my !== seq) return;
@@ -28,12 +29,22 @@
       });
   }
 
-  function openUnit(appt, role) {
+  // 下書きを記録したあと、録音を始めたときの全画面（と並べた写真）をそのまま開き直す。履歴は増やさない・消さない
+  function reopenFullscreen(part, photos) {
+    return function () {
+      if (!part || !window.CVActions) return;
+      CVActions.run("fs-open", part);
+      var ns = String(photos || "").split(",").map(Number).filter(function (n) { return n > 0; });
+      if (part === "intraoral-photos" && ns.length) CVActions.run("photo-show", ns);
+    };
+  }
+
+  function openUnit(appt, role, after) {
     if (window.CVActions) CVActions.run("clear-transient"); // 前の患者様の隠した画面や一時の情報を消す
     state.appt = appt;
     var q = "appt=" + appt + (role ? "&role=" + role : "");
     history.replaceState(null, "", "/unit?" + q);
-    load("/api/view/unit?" + q);
+    load("/api/view/unit?" + q, after);
   }
 
   // 話した内容の整理の欄だけ読み直す (録音から下書きができたとき)。ほかの欄・全画面以外の状態は替えない。
@@ -132,7 +143,7 @@
         return n === 3 && CVActions.isHidden() ? "もう一度【隠】を押したら画面を戻します" : null;
       },
     });
-    if (q.get("appt")) openUnit(q.get("appt"), q.get("role"));
+    if (q.get("appt")) openUnit(q.get("appt"), q.get("role"), reopenFullscreen(q.get("fs"), q.get("ph")));
     else location.href = "/";
   } else {
     openReception(q.get("patient"));
