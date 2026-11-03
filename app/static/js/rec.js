@@ -176,6 +176,10 @@
 
   setMode("idle");
   refreshPending();
+  if (q.get("start") === "1") { // 親の無い画面でボタン1を押したときは、ここへ移ってそのまま録音を始める
+    var started = false;
+    inner.addEventListener("load", function () { if (!started) { started = true; if (mode === "idle") press(); } });
+  }
   setInterval(function () { if (mode === "idle") refreshPending(); }, 3000);
   window.addEventListener("beforeunload", function () {
     if (cur) cur.stream.getTracks().forEach(function (t) { t.stop(); });

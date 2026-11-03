@@ -9,13 +9,18 @@
     document.body.dataset.heard = text;
   }
 
+  function toApp() {
+    say("録音の画面に移ります");
+    location.href = "/app?start=1&go=" + encodeURIComponent(location.pathname + location.search);
+  }
+
   window.CVActive = window.CVActive || {};
   window.CVActive[1] = function () { var r = rec(); return !!(r && r.active()); }; // 録音中・OK待ちは1回で動く
 
   CVActions.register("button1", function () {
     var r = rec();
     if (r) r.press();
-    else say("録音は /app から開いたときに使えます");
+    else toApp(); // 親の画面が無いときは、/app の中に同じ画面を開いて録音を始める
   });
 
   var style = document.createElement("style");

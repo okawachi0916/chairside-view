@@ -16,10 +16,17 @@
     ".topbar .mic{flex:none;min-width:30px}.topbar .mic.rec{fill:#ff4d4d;animation:cvblink .8s infinite}.topbar .mic.none{fill:#999}" +
     "@keyframes cvblink{50%{opacity:.15}}" +
     "body[data-numbers] .ph .no{display:none}" +
-    "#num-dim{position:fixed;left:0;top:0;right:0;bottom:0;z-index:30;background:rgba(0,0,0,.5);pointer-events:none}" +
-    ".num-badge{position:fixed;z-index:35;width:76px;height:76px;margin:-38px 0 0 -38px;border-radius:50%;box-sizing:border-box;" +
+    "#num-dim{position:fixed;left:0;top:0;right:0;bottom:0;z-index:30;background:rgba(0,0,0,.55);pointer-events:none}" +
+    ".num-badge{position:fixed;z-index:35;transform:translate(-50%,-50%);height:76px;padding:0 22px;border-radius:38px;box-sizing:border-box;white-space:nowrap;" +
     "background:#ffd43b;color:#111;border:4px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.6);" +
-    "font-size:52px;font-weight:800;line-height:68px;text-align:center;pointer-events:none}";
+    "font-size:48px;font-weight:800;line-height:68px;text-align:center;pointer-events:none}" +
+    "#num-questions{position:fixed;z-index:35;left:0;right:0;bottom:36px;display:flex;justify-content:center;gap:20px;pointer-events:none}" +
+    ".q-btn{background:#fff;color:#111;border:3px solid #ffd43b;border-radius:14px;padding:12px 26px;font-size:32px;font-weight:700}" +
+    "#num-band{position:fixed;z-index:36;left:0;top:0;right:0;box-sizing:border-box;display:flex;align-items:center;gap:20px;padding:0 24px;background:rgba(8,10,14,.94);pointer-events:none;overflow:hidden}" +
+    ".ex-chip{color:#fff;font-size:30px;font-weight:700;white-space:nowrap;border:2px solid #ffd43b;border-radius:10px;padding:2px 16px;line-height:1.3}" +
+    ".ex-msg{color:#ffd43b;font-size:28px;font-weight:700}" +
+    ".say-list-body h3{margin:14px 0 4px;font-size:22px}.say-list-body ul{margin:0 0 6px;padding-left:28px;font-size:22px;line-height:1.5}" +
+    "body[data-numbers] .ph .no{display:none}";
   document.head.appendChild(style);
 
   var heard = document.createElement("div");
@@ -47,24 +54,53 @@
     var b = document.createElement("button");
     b.type = "button";
     b.id = "say-list-btn";
-    b.textContent = "いま言える言葉";
-    b.addEventListener("click", toggleList);
+    b.textContent = "言える言葉";
+    b.addEventListener("click", function () { CVActions.run("say-list-open"); });
     top.insertBefore(b, mic);
     if (rec) setMic("rec");
   }
 
-  function toggleList() {
-    var l = document.getElementById("say-list");
-    if (l) { l.hidden = !l.hidden; return; }
-    fetch("/voice/commands", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {
-      l = document.createElement("div");
-      l.id = "say-list";
-      var ul = document.createElement("ul");
-      d.words.forEach(function (w) { var li = document.createElement("li"); li.textContent = w; ul.appendChild(li); });
-      l.appendChild(ul);
-      document.body.appendChild(l);
-    });
+  // 言える言葉の一覧は全画面で出す（番号 8 でも開く）。中身は config/examples.json
+  function openSayList() {
+    var done = function (ex) {
+      CVActions.run("fs-close");
+      var p = document.createElement("section");
+      p.className = "fs-panel";
+      p.setAttribute("data-fs-panel", "say-list");
+      var head = document.createElement("div");
+      head.className = "fs-head";
+      var h = document.createElement("h2");
+      h.textContent = "言える言葉";
+      head.appendChild(h);
+      var sp = document.createElement("span");
+      sp.className = "fs-spacer";
+      head.appendChild(sp);
+      [["fs-prev", "前のページ"], ["fs-next", "次のページ"], ["fs-close", "もとに戻す"]].forEach(function (x) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.setAttribute("data-action", x[0]);
+        btn.textContent = x[1];
+        btn.hidden = x[0] !== "fs-close";
+        head.appendChild(btn);
+      });
+      p.appendChild(head);
+      var body = document.createElement("div");
+      body.className = "fs-scroll say-list-body";
+      (ex.say_list || []).forEach(function (sec) {
+        var t = document.createElement("h3");
+        t.textContent = sec.title;
+        var ul = document.createElement("ul");
+        sec.words.forEach(function (w) { var li = document.createElement("li"); li.textContent = w; ul.appendChild(li); });
+        body.appendChild(t);
+        body.appendChild(ul);
+      });
+      p.appendChild(body);
+      document.getElementById("view").appendChild(p);
+      document.body.classList.add("fs-mode");
+    };
+    if (exCfg) done(exCfg); else loadExamples().then(function (ex) { done(ex || {}); });
   }
+  CVActions.register("say-list-open", openSayList);
 
   // ---- 口腔内写真（番号で呼ぶ）----
   function photoPanel() { return document.querySelector('[data-fs-panel="intraoral-photos"]'); }
@@ -121,28 +157,72 @@
   CVActions.register("photo-show", showPhotos);
   CVActions.register("photo-list", function () { CVActions.run("fs-close"); });
 
-  // ---- 番号の呼び出し（聞き取り中だけ、画面を暗くして全画面ボタンの上に丸の番号を出す）----
-  var numCfg = null;
+  // ---- 暗くして例文を出す（聞き取り中だけ）----
+  // いつもの画面: 画面全体を暗くして、全画面ボタンの上に「1番」、下に質問のボタンを出す。
+  // 全画面の中: 見ている物は暗くせず、上の帯だけ暗くして、その画面で動く例文を出す。例文は config/examples.json の表。
+  var numCfg = null, exCfg = null;
   function loadNumbers() {
     return fetch("/voice/numbers", { cache: "no-store" }).then(function (r) { return r.json(); })
       .then(function (c) { numCfg = c; document.body.dataset.numbersReady = "1"; return c; }).catch(function () { return null; });
+  }
+  function loadExamples() {
+    return fetch("/voice/examples", { cache: "no-store" }).then(function (r) { return r.json(); })
+      .then(function (c) { exCfg = c; return c; }).catch(function () { return null; });
   }
   function inView(el) {
     var r = el.getBoundingClientRect();
     return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < window.innerHeight && r.right > 0 && r.left < window.innerWidth;
   }
-  // 数字を付ける先: ふだんの画面にある全画面ボタン。全画面の中には付けない（戻すときは「戻して」）
+  // 番号を付ける先: ふだんの画面にある全画面ボタンと「言える言葉」。全画面の中には付けない
   function numberTargets() {
     if (!numCfg || window.CVActions.isHidden() || document.querySelector(".fs-panel")) return [];
     var out = [];
     Object.keys(numCfg.parts).forEach(function (part) {
-      var btn = document.querySelector('[data-part="' + part + '"] [data-action="fullscreen"]');
+      var btn = part === "say-list" ? document.getElementById("say-list-btn")
+        : document.querySelector('[data-part="' + part + '"] [data-action="fullscreen"]');
       if (btn && inView(btn)) out.push({ n: numCfg.parts[part], key: part, el: btn });
     });
     return out;
   }
+  function chip(parent, text, cls) {
+    var c = document.createElement("span");
+    c.className = cls;
+    c.textContent = text;
+    parent.appendChild(c);
+    return c;
+  }
+  // いま開いている画面の名前（例文の表の引き方）
+  function screenKey() {
+    if (window.CVActions.isHidden()) return "hidden";
+    var p = document.querySelector(".fs-panel");
+    return p ? (p.getAttribute("data-fs-panel") || "") : "";
+  }
+  function bandWords(key) {
+    var ex = exCfg || {};
+    var sc = (ex.screens && ex.screens[key]) || ex.fallback || { words: ["戻して"], pages: true };
+    var words = [];
+    var panel = document.querySelector(".fs-panel");
+    var next = panel && panel.querySelector('[data-action="fs-next"]');
+    if (sc.pages && next && !next.hidden) words = words.concat(ex.page_words || []);
+    return { words: words.concat(sc.words || []), message: sc.message || "" };
+  }
   function showNumbers() {
     hideNumbers();
+    var key = screenKey();
+    if (key) { // 全画面（と隠した画面）: 上の帯だけ暗くする
+      var top = document.querySelector(".topbar");
+      var h = top ? Math.round(top.getBoundingClientRect().height) : 56;
+      var band = document.createElement("div");
+      band.id = "num-band";
+      band.dataset.screen = key;
+      band.style.height = Math.max(h, 52) + "px";
+      var bw = bandWords(key);
+      bw.words.forEach(function (w) { chip(band, "「" + w + "」", "ex-chip"); });
+      if (bw.message) chip(band, bw.message, "ex-msg");
+      document.body.appendChild(band);
+      document.body.dataset.guide = key;
+      return;
+    }
     var list = numberTargets();
     if (!list.length) return;
     var dim = document.createElement("div");
@@ -154,16 +234,25 @@
       b.className = "num-badge";
       b.dataset.n = x.n;
       b.dataset.key = x.key;
-      b.textContent = x.n;
+      b.textContent = x.n + "番";
       b.style.left = Math.round(r.left + r.width / 2) + "px";
       b.style.top = Math.round(r.top + r.height / 2) + "px";
       document.body.appendChild(b);
     });
+    var qs = (exCfg && exCfg.normal && exCfg.normal.questions) || [];
+    if (qs.length) {
+      var bar = document.createElement("div");
+      bar.id = "num-questions";
+      qs.forEach(function (q) { chip(bar, q, "q-btn"); });
+      document.body.appendChild(bar);
+    }
     document.body.dataset.numbers = "1";
+    document.body.dataset.guide = "normal";
   }
   function hideNumbers() {
-    document.querySelectorAll("#num-dim, .num-badge").forEach(function (e) { e.remove(); });
+    document.querySelectorAll("#num-dim, #num-band, #num-questions, .num-badge").forEach(function (e) { e.remove(); });
     delete document.body.dataset.numbers;
+    delete document.body.dataset.guide;
   }
   // 出ている番号を取って消す。この言葉の間だけ、番号だけの言葉が効く
   function takeNumbers() {
@@ -180,6 +269,7 @@
     if (!shown) { say("「" + t + "」 番号は出ていません"); return; }
     var key = shown[n];
     if (!key) { say("「" + t + "」 その番号はありません"); return; }
+    if (key === "say-list") { say("「" + t + "」"); window.CVActions.run("say-list-open"); return; }
     if (!document.querySelector('template[data-fs="' + key + '"]')) { say("「" + t + "」 まだ開けません"); return; }
     say("「" + t + "」");
     window.CVActions.run("fs-open", key);
@@ -225,7 +315,7 @@
       var t4 = performance.now();
       var body = {
         transcribe_ms: Math.round(T.t1 - T.t0), interpret_ms: Math.round(T.t2 - T.t1),
-        apply_ms: Math.round(t4 - T.t2), total_ms: Math.round(t4 - T.t0), kind: kind || "",
+        apply_ms: Math.round(t4 - T.t2), total_ms: Math.round(t4 - T.t0), mic_ms: T.mic || 0, kind: kind || "",
       };
       document.body.dataset.timing = JSON.stringify(body);
       fetch("/voice/timing", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), keepalive: true })
@@ -254,12 +344,52 @@
   }
   function fail(stage, msg) { holdRec(false); hideNumbers(); say("止まった場所: " + stage + "（" + msg + "）"); }
 
+  // マイクは開くのに時間がかかる機器がある。最初のボタン押しで先に開き、使ったあとも60秒はそのまま持って、すぐ録音を始められるようにする
+  // （持っている間も録音はしない。録音するのは聞き取りの間だけ）
+  var warm = null;
+  function releaseWarm() {
+    if (!warm) return;
+    clearTimeout(warm.timer);
+    warm.stream.getTracks().forEach(function (t) { t.stop(); });
+    warm = null;
+  }
+  function keepWarm(stream) {
+    releaseWarm();
+    warm = { stream: stream, timer: setTimeout(releaseWarm, 60000) };
+  }
+  function liveStream(st) { return st.getTracks().length > 0 && st.getTracks().every(function (t) { return t.readyState === "live"; }); }
+  function getStream() {
+    if (warm && liveStream(warm.stream)) {
+      var st = warm.stream;
+      clearTimeout(warm.timer);
+      warm = null;
+      return Promise.resolve(st);
+    }
+    releaseWarm();
+    return navigator.mediaDevices.getUserMedia({ audio: true });
+  }
+  function prewarm() {
+    if (warm || rec || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      if (warm || rec) stream.getTracks().forEach(function (t) { t.stop(); });
+      else keepWarm(stream);
+    }).catch(function () { /* 許可が無いときは、始めるときに知らせる */ });
+  }
+  fetch("/config/keys.json").then(function (r) { return r.json(); }).then(function (cfg) {
+    window.addEventListener("keydown", function (e) {
+      if (e.repeat || !window.VoiceKeys) return;
+      if (window.VoiceKeys.keyName(e) === cfg.button2) prewarm(); // 1回目の押しで先にマイクを開く
+    });
+  }).catch(function () { /* 先に開けなくても動く */ });
+  window.addEventListener("beforeunload", releaseWarm);
+
   function startRec() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setMic("none");
       return fail("機器", "この接続ではマイクを使えません。https で開いてください");
     }
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+    var tPress = performance.now();
+    getStream().then(function (stream) {
       var chunks = [];
       try {
         var recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
@@ -268,6 +398,7 @@
         recorder.onstop = function () { finish(chunks, stream); };
         rec = { recorder: recorder, stream: stream, timer: setTimeout(stopRec, MAX_MS) };
         recorder.start();
+        rec.micMs = Math.round(performance.now() - tPress); // 押してから録音が始まるまで
         holdRec(true);
         showNumbers();
         setMic("rec");
@@ -291,8 +422,8 @@
   }
 
   function finish(chunks, stream) {
-    stream.getTracks().forEach(function (t) { t.stop(); });
-    var T = { t0: (rec && rec.t0) || performance.now() };
+    if (liveStream(stream)) keepWarm(stream); else stream.getTracks().forEach(function (t) { t.stop(); });
+    var T = { t0: (rec && rec.t0) || performance.now(), mic: rec && rec.micMs };
     rec = null;
     var shown = takeNumbers(); // 聞き取りが終わったら番号と暗さを消す。この言葉は、いま出ていた番号で受ける
     setMic("idle");
@@ -338,4 +469,5 @@
   new MutationObserver(ensureUi).observe(document.getElementById("view"), { childList: true });
   ensureUi();
   loadNumbers();
+  loadExamples();
 })();

@@ -62,6 +62,12 @@ def commands():
                       if r["状態"] == "使える" and "(" not in r["言葉"] and r["結果"].get("action") != "part-number"]}
 
 
+@router.get("/voice/examples")
+def examples():
+    """暗い画面に出す例文。画面ごとの表（config/examples.json）。"""
+    return json.loads((ROOT / "config" / "examples.json").read_text(encoding="utf-8"))
+
+
 @router.get("/voice/numbers")
 def numbers():
     """画面の丸の番号。部品ごとに固定（config/numbers.json）。"""
@@ -76,12 +82,12 @@ async def timing(request: Request):
     """声のあと画面が変わるまでの時間を、1行だけログへ残す（data/runtime/logs/voice_timing.log と画面のログ）。"""
     try:
         b = await request.json()
-        parts = {k: int(b.get(k) or 0) for k in ("transcribe_ms", "interpret_ms", "apply_ms", "total_ms")}
+        parts = {k: int(b.get(k) or 0) for k in ("transcribe_ms", "interpret_ms", "apply_ms", "total_ms", "mic_ms")}
     except Exception:
         return JSONResponse({"error": "形が違います"}, status_code=400)
     line = (f"{time.strftime('%Y-%m-%d %H:%M:%S')} 声の時間 文字起こし {parts['transcribe_ms']}ms"
             f" / 判定 {parts['interpret_ms']}ms / 画面の反映 {parts['apply_ms']}ms / 合計 {parts['total_ms']}ms"
-            f" / 判定の種類 {str(b.get('kind') or '')[:8]}")
+            f" / 録音の開始 {parts['mic_ms']}ms / 判定の種類 {str(b.get('kind') or '')[:8]}")
     LOG.info(line)
     try:
         d = ROOT / "data" / "runtime" / "logs"

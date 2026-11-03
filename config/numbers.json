@@ -6,6 +6,7 @@
   "treatment-history": 4,
   "intraoral-photos": 5,
   "spoken-summary": 6,
-  "perio-exam": 7
+  "perio-exam": 7,
+  "say-list": 8
  }
 }
