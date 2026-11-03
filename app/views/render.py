@@ -544,7 +544,7 @@ def shell(kind, title):
         "<div id='view' style='display:contents'></div>"
         + ("<div id='band' data-part='key-band' hidden><span data-band-text></span><span data-band-left></span></div>"
            "<script src='/static/js/voice_keys.js'></script>" if kind == "unit" else "")
-        + "<script src='/static/js/actions.js'></script>"
+        + "<script src='/static/js/actions.js'></script><script src='/static/js/actions/look.js'></script>"
         + ("<script src='/static/js/actions/voice.js'></script><script src='/static/js/actions/ai.js'></script><script src='/static/js/actions/rec.js'></script><script src='/static/js/actions/phone.js'></script><script src='/static/js/actions/perio.js'></script><script src='/static/js/segments.js'></script>"
            if kind == "unit" else "")
         + "<script src='/static/js/view.js'></script></body></html>"

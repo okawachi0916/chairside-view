@@ -87,5 +87,5 @@ def sent_page(n: int = MAX_SHOWN):
         "<header class='sent-head'><a class='back' href='/'>戻る</a><span>Claude へ送った文（新しい順）</span></header>"
         "<main class='sent-main' data-part='sent-log'>"
         "<p class='sent-note'>名前・カルテ番号・生年月日などは伏せ字にして送っています。<mark class='masked'>色が付いた所</mark>が伏字です。元の名前はここにも出しません。</p>"
-        f"{cards}</main></body></html>",
+        f"{cards}</main><script src='/static/js/actions/look.js'></script></body></html>",
         headers={"Cache-Control": "no-store"})

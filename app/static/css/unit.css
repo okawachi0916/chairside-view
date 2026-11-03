@@ -141,3 +141,20 @@ body.fs-mode .bands, body.fs-mode main.body { display: none; }
 .seg button:disabled, .seg-total button:disabled { opacity: 0.5; cursor: default; }
 .seg-msg { font-size: var(--fs-2); color: var(--c-sub); }
 .seg-note { margin: var(--sp-2) 0 0; font-size: var(--fs-2); color: var(--c-sub); }
+
+/* G07e: 全画面と答えの画面にスクロールを出さない。収め方は actions/look.js が決める
+   （2列 = fit-2col、字を小さく = --fit）。入りきらない分はページ送りのボタンで送る */
+.fs-scroll { overflow: hidden; }
+.fs-scroll > * { zoom: var(--fit, 1); }
+.fs-scroll.fit-2col { display: block; column-count: 2; column-gap: var(--sp-8); column-fill: balance; }
+.fs-scroll.fit-2col > * { break-inside: avoid; }
+.fs-scroll.fit-2col.fs-important > .fs-row { margin-bottom: var(--sp-3); }
+.fs-scroll.fit-2col .fs-table tr { break-inside: avoid; }
+.fs-scroll.fit-2col .fs-table th { position: static; }
+/* 答えの画面: 枠は空いている所いっぱい。項目が多いときは2列、それでも入らないときだけ字を小さく（下限は本文 22px） */
+.fs-panel[data-fs-panel="answer"] .ai-wrap { padding: var(--sp-2) 0 0; }
+.fs-panel[data-fs-panel="answer"] .ai-frame { width: 100%; max-width: none; padding: var(--sp-8) var(--sp-10) var(--sp-4); }
+.fs-panel[data-fs-panel="answer"] .ai-body { overflow: hidden; }
+.fs-panel[data-fs-panel="answer"] .ai-body > p { zoom: var(--fit, 1); break-inside: avoid; }
+.fs-panel[data-fs-panel="answer"] .ai-body.fit-2col { column-count: 2; column-gap: var(--sp-10); column-rule: 1px solid var(--c-line); }
+.fs-scroll.fit-2col > :first-child { margin-top: 0; }

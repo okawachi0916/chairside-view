@@ -86,3 +86,12 @@ table.rtab .st-転送待ち { color: var(--c-warn); font-weight: var(--fw-bold);
 .fx-to { font-weight: var(--fw-bold); }
 .nofix { margin: 0; font-size: var(--fs-2); color: var(--c-sub); }
 .addendum { display: inline-block; margin-left: var(--sp-3); color: var(--c-alert); font-weight: var(--fw-bold); animation: recblink 0.9s infinite; }
+
+/* G07e: 下書きの画面を1画面に収める。治療計画の変更は今までどおり下に全部の幅で置き、
+   2つの列は残りの高さに入れる。中身が多いときは actions/look.js が字を少し小さくする（--fit） */
+body.rec-page[data-page=draft] { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+body.rec-page[data-page=draft] .draft-cols { flex: 1; min-height: 0; align-items: stretch; padding-bottom: var(--sp-4); }
+body.rec-page[data-page=draft] .draft-left, body.rec-page[data-page=draft] .draft-right { min-height: 0; overflow-y: auto; align-self: flex-start; max-height: 100%; box-sizing: border-box; }
+body.rec-page[data-page=draft] .plan-block { flex: none; margin-bottom: var(--sp-4); }
+body.rec-page[data-page=draft] .draft-left > *, body.rec-page[data-page=draft] .draft-right > *,
+body.rec-page[data-page=draft] .plan-block > * { zoom: var(--fit, 1); }

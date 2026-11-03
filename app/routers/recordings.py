@@ -226,7 +226,7 @@ def _draft_html(d, p, v, rec, fix, back="/"):
         "<table class='rtab plan-table'><thead><tr><th>今の計画</th><th>新しい計画</th><th>操作</th></tr></thead>"
         "<tbody id='plan-rows'></tbody></table></section>"
         "<script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script>"
-        "<script src='/static/js/draft.js'></script></body></html>"
+        "<script src='/static/js/draft.js'></script><script src='/static/js/actions/look.js'></script></body></html>"
     )
 
 
