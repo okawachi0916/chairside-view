@@ -70,7 +70,7 @@ def appt_text(d):
 
 
 def _tile(x):
-    return (f'<div class="ph" data-n="{x["number"]}"><img src="{PH.url_for(x["number"])}" alt="" loading="lazy">'
+    return (f'<div class="ph" data-n="{x["number"]}"><img src="{PH.url_for(x["number"], x["file"])}" alt="" loading="lazy">'
             f'<span class="no">{x["number"]}</span></div>')
 
 
@@ -110,8 +110,8 @@ def fullscreen_templates(d):
     )
     items = "".join(
         f'<button type="button" class="fs-item" data-action="fs-photo" data-n="{x["number"]}" '
-        f'data-date="{D.ja_date(x["taken_on"])}" data-src="{PH.url_for(x["number"])}">'
-        f'<span class="ph"><img src="{PH.url_for(x["number"])}" alt=""><span class="no">{x["number"]}</span></span>'
+        f'data-date="{D.ja_date(x["taken_on"])}" data-src="{PH.url_for(x["number"], x["file"])}">'
+        f'<span class="ph"><img src="{PH.url_for(x["number"], x["file"])}" alt=""><span class="no">{x["number"]}</span></span>'
         f'<span class="dt">{D.ja_date(x["taken_on"])}</span></button>'
         for x in reversed(d["photo_rows"])
     )
@@ -502,7 +502,7 @@ def shell(kind, title):
         + ("<div id='band' data-part='key-band' hidden><span data-band-text></span><span data-band-left></span></div>"
            "<script src='/static/js/voice_keys.js'></script>" if kind == "unit" else "")
         + "<script src='/static/js/actions.js'></script>"
-        + ("<script src='/static/js/actions/voice.js'></script><script src='/static/js/actions/ai.js'></script><script src='/static/js/actions/rec.js'></script><script src='/static/js/actions/perio.js'></script>"
+        + ("<script src='/static/js/actions/voice.js'></script><script src='/static/js/actions/ai.js'></script><script src='/static/js/actions/rec.js'></script><script src='/static/js/actions/phone.js'></script><script src='/static/js/actions/perio.js'></script>"
            if kind == "unit" else "")
         + "<script src='/static/js/view.js'></script></body></html>"
     )

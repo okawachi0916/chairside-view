@@ -114,7 +114,7 @@ def unit_data(appt, role):
                        or _all(c, base + "ORDER BY d.id", pid, TODAY, role))
         d["summary"] = [x for dr in d["drafts"] for x in dr["body"].split("\n") if x]
         d["transcript"] = "\n".join(dr["transcript"] for dr in d["drafts"] if dr["transcript"])
-        d["photo_rows"] = _all(c, "SELECT number, taken_on FROM photos WHERE patient_id = ? ORDER BY number", pid)
+        d["photo_rows"] = _all(c, "SELECT number, taken_on, file FROM photos WHERE patient_id = ? ORDER BY number", pid)
         d["interval"] = c.execute("SELECT months, last_date FROM maintenance_intervals WHERE patient_id = ?", (pid,)).fetchone()
         d["care"] = _all(c, "SELECT item, last_date FROM care_purchases WHERE patient_id = ? ORDER BY last_date DESC, id", pid)
         d["perio_all"] = _perio(c, pid, None)  # 全画面で過去の検査へ遡る。新しい検査から順

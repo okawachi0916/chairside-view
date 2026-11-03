@@ -371,11 +371,12 @@ def open_screen(pg, name):
         pg.click("#say-list-btn")
     else:
         say(pg, {"important": "重要事項を全画面にして", "intraoral-photos": "口腔内写真の3番を拡大して",
-                 "spoken-summary": "話した内容を全画面にして"}[name])
+                 "spoken-summary": "話した内容を全画面にして", "medical-history": "全身既往を全画面にして",
+                 "today-treatment": "今日の処置を全画面にして", "treatment-history": "治療歴を全画面にして"}[name])
     pg.wait_for_selector(f'[data-fs-panel="{name}"]')
 
 
-SCREENS = ["important", "intraoral-photos", "spoken-summary", "answer", "say-list"]
+SCREENS = ["important", "intraoral-photos", "spoken-summary", "answer", "say-list", "medical-history", "today-treatment", "treatment-history"]
 
 
 @pytest.mark.parametrize("name", SCREENS)
