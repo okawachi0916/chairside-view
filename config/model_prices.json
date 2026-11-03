@@ -1,0 +1,8 @@
+{
+  "note": "100万トークンあたりの米ドル。系統（名前に含まれる語）ごと。scripts/model_eval.py が費用の見積りにだけ使う。Haiku は100Kトークン以下の入力の値段。2026-11-03 に Anthropic の公開の価格表で確認した。",
+  "usd_per_million_tokens": {
+    "haiku": {"input": 0.10, "output": 0.50},
+    "sonnet": {"input": 2.00, "output": 10.00},
+    "opus": {"input": 4.00, "output": 20.00}
+  }
+}

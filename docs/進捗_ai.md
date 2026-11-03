@@ -15,7 +15,8 @@
   - モデルは目的ごと（config/model.json の purposes）。質問は claude-haiku-5-5、下書き（memo）は既定の Sonnet のまま。本物で Sonnet と Haiku の両方に G16 の問いを全部流し、Haiku も全問正解（約2.1秒→約1.3秒）なので採用。結果は docs/実API結果.md
   - 表を使わず Claude に聞く確認は real_api_check.py --questions --claude-only、質問だけ別モデルで試すのは --model 名前
 - G26b: 点検係4つ（.claude/agents）、/review-all（結果は docs/総点検.md）、コミット前の見張り .claude/hooks/commit_guard.py（鍵・音声・位置情報つきの写真・data/runtime で止める。git commit のときだけ動く）。.claude は git add -f で入れた物だけが入っている
-- 試験: 全体 337 件（偽物の口）。送信文・伏字・応答・モデルを変えたら real_api_check.py の --questions と --memo を動かし直す
+- G26c: 質問のモデルを実測で決めた（scripts/model_eval.py、結果は docs/モデルの選び方.md、値段は config/model_prices.json）。Haiku 30/30、Sonnet 29/30、Opus 29/30で、最も速い Haiku を採用（設定は変更なし）。再測定は python scripts/model_eval.py（--apply で設定も更新）
+- 試験: 全体 343 件（偽物の口）。送信文・伏字・応答・モデルを変えたら real_api_check.py の --questions と --memo を動かし直す
 
 ## 残り
 - 録音は /app から開いたときだけ使える。実機のマイクでの通しは院長の確認待ち（試験は偽物のマイク）
