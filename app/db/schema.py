@@ -66,6 +66,8 @@ TABLES = {
             ("seq", "INTEGER", "0", True),
             ("condition", "TEXT", None, True),
             ("medication", "TEXT", "''", True),
+            ("since", "TEXT", "''", True),   # いつから (全画面の表)
+            ("clinic", "TEXT", "''", True),  # 通院先
         ],
         "extra": [_PATIENT_FK],
     },
@@ -80,6 +82,7 @@ TABLES = {
         "cols": [
             ("patient_id", "INTEGER", None, True),
             ("body", "TEXT", None, True),
+            ("written_on", "TEXT", "''", True),  # 書いた時期
         ],
         "extra": [_PATIENT_FK],
     },
@@ -87,7 +90,7 @@ TABLES = {
         "cols": [
             ("patient_id", "INTEGER", None, True),
             ("seq", "INTEGER", "0", True),
-            ("kind", "TEXT", "'plan'", True),  # plan=治療計画の1行 / next=次回の予定
+            ("kind", "TEXT", "'plan'", True),  # plan=治療計画の1行 / next=次回の予定 / policy=治療方針
             ("body", "TEXT", None, True),
             ("staff_role", "TEXT", "''", True),
             ("staff_name", "TEXT", "''", True),

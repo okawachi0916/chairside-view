@@ -77,9 +77,10 @@ def common(c, pid):
         "important": [r["body"] for r in c.execute(
             "SELECT body FROM important_notes WHERE patient_id = ? ORDER BY seq, id", (pid,))],
         "important_full": _all(c, "SELECT body, period, detail FROM important_notes WHERE patient_id = ? ORDER BY seq, id", pid),
-        "medical": _all(c, "SELECT condition, medication FROM medical_histories WHERE patient_id = ? ORDER BY seq, id", pid),
+        "medical": _all(c, "SELECT condition, medication, since, clinic FROM medical_histories WHERE patient_id = ? ORDER BY seq, id", pid),
         "handover": [r["body"] for r in c.execute("SELECT body FROM handovers WHERE patient_id = ? ORDER BY id", (pid,))],
         "memo": [r["body"] for r in c.execute("SELECT body FROM reception_memos WHERE patient_id = ? ORDER BY id", (pid,))],
+        "memo_full": _all(c, "SELECT body, written_on FROM reception_memos WHERE patient_id = ? ORDER BY id", pid),
     }
 
 
@@ -102,6 +103,8 @@ def unit_data(appt, role):
                                "ORDER BY done_date DESC, id DESC", pid)
         d["photos"] = [r["number"] for r in c.execute(
             "SELECT number FROM photos WHERE patient_id = ? ORDER BY number", (pid,))]
+        d["policy"] = [r["body"] for r in c.execute(
+            "SELECT body FROM treatment_plans WHERE patient_id = ? AND kind = 'policy' ORDER BY seq, id", (pid,))]
         d["mucosal"] = _all(c, "SELECT site, name FROM mucosal_conditions WHERE patient_id = ? ORDER BY id", pid)
         d["dentures"] = _all(c, "SELECT site, kind, made_by, made_on FROM dentures WHERE patient_id = ? ORDER BY id", pid)
         # 録音の下書きがあれば、一番新しいものを先頭に出し、見本の文は出さない。無いときだけ見本の文を出す
@@ -114,14 +117,16 @@ def unit_data(appt, role):
         d["photo_rows"] = _all(c, "SELECT number, taken_on, file FROM photos WHERE patient_id = ? ORDER BY number", pid)
         d["interval"] = c.execute("SELECT months, last_date FROM maintenance_intervals WHERE patient_id = ?", (pid,)).fetchone()
         d["care"] = _all(c, "SELECT item, last_date FROM care_purchases WHERE patient_id = ? ORDER BY last_date DESC, id", pid)
-        d["perio"] = _perio(c, pid)
+        d["perio_all"] = _perio(c, pid, None)  # 全画面で過去の検査へ遡る。新しい検査から順
+        d["perio"] = d["perio_all"][:2]
         d["teeth"] = {r["tooth"]: r["status"] for r in c.execute(
             "SELECT tooth, status FROM tooth_status WHERE patient_id = ?", (pid,))}
     return d
 
 
-def _perio(c, pid):
-    exams = _all(c, "SELECT id, exam_date FROM perio_exams WHERE patient_id = ? ORDER BY exam_date DESC LIMIT 2", pid)
+def _perio(c, pid, limit=2):
+    exams = _all(c, "SELECT id, exam_date FROM perio_exams WHERE patient_id = ? ORDER BY exam_date DESC, id DESC"
+                    + (f" LIMIT {int(limit)}" if limit else ""), pid)
     out = []
     for e in exams:
         teeth = {r["tooth"]: dict(r) for r in c.execute(

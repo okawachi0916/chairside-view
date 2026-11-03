@@ -9,8 +9,9 @@ H_DOC = [r for r in D.today_list() if r["patient_id"] == 1][0]["id"]
 DOC = f"/unit?appt={H_DOC}&role=doctor&typed=1&hide=1"
 HYG = f"/unit?appt={H_DOC}&role=hygienist&typed=1&hide=1"
 
-PARTS = {"重要事項": "important", "口腔内写真": "intraoral-photos", "話した内容": "spoken-summary"}
-NOT_YET = ["全身既往", "今日の処置", "治療歴"]
+PARTS = {"重要事項": "important", "口腔内写真": "intraoral-photos", "話した内容": "spoken-summary",
+         "全身既往": "medical-history", "今日の処置": "today-treatment", "治療歴": "treatment-history",
+         "歯周基本検査": "perio-exam"}
 BACK = ["もとに戻す", "元に戻す", "もとに戻して", "元に戻して", "戻す", "戻して", "閉じて"]
 NUMBER_WORDS = {
     1: ["1番", "一番", "いちばん", "1番です", "一番です", "いちばんで", "1", "いち番", "1ばん", "1番で", "いちばんです"],
@@ -44,13 +45,6 @@ def test_particle_less_words_open(part, arg):
     for tail in ["全画面表示", "全画面", "の全画面表示", "全画面にして", "を全画面にして", "の全画面表示して", "詳細表示", "拡大して"]:
         res = interpret(part + tail)
         assert res["kind"] == OP and res["action"] == "fs-open" and res["arg"] == arg, part + tail
-
-
-@pytest.mark.parametrize("part", NOT_YET)
-def test_particle_less_words_for_unimplemented(part):
-    for tail in ["全画面表示", "全画面", "の全画面表示", "全画面にして", "を全画面にして"]:
-        res = interpret(part + tail)
-        assert res["kind"] == OP and res["action"] is None and res["message"] == "まだ開けません", part + tail
 
 
 def test_old_words_still_work():
@@ -161,14 +155,15 @@ def test_number_opens_part_and_clears_overlay(server, browser):  # noqa: F811
         pg.wait_for_function("document.querySelectorAll('[data-fs-panel]').length === 0")
 
 
-def test_not_yet_parts_get_number_and_say_not_yet(server, browser):  # noqa: F811
+def test_remaining_parts_open_by_number(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
-    for word in ["2番", "さんばん", "よんばん", "4番を全画面にして"]:
+    for word, part in [("2番", "medical-history"), ("さんばん", "today-treatment"), ("よんばん", "treatment-history"),
+                       ("4番を全画面にして", "treatment-history")]:
         pg.evaluate("window.cvNumbers(true)")
         say(pg, word)
-        pg.wait_for_function("document.getElementById('heard').textContent.includes('まだ開けません')")
-        assert pg.locator("[data-fs-panel]").count() == 0
-        pg.evaluate("document.getElementById('heard').textContent = ''")
+        pg.wait_for_selector(f'[data-fs-panel="{part}"]')
+        say(pg, "戻して")
+        pg.wait_for_function("document.querySelectorAll('[data-fs-panel]').length === 0")
 
 
 def test_no_numbers_inside_fullscreen_back_by_word(server, browser):  # noqa: F811
@@ -203,11 +198,11 @@ def test_number_not_on_screen(server, browser):  # noqa: F811
     pg.wait_for_function("document.getElementById('heard').textContent.includes('その番号はありません')")
 
 
-def test_hygienist_perio_by_number_says_not_yet(server, browser):  # noqa: F811
+def test_hygienist_perio_by_number_opens(server, browser):  # noqa: F811
     pg = open_unit(browser, server, HYG)
     pg.evaluate("window.cvNumbers(true)")
     say(pg, "ななばん")
-    pg.wait_for_function("document.getElementById('heard').textContent.includes('まだ開けません')")
+    pg.wait_for_selector('[data-fs-panel="perio-exam"]')
 
 
 def test_overlay_numbers_beat_photo_numbers_on_normal_screen(server, browser):  # noqa: F811
@@ -217,10 +212,10 @@ def test_overlay_numbers_beat_photo_numbers_on_normal_screen(server, browser):  
     assert not pg.locator('[data-part="photo-list"] .ph .no').first.is_visible()  # 写真の番号は出さない
     for word in ["3番", "3番を開いて", "3番を拡大して"]:
         pg.evaluate("window.cvNumbers(true)")
-        say(pg, word)  # 部品の3（今日の処置）。まだ開けません
-        pg.wait_for_function("document.getElementById('heard').textContent.includes('まだ開けません')")
-        assert pg.locator("[data-fs-panel]").count() == 0
-        pg.evaluate("document.getElementById('heard').textContent = ''")
+        say(pg, word)  # 部品の3（今日の処置）の全画面が開く。写真の3ではない
+        pg.wait_for_selector('[data-fs-panel="today-treatment"]')
+        say(pg, "戻して")
+        pg.wait_for_function("document.querySelectorAll('[data-fs-panel]').length === 0")
     pg.evaluate("window.cvNumbers(true)")
     say(pg, "5番を拡大して")  # 部品の5（口腔内写真）の全画面が開く。写真の5ではない
     pg.wait_for_selector('[data-fs-panel="intraoral-photos"]')

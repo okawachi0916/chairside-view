@@ -104,7 +104,7 @@ def test_hanako_matches_mock(seeded):
     con = con_of(seeded)
     q = lambda s, *a: con.execute(s, a).fetchall()
     assert len(q("SELECT 1 FROM clinical_notes WHERE patient_id=1")) == 8
-    assert len(q("SELECT 1 FROM treatment_history WHERE patient_id=1")) == 10
+    assert len(q("SELECT 1 FROM treatment_history WHERE patient_id=1")) == 22  # 画面は新しい10行、全画面は遡って全部
     assert len(q("SELECT 1 FROM photos WHERE patient_id=1")) == 12
     assert len(q("SELECT 1 FROM care_purchases WHERE patient_id=1")) == 5
     assert len(q("SELECT 1 FROM goods_purchases WHERE patient_id=1")) == 5
@@ -199,3 +199,21 @@ def test_update_db_old_database(seeded):
     assert con.execute("SELECT kind FROM photos WHERE id=1").fetchone()[0] == "intraoral"
     con.execute("INSERT INTO voice_fixes (heard) VALUES ('x')")
     assert counts(con)["clinical_notes"] == before["clinical_notes"]
+
+
+def test_update_db_fills_g22_columns_and_rows(seeded):
+    """G22 の前のデータベース: 既往のいつから・通院先、受付メモの書いた時期が無く、古い治療歴・検査・治療方針も無い。"""
+    con = con_of(seeded)
+    for t, c in [("medical_histories", "since"), ("medical_histories", "clinic"), ("reception_memos", "written_on")]:
+        con.execute(f"ALTER TABLE {t} DROP COLUMN {c}")
+    con.execute("DELETE FROM treatment_plans WHERE kind = 'policy'")
+    con.execute("DELETE FROM treatment_history WHERE patient_id=1 AND done_date < '2025-11-14'")
+    con.commit()
+    con.close()
+    run("update_db.py", seeded)
+    con = con_of(seeded)
+    assert con.execute("SELECT since, clinic FROM medical_histories WHERE patient_id=1 AND seq=1").fetchone()[:] == (
+        "2015年", "みどり内科クリニック")
+    assert con.execute("SELECT written_on FROM reception_memos WHERE patient_id=1").fetchone()[0] == "2026年9月"
+    assert con.execute("SELECT COUNT(*) FROM treatment_plans WHERE kind='policy'").fetchone()[0] == 5
+    assert con.execute("SELECT COUNT(*) FROM treatment_history WHERE patient_id=1").fetchone()[0] == 22
