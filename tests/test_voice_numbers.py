@@ -112,17 +112,19 @@ def heard(pg):
 def test_badges_doctor_over_fullscreen_buttons_and_big(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     assert badges(pg) == []
-    assert pg.evaluate("window.cvNumbers(true)") == 7
+    assert pg.evaluate("window.cvNumbers(true)") == 8
     assert sorted(badges(pg)) == [
         [1, "important"], [2, "medical-history"], [3, "today-treatment"],
         [4, "treatment-history"], [5, "intraoral-photos"], [6, "spoken-summary"], [8, "say-list"],
+        [9, "change-role"],
     ]
     assert pg.locator("#num-dim").count() == 1
     dim = pg.locator("#num-dim").evaluate("e => getComputedStyle(e).backgroundColor")
     assert dim.startswith("rgba(0, 0, 0, 0.")  # 少し暗く
     for n, key in badges(pg):
         b = pg.locator(f'.num-badge[data-n="{n}"]').bounding_box()
-        sel = "#say-list-btn" if key == "say-list" else f'[data-part="{key}"] [data-action="fullscreen"]'
+        sel = ("#say-list-btn" if key == "say-list" else '[data-action="change-role"]' if key == "change-role"
+               else f'[data-part="{key}"] [data-action="fullscreen"]')
         btn = pg.locator(sel).bounding_box()
         assert abs((b["x"] + b["width"] / 2) - (btn["x"] + btn["width"] / 2)) <= 2, key
         assert abs((b["y"] + b["height"] / 2) - (btn["y"] + btn["height"] / 2)) <= 2, key
@@ -303,7 +305,7 @@ def test_button2_numbers_during_listening_and_timing_log(server, browser):  # no
     pg.evaluate("CVActions.run('button2')")
     pg.wait_for_selector(".topbar .mic.rec")
     pg.wait_for_selector(".num-badge")
-    assert pg.locator(".num-badge").count() == 7 and pg.locator("#num-dim").count() == 1
+    assert pg.locator(".num-badge").count() == 8 and pg.locator("#num-dim").count() == 1
     pg.evaluate("CVActions.run('button2')")  # 1回で止まる（止め方は今のまま）
     pg.wait_for_selector('[data-fs-panel="important"]')
     assert pg.locator(".num-badge").count() == 0 and pg.locator("#num-dim").count() == 0
@@ -339,7 +341,7 @@ def test_badge_text_has_ban(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     pg.evaluate("window.cvNumbers(true)")
     texts = pg.evaluate("Array.from(document.querySelectorAll('.num-badge')).map(e => e.textContent)")
-    assert sorted(texts) == sorted(["1番", "2番", "3番", "4番", "5番", "6番", "8番"])
+    assert sorted(texts) == sorted(["1番", "2番", "3番", "4番", "5番", "6番", "8番", "9番"])
     say(pg, "1番")
     pg.wait_for_selector('[data-fs-panel="important"]')
 
@@ -520,3 +522,67 @@ def test_unit_button1_outside_app_goes_to_app(server, browser):  # noqa: F811
         time.sleep(0.08)
     pg.wait_for_url("**/app?**")
     assert pg.evaluate("document.getElementById('inner').getAttribute('src')").startswith("/unit?appt=")
+
+
+# ---- G14g: 9番 = 役割を変える ----
+
+def role_of(pg):
+    return pg.evaluate("document.body.className.includes('role-hygienist') ? 'hygienist' : 'doctor'")
+
+
+def test_9_is_change_role_after_the_existing_numbers():
+    cfg = json.loads((ROOT / "config" / "numbers.json").read_text(encoding="utf-8"))["parts"]
+    assert cfg["change-role"] == 9
+    assert [cfg[k] for k in ("important", "medical-history", "today-treatment", "treatment-history",
+                             "intraoral-photos", "spoken-summary", "perio-exam", "say-list")] == [1, 2, 3, 4, 5, 6, 7, 8]
+    assert "change-patient" not in cfg and "phone" not in cfg  # 患者様を変える・スマホには番号を付けない
+
+
+def test_badge_9_sits_on_change_role_and_none_on_change_patient(server, browser):  # noqa: F811
+    pg = open_unit(browser, server)
+    pg.evaluate("window.cvNumbers(true)")
+    assert [9, "change-role"] in badges(pg)
+    b = pg.locator('.num-badge[data-n="9"]')
+    assert b.inner_text() == "9番"
+    bb, btn = b.bounding_box(), pg.locator('[data-action="change-role"]').bounding_box()
+    assert abs((bb["x"] + bb["width"] / 2) - (btn["x"] + btn["width"] / 2)) <= 2
+    assert abs((bb["y"] + bb["height"] / 2) - (btn["y"] + btn["height"] / 2)) <= 2
+    assert not any(k in ("change-patient", "phone") for _, k in badges(pg))
+    pg.close()
+
+
+@pytest.mark.parametrize("word", ["9番", "9番です", "きゅうばん", "9番を開いて"])
+def test_saying_9_switches_role_like_the_mouse(server, browser, word):  # noqa: F811
+    pg = open_unit(browser, server)
+    pg.evaluate("window.cvNumbers(true)")
+    say(pg, word)
+    pg.wait_for_function("document.body.className.includes('role-hygienist')")
+    assert role_of(pg) == "hygienist"
+    assert pg.locator(".num-badge").count() == 0  # 言い終わったら番号は消える
+    pg.evaluate("window.cvNumbers(true)")
+    say(pg, "9番")  # もう一度で歯科医師へ
+    pg.wait_for_function("document.body.className.includes('role-doctor')")
+    pg.close()
+
+
+def test_9_without_badges_does_nothing(server, browser):  # noqa: F811
+    pg = open_unit(browser, server)
+    say(pg, "9番")
+    pg.wait_for_timeout(300)
+    assert role_of(pg) == "doctor"
+    pg.close()
+
+
+def test_9_inside_fullscreen_does_nothing(server, browser):  # noqa: F811
+    pg = open_unit(browser, server)
+    pg.click('[data-part="important"] [data-action="fullscreen"]')
+    pg.wait_for_selector(".fs-panel")
+    say(pg, "9番")
+    pg.wait_for_timeout(300)
+    assert role_of(pg) == "doctor" and pg.locator(".fs-panel").count() == 1
+    pg.close()
+
+
+def test_say_list_and_examples_mention_9(server, browser):  # noqa: F811
+    ex = json.loads((ROOT / "config" / "examples.json").read_text(encoding="utf-8"))
+    assert "9番 役割を変える" in ex["say_list"][0]["words"]

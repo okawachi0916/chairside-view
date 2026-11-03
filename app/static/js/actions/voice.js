@@ -186,6 +186,7 @@
     var out = [];
     Object.keys(numCfg.parts).forEach(function (part) {
       var btn = part === "say-list" ? document.getElementById("say-list-btn")
+        : part === "change-role" ? document.querySelector('[data-action="change-role"]')
         : document.querySelector('[data-part="' + part + '"] [data-action="fullscreen"]');
       if (btn && inView(btn)) out.push({ n: numCfg.parts[part], key: part, el: btn });
     });
@@ -277,6 +278,13 @@
     var key = shown[n];
     if (!key) { say("「" + t + "」 その番号はありません"); return; }
     if (key === "say-list") { say("「" + t + "」"); window.CVActions.run("say-list-open"); return; }
+    if (key === "change-role") { // マウスで「役割を変える」を押したのと同じ（view.js の click）
+      var rb = document.querySelector('[data-action="change-role"]');
+      if (!rb) { say("「" + t + "」 まだ開けません"); return; }
+      say("「" + t + "」");
+      rb.click();
+      return;
+    }
     if (!document.querySelector('template[data-fs="' + key + '"]')) { say("「" + t + "」 まだ開けません"); return; }
     say("「" + t + "」");
     openPart(key);
