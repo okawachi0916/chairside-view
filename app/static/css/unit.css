@@ -24,9 +24,6 @@
 
 /* 全画面。上の行だけ残し、その下を1つの部品が使う。題の札はふつうの欄と同じく枠線にまたがる */
 body.fs-mode .bands, body.fs-mode main.body { display: none; }
-/* AI の答え（actions/ai.js）だけは重要事項の帯を残す */
-body.fs-mode:has(.fs-panel[data-fs-panel="answer"]) .bands { display: grid; grid-template-columns: 1fr; }
-body.fs-mode:has(.fs-panel[data-fs-panel="answer"]) .bands > .band:not([data-part="important"]) { display: none; }
 .fs-panel {
   position: relative;
   flex: 1; min-height: 0; margin: var(--sp-6) var(--sp-4) var(--sp-4);

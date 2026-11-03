@@ -194,6 +194,9 @@
       if (n === 1) return press();
       try { inner.contentWindow.CVActions.run("button" + n); } catch (e) { /* 中の画面に無い */ }
     },
+    onCombo: function (info) { // ボタン1と2の同時押し = 「戻して」。中の画面が受ける
+      try { inner.contentWindow.CVActions.run("combo-back", info); } catch (e) { /* 中の画面に無い */ }
+    },
   });
 
   setMode("idle");
