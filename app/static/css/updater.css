@@ -4,3 +4,6 @@
 #cv-update[hidden] { display: none; }
 #cv-update.waiting { opacity: .5; }
 #cv-updated { background: var(--c-ink); color: var(--c-surface); }
+
+/* G21c: 画面の下いっぱいの帯。本文より大きい字。どこを押しても更新 */
+#cv-update { top: auto; left: 0; right: 0; bottom: 0; width: 100%; border-radius: 0; background: #d9480f; color: #fff; font-size: 24px; line-height: 1.2; padding: 6px var(--sp-3); text-align: center; }
