@@ -6,4 +6,4 @@
 #cv-updated { background: var(--c-ink); color: var(--c-surface); }
 
 /* G21c: 画面の下いっぱいの帯。本文より大きい字。どこを押しても更新 */
-#cv-update { top: auto; left: 0; right: 0; bottom: 0; width: 100%; border-radius: 0; background: var(--c-alert); color: var(--c-surface); font-size: var(--fs-4); line-height: var(--lh-tight); padding: var(--sp-1) var(--sp-3); text-align: center; }
+#cv-update { top: auto; left: 0; right: 0; bottom: 0; width: 100%; background: var(--c-alert); color: var(--c-surface); font-size: var(--fs-4); line-height: var(--lh-tight); padding: var(--sp-1) var(--sp-3); text-align: center; }
