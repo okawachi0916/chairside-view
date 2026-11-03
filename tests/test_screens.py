@@ -67,7 +67,7 @@ def test_hanako_screens_fit(server, browser):  # noqa: F811
     pg = open_page(browser, server, "/reception?patient=1")
     pg.wait_for_selector('[data-part="important"]')
     check_screen(pg, REC_PARTS, ["金曜の午後", "過去1年の来院13回", "予約14回のうち", "2026/3/12(木) 当日の朝に電話あり",
-                                "支台築造＋形成印象", "2027年2月5日 歯科衛生士 田中"])
+                                "支台築造＋形成印象", "2027年2月5日 歯科衛生士 佐藤"])
     pg.close()
 
 

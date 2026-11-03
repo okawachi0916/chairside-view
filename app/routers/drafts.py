@@ -17,7 +17,7 @@ from app.routers.recordings import safe_back
 router = APIRouter()
 NO_STORE = {"Cache-Control": "no-store"}
 h = html.escape
-DOCTOR_MARK = "大川内先生 追記必要"  # 後で直す人・確定していない下書きがある人の印
+DOCTOR_MARK = "山本先生 追記必要"  # 後で直す人・確定していない下書きがある人の印
 
 
 def _json(data, status=200):
