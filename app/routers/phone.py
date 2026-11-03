@@ -25,7 +25,7 @@ def _qr_svg(url: str) -> str:
     import segno
 
     buf = io.BytesIO()
-    segno.make(url, error="m").save(buf, kind="svg", scale=1, border=2, xmldecl=False, svgns=True, nl=False,
+    segno.make(url, error="m").save(buf, kind="svg", scale=1, border=2, xmldecl=False, svgns=True, nl=False, omitsize=True,
                                     dark="#000000", light="#ffffff")
     return buf.getvalue().decode("utf-8")
 

@@ -354,3 +354,46 @@ def test_phone_page_without_photos_says_so(browser, mobile):  # noqa: F811
     pg.click("#take")
     pg.wait_for_function("document.getElementById('msg').textContent === '今日の写真はまだありません'")
     pg.close()
+
+
+# ---------- G25b: QR の大きさとボタンの場所 ----------
+def _qr_fills_box(pg):
+    pg.wait_for_selector("#phone-modal .qr svg")
+    r = pg.evaluate("""() => { const s = document.querySelector('#phone-modal .qr svg');
+        const b = s.getBoundingClientRect(); const v = s.viewBox.baseVal; const inner = s.querySelector('path').getBBox();
+        return {w: b.width, h: b.height, vw: v.width, vh: v.height, pw: inner.width, ih: innerHeight}; }""")
+    assert r["vw"] > 20 and r["vh"] > 20  # viewBox が付いている（付いていないと絵が大きくならない）
+    assert r["h"] >= r["ih"] * 0.55 and r["w"] >= r["ih"] * 0.55, r  # 画面の高さのおよそ6割
+    assert r["pw"] >= r["vw"] * 0.85  # 絵が枠いっぱいに広がる（余白は白い縁だけ）
+
+
+def test_qr_is_big_and_fills_its_box(server, browser, mobile):  # noqa: F811
+    pg = open_page(browser, server, UNIT)
+    pg.wait_for_selector('[data-part="intraoral-photos"] [data-action="phone"]')
+    pg.click('[data-part="intraoral-photos"] [data-action="phone"]')
+    _qr_fills_box(pg)
+    assert pg.evaluate("document.querySelector('#phone-modal .box').getBoundingClientRect().bottom") <= 1030
+
+
+def test_phone_button_reachable_from_every_screen(server, browser, mobile):  # noqa: F811
+    for role in ("doctor", "hygienist"):
+        pg = open_page(browser, server, f"/unit?appt={APPT}&role={role}")
+        pg.wait_for_selector(".phone-fab")
+        assert pg.locator(".phone-fab").is_visible()
+        pg.click(".phone-fab")
+        pg.wait_for_selector("#phone-modal .qr svg")
+        pg.click("#phone-modal [data-act=close]")
+        # 全画面の中でも押せる: 口腔内写真は枠の中、そのほかは固定のボタン
+        for part in ("intraoral-photos", "important", "medical-history"):
+            pg.evaluate(f"CVActions.run('fs-open', '{part}')")
+            pg.wait_for_selector(".fs-panel")
+            btn = pg.locator(".fs-head .phone-btn") if part == "intraoral-photos" else pg.locator(".phone-fab")
+            assert btn.is_visible(), (role, part)
+            if part == "intraoral-photos":
+                assert pg.locator(".phone-fab").is_hidden()
+            btn.click()
+            pg.wait_for_selector("#phone-modal .qr svg")
+            _qr_fills_box(pg)
+            pg.click("#phone-modal [data-act=close]")
+            pg.evaluate("CVActions.run('fs-close')")
+        pg.close()
