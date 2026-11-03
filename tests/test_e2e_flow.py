@@ -105,16 +105,26 @@ def flow(server, browser):  # noqa: F811
     with_typed(pg, appt, "doctor")
     assert "0123" in pg.inner_text(".topbar")
 
-    # 3. 重要事項を全画面にして戻す
-    say(pg, "重要事項を全画面にして")
+    # 3. 丸の番号で重要事項（1番）を開き、「戻して」で戻す
+    pg.evaluate("window.cvNumbers(true)")
+    assert pg.locator(".num-badge").count() == 6
+    say(pg, "1番")
     pg.wait_for_selector('[data-fs-panel="important"]')
     panel = pg.inner_text('[data-fs-panel="important"]')
     assert all(b in panel for b in important)
+    assert pg.locator(".num-badge").count() == 0  # 全画面の中に番号は付けない
     say(pg, "もとに戻す")
     gone(pg, "[data-fs-panel]")
     assert pg.locator('[data-part="today-treatment"]').is_visible()
+    say(pg, "重要事項を全画面にして")  # 言葉でも開く
+    pg.wait_for_selector('[data-fs-panel="important"]')
+    say(pg, "戻して")
+    gone(pg, "[data-fs-panel]")
 
-    # 4. 「3番を拡大して」で写真を見て、一覧に戻す
+    # 4. 丸の番号で口腔内写真（5番）を開き、中では「3番を拡大して」。一覧に戻す
+    pg.evaluate("window.cvNumbers(true)")
+    say(pg, "5番")
+    pg.wait_for_selector('[data-fs-panel="intraoral-photos"]')
     say(pg, "3番を拡大して")
     pg.wait_for_selector('[data-fs-panel="intraoral-photos"] .fs-fig')
     assert pg.locator(".fs-fig").evaluate_all("els => els.map(e => Number(e.dataset.n))") == [3]
@@ -122,6 +132,10 @@ def flow(server, browser):  # noqa: F811
     say(pg, "一覧に戻す")
     gone(pg, "[data-fs-panel]")
     assert pg.locator('[data-part="photo-list"]').is_visible()
+    say(pg, "口腔内写真の3番を拡大して")  # いつもの画面からでも開く
+    pg.wait_for_selector('[data-fs-panel="intraoral-photos"] .fs-fig')
+    say(pg, "戻して")
+    gone(pg, "[data-fs-panel]")
 
     # 5. 「前回は何をした？」と聞いて記録を見て、戻す。答えは記録そのまま
     fake(json.dumps({"result": "found", "record": last_ref.number}))

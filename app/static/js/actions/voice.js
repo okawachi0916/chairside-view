@@ -14,7 +14,12 @@
     "#typed-box{position:fixed;right:12px;bottom:12px;z-index:60;background:#fff;border:2px solid #444;border-radius:8px;padding:8px;display:flex;gap:6px}" +
     "#typed-box input{font:inherit;font-size:16px;width:320px}" +
     ".topbar .mic{flex:none;min-width:30px}.topbar .mic.rec{fill:#ff4d4d;animation:cvblink .8s infinite}.topbar .mic.none{fill:#999}" +
-    "@keyframes cvblink{50%{opacity:.15}}";
+    "@keyframes cvblink{50%{opacity:.15}}" +
+    "body[data-numbers] .ph .no{display:none}" +
+    "#num-dim{position:fixed;left:0;top:0;right:0;bottom:0;z-index:30;background:rgba(0,0,0,.5);pointer-events:none}" +
+    ".num-badge{position:fixed;z-index:35;width:76px;height:76px;margin:-38px 0 0 -38px;border-radius:50%;box-sizing:border-box;" +
+    "background:#ffd43b;color:#111;border:4px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.6);" +
+    "font-size:52px;font-weight:800;line-height:68px;text-align:center;pointer-events:none}";
   document.head.appendChild(style);
 
   var heard = document.createElement("div");
@@ -116,14 +121,90 @@
   CVActions.register("photo-show", showPhotos);
   CVActions.register("photo-list", function () { CVActions.run("fs-close"); });
 
+  // ---- 番号の呼び出し（聞き取り中だけ、画面を暗くして全画面ボタンの上に丸の番号を出す）----
+  var numCfg = null;
+  function loadNumbers() {
+    return fetch("/voice/numbers", { cache: "no-store" }).then(function (r) { return r.json(); })
+      .then(function (c) { numCfg = c; document.body.dataset.numbersReady = "1"; return c; }).catch(function () { return null; });
+  }
+  function inView(el) {
+    var r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < window.innerHeight && r.right > 0 && r.left < window.innerWidth;
+  }
+  // 数字を付ける先: ふだんの画面にある全画面ボタン。全画面の中には付けない（戻すときは「戻して」）
+  function numberTargets() {
+    if (!numCfg || window.CVActions.isHidden() || document.querySelector(".fs-panel")) return [];
+    var out = [];
+    Object.keys(numCfg.parts).forEach(function (part) {
+      var btn = document.querySelector('[data-part="' + part + '"] [data-action="fullscreen"]');
+      if (btn && inView(btn)) out.push({ n: numCfg.parts[part], key: part, el: btn });
+    });
+    return out;
+  }
+  function showNumbers() {
+    hideNumbers();
+    var list = numberTargets();
+    if (!list.length) return;
+    var dim = document.createElement("div");
+    dim.id = "num-dim";
+    document.body.appendChild(dim);
+    list.forEach(function (x) {
+      var r = x.el.getBoundingClientRect();
+      var b = document.createElement("div");
+      b.className = "num-badge";
+      b.dataset.n = x.n;
+      b.dataset.key = x.key;
+      b.textContent = x.n;
+      b.style.left = Math.round(r.left + r.width / 2) + "px";
+      b.style.top = Math.round(r.top + r.height / 2) + "px";
+      document.body.appendChild(b);
+    });
+    document.body.dataset.numbers = "1";
+  }
+  function hideNumbers() {
+    document.querySelectorAll("#num-dim, .num-badge").forEach(function (e) { e.remove(); });
+    delete document.body.dataset.numbers;
+  }
+  // 出ている番号を取って消す。この言葉の間だけ、番号だけの言葉が効く
+  function takeNumbers() {
+    var badges = document.querySelectorAll(".num-badge");
+    var map = null;
+    if (badges.length) {
+      map = {};
+      badges.forEach(function (b) { map[b.dataset.n] = b.dataset.key; });
+    }
+    hideNumbers();
+    return map;
+  }
+  function callNumber(n, shown, t) {
+    if (!shown) { say("「" + t + "」 番号は出ていません"); return; }
+    var key = shown[n];
+    if (!key) { say("「" + t + "」 その番号はありません"); return; }
+    if (!document.querySelector('template[data-fs="' + key + '"]')) { say("「" + t + "」 まだ開けません"); return; }
+    say("「" + t + "」");
+    window.CVActions.run("fs-open", key);
+  }
+
   // ---- 聞き取った言葉を操作にする ----
-  function apply(res) {
+  function apply(res, shown) {
     var t = res.text || "";
     if (res.kind === "操作" && res.action) {
       if (window.CVActions.isHidden()) { say("「" + t + "」 画面を隠しています"); return res; }
-      if (res.action === "photo-show") {
-        var msg = showPhotos(res.numbers);
-        say("「" + t + "」" + (msg ? " " + msg : ""));
+      var nums = res.numbers || (res.arg ? [res.arg] : []);
+      if (res.action === "part-number" || res.action === "photo-show") {
+        if (photoPanel()) { // 写真の番号は、口腔内写真の全画面の中でだけ効く
+          var m = showPhotos(nums);
+          say("「" + t + "」" + (m ? " " + m : ""));
+        } else if (nums.length === 1) {
+          callNumber(nums[0], shown, t); // いつもの画面で丸が出ている間は、部品の番号
+        } else {
+          say("「" + t + "」 番号は出ていません");
+        }
+        return res;
+      }
+      if (res.action === "photo-open") { // 「口腔内写真の3番を拡大して」はいつもの画面からでも開く
+        var m2 = showPhotos(nums);
+        say("「" + t + "」" + (m2 ? " " + m2 : ""));
         return res;
       }
       say("「" + t + "」");
@@ -137,11 +218,32 @@
     return res;
   }
 
-  function interpret(text) {
+  // 声のあと画面が変わるまでの時間を、文字起こし・判定・画面の反映に分けてログへ1行送る（言葉の中身は送らない）
+  function logTiming(T, kind) {
+    var t3 = performance.now();
+    requestAnimationFrame(function () {
+      var t4 = performance.now();
+      var body = {
+        transcribe_ms: Math.round(T.t1 - T.t0), interpret_ms: Math.round(T.t2 - T.t1),
+        apply_ms: Math.round(t4 - T.t2), total_ms: Math.round(t4 - T.t0), kind: kind || "",
+      };
+      document.body.dataset.timing = JSON.stringify(body);
+      fetch("/voice/timing", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), keepalive: true })
+        .catch(function () { /* ログが書けなくても操作は続ける */ });
+    });
+    return t3;
+  }
+
+  function interpret(text, shown, T) {
     return fetch("/voice/interpret", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: text, screen: "unit" }),
-    }).then(function (r) { return r.json(); }).then(apply)
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      if (T) T.t2 = performance.now();
+      var out = apply(res, shown);
+      if (T) logTiming(T, res.kind);
+      return out;
+    })
       .catch(function () { say("サーバーにつながりません"); });
   }
 
@@ -150,7 +252,7 @@
   function holdRec(on) {
     try { if (window.parent !== window && window.parent.CVRec) window.parent.CVRec.hold(on); } catch (e) { /* 親が無ければ何もしない */ }
   }
-  function fail(stage, msg) { holdRec(false); say("止まった場所: " + stage + "（" + msg + "）"); }
+  function fail(stage, msg) { holdRec(false); hideNumbers(); say("止まった場所: " + stage + "（" + msg + "）"); }
 
   function startRec() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -167,6 +269,7 @@
         rec = { recorder: recorder, stream: stream, timer: setTimeout(stopRec, MAX_MS) };
         recorder.start();
         holdRec(true);
+        showNumbers();
         setMic("rec");
         say("聞いています…");
       } catch (e) {
@@ -182,20 +285,24 @@
 
   function stopRec() {
     if (!rec) return;
+    if (!rec.t0) rec.t0 = performance.now(); // 止めた時刻（ここから画面が変わるまでを測る）
     clearTimeout(rec.timer);
     if (rec.recorder.state !== "inactive") rec.recorder.stop();
   }
 
   function finish(chunks, stream) {
     stream.getTracks().forEach(function (t) { t.stop(); });
+    var T = { t0: (rec && rec.t0) || performance.now() };
     rec = null;
+    var shown = takeNumbers(); // 聞き取りが終わったら番号と暗さを消す。この言葉は、いま出ていた番号で受ける
     setMic("idle");
     say("聞き取り中…");
     fetch("/voice/transcribe", { method: "POST", body: new Blob(chunks, { type: "audio/webm" }) })
       .then(function (r) { return r.json().then(function (b) { return [r.ok, b]; }); })
       .then(function (x) {
         if (!x[0]) return fail(x[1].stage === "audio" ? "録音" : "文字起こし", x[1].error || "");
-        return interpret(x[1].text).then(function () { holdRec(false); });
+        T.t1 = performance.now();
+        return interpret(x[1].text, shown, T).then(function () { holdRec(false); });
       })
       .catch(function () { fail("接続", "サーバーにつながりません"); });
   }
@@ -210,15 +317,18 @@
 
   // ---- 文字の口（試験と、声が使えないとき）----
   if (q.get("typed") === "1") {
-    window.cvTyped = function (text) { return interpret(text); };
+    // 文字の口でも、番号を出してから言葉を送れる（cvNumbers(true) か、入力欄の「番号」ボタン）
+    window.cvNumbers = function (on) { if (on) showNumbers(); else hideNumbers(); return document.querySelectorAll(".num-badge").length; };
+    window.cvTyped = function (text) { return interpret(text, takeNumbers()); };
     if (q.get("hide") !== "1") {
       var box = document.createElement("form");
       box.id = "typed-box";
-      box.innerHTML = '<input type="text" id="typed-input" placeholder="言葉を打つ" autocomplete="off"><button type="submit">送る</button>';
+      box.innerHTML = '<input type="text" id="typed-input" placeholder="言葉を打つ" autocomplete="off"><button type="button" id="typed-num">番号</button><button type="submit">送る</button>';
+      box.querySelector("#typed-num").addEventListener("click", function () { if (document.querySelector(".num-badge")) hideNumbers(); else showNumbers(); });
       box.addEventListener("submit", function (e) {
         e.preventDefault();
         var i = document.getElementById("typed-input");
-        interpret(i.value);
+        interpret(i.value, takeNumbers());
         i.value = "";
       });
       document.body.appendChild(box);
@@ -227,4 +337,5 @@
 
   new MutationObserver(ensureUi).observe(document.getElementById("view"), { childList: true });
   ensureUi();
+  loadNumbers();
 })();

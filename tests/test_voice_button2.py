@@ -32,6 +32,7 @@ def test_button2_listens_and_opens_fullscreen(server, phrase_wav):  # noqa: F811
         time.sleep(0.1)
         pg.keyboard.press(key2)
         pg.wait_for_selector(".topbar .mic.rec")
+        pg.wait_for_selector(".num-badge")  # 聞き取り中は丸の番号が出る
         time.sleep(4.5)
         pg.keyboard.press(key2)  # 1回で止まる
         pg.wait_for_selector('[data-fs-panel="important"]', timeout=120000)
