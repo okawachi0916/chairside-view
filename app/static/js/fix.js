@@ -11,7 +11,7 @@
       fetch("/api/recordings/" + recId, { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (r) {
         if (r.state === "文字起こし中" || r.state === "整理中") { msg.textContent = r.state + "…"; return; }
         clearInterval(t);
-        if (r.state === "下書き" && r.draft_id) location.href = "/drafts/" + r.draft_id; // 人が見てから確定する
+        if (r.state === "下書き" && r.draft_id) location.href = "/drafts/" + r.draft_id + "?back=" + encodeURIComponent(document.body.dataset.back || "/"); // 人が見てから確定する
         else msg.textContent = r.state === "失敗" ? "失敗しました（" + r.error + "）" : r.state;
       });
     }, 600);

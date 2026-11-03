@@ -2,6 +2,7 @@
 import html
 import json
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -11,6 +12,7 @@ from app.ai import confirm, memo, recpipe
 from app.ai.recpipe import RecError
 from app.db import connect
 from app.db.initial import TODAY
+from app.routers.recordings import safe_back
 
 router = APIRouter()
 NO_STORE = {"Cache-Control": "no-store"}
@@ -58,6 +60,7 @@ def api_draft(draft_id: int):
         p = con.execute("SELECT chart_no FROM patients WHERE id = ?", (d["patient_id"],)).fetchone()
         return {"id": d["id"], "status": d["status"], "transcript": d["transcript"], "chart_no": p["chart_no"],
                 "items": json.loads(d["items"] or "{}"),
+                "fixed_transcript": d["fixed_transcript"], "fixes": json.loads(d["fixes"] or "[]"),
                 "plans": confirm.plans_active(con, d["patient_id"]),
                 "rec": dict(rec) if rec else None}
     return _run(go)
@@ -121,7 +124,7 @@ def api_pending_later(body: ApptBody):
 
 
 @router.get("/fix/{rec_id}", response_class=HTMLResponse)
-def fix_page(rec_id: int):
+def fix_page(rec_id: int, back: str = ""):
     """後で直す画面。下書きがあればその画面（音声つき）、まだ無ければ文字を直して整理する画面。"""
     con = connect()
     try:
@@ -131,14 +134,14 @@ def fix_page(rec_id: int):
     if not r:
         raise HTTPException(404)
     if r["draft_id"]:
-        return HTMLResponse(status_code=302, headers={"Location": f"/drafts/{r['draft_id']}?fix=1"})
+        return HTMLResponse(status_code=302, headers={"Location": f"/drafts/{r['draft_id']}?fix=1&back={quote(safe_back(back), safe='')}"})
     audio = f"<audio controls src='/rec/{rec_id}/audio' data-part='fix-audio'></audio>" if r["audio_file"] else "<p>音声は残っていません</p>"
     return HTMLResponse(
         "<!doctype html><html lang='ja'><head><meta charset='utf-8'><title>後で直す</title>"
         "<link rel='stylesheet' href='/static/css/mock.css'><link rel='stylesheet' href='/static/css/rec.css'></head>"
-        f"<body class='rec-page' data-page='fix' data-rec-id='{rec_id}'>"
-        f"<header class='rec-head'><span>後で直す　カルテ番号 {h(r['chart_no'] or '患者様なし')}　{h(r['state'])}</span>"
-        "<a href='/recordings'>録音の一覧へ</a></header><main class='rec-main'>"
+        f"<body class='rec-page' data-page='fix' data-rec-id='{rec_id}' data-back='{h(safe_back(back), quote=True)}'>"
+        f"<header class='rec-head'><a class='back' href='{h(safe_back(back), quote=True)}'>戻る</a>"
+        f"<span>あとで直す　カルテ番号 {h(r['chart_no'] or '患者様なし')}　{h(r['state'])}</span></header><main class='rec-main'>"
         f"{audio}<p class='err'>{h(r['error'] or '')}</p>"
         "<p>話したままの文字（直せます）</p>"
         f"<textarea id='fix-text' style='width:100%;height:220px'>{h(r['transcript'])}</textarea><p>"
@@ -148,6 +151,11 @@ def fix_page(rec_id: int):
 
 
 # ---- 今日の診療一覧 ----
+
+def _memo_href(m) -> str:
+    """追記が必要な印から開く画面。下書きがあれば下書き、無ければ直す画面。記録したら今日の診療一覧へ戻る。"""
+    return f"/drafts/{m['draft_id']}?back=/today" if m["draft_id"] else f"/fix/{m['rec_id']}?back=/today"
+
 
 @router.get("/api/today")
 def api_today():
@@ -168,7 +176,8 @@ def api_today():
             state = "記録済み" if note else ("診療中" if v else "予約")
             rows.append({"id": a["id"], "time": f"{a['start_time']}〜{a['end_time']}", "chart_no": a["chart_no"],
                          "name": a["name"], "treatment": a["treatment"], "role": a["role"], "state": state,
-                         "mark": DOCTOR_MARK if a["id"] in pend else ""})
+                         "mark": DOCTOR_MARK if a["id"] in pend else "",
+                         "memo_href": _memo_href(pend[a["id"]][0]) if a["id"] in pend else ""})
         return _json({"rows": rows})
     finally:
         con.close()

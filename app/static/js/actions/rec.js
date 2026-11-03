@@ -40,7 +40,8 @@
       "<button type='button' data-action='memo-later'>後で直す</button></div>";
     document.body.appendChild(d);
     d.querySelector("[data-action=memo-open]").addEventListener("click", function () {
-      location.href = first.draft_id ? "/drafts/" + first.draft_id : "/recordings";
+      var here = encodeURIComponent(location.pathname + location.search);   // 記録したあと、この診療の画面へ戻る
+      location.href = first.draft_id ? "/drafts/" + first.draft_id + "?back=" + here : "/recordings";
     });
     d.querySelector("[data-action=memo-later]").addEventListener("click", function () {
       fetch("/api/pending-memo/later", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appt: Number(appt) }) })

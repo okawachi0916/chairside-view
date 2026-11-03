@@ -65,11 +65,11 @@
         ops.appendChild(act("後で直す", function () { return post("/rec/" + r.id + "/later"); }));
       } else if (r.state === "後で直す") {
         var fx = el("a", "直す");
-        fx.href = "/fix/" + r.id;
+        fx.href = "/fix/" + r.id + "?back=/recordings";
         ops.appendChild(fx);
       } else if (r.state === "下書き" && r.draft_id) {
         var a = el("a", "下書きを見る");
-        a.href = "/drafts/" + r.draft_id;
+        a.href = "/drafts/" + r.draft_id + "?back=/recordings";
         ops.appendChild(a);
         ops.appendChild(act("後で直す", function () { return post("/rec/" + r.id + "/later"); }));
       } else if (r.state === "確定") {

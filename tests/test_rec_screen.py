@@ -185,7 +185,7 @@ def test_patientless_recording_survives_screen_changes_and_features_work(server,
     f = inner(pg)
     assert "下書き まだ記録に入っていません" in f.inner_text("[data-part=draft-mark]")
     assert "根管充填" in f.inner_text("[data-part=draft-transcript]")
-    assert "二週間後に土台" in [i.input_value() for i in f.locator("[data-part=draft-items] .tx").all()]
+    assert "二週間後に土台。" in [i.input_value() for i in f.locator("[data-part=draft-items] .tx").all()]
     pg.context.close()
 
 

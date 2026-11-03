@@ -1,4 +1,4 @@
-"""G19: 下書きの確定・後で直す・止める・一覧の印の画面の試験（Edge）。"""
+"""G19・下書きの画面の簡単化: 記録する・あとで直す・戻る・止める・一覧の印の画面の試験（Edge）。"""
 import json
 import os
 import time
@@ -19,8 +19,8 @@ GOOD = json.dumps({**{k: [] for k in memo.KEYS},
                    "future_plan": [{"text": "右下6番は被せ物を入れる", "quote": "右下6番は被せ物を入れます"}]}, ensure_ascii=False)
 
 
-def set_fake(reply=GOOD, transcript=TALK):
-    FAKE.write_text(json.dumps({"reply": reply, "transcript": transcript}), encoding="utf-8")
+def set_fake(reply=GOOD, transcript=TALK, fix_reply="[]"):
+    FAKE.write_text(json.dumps({"reply": reply, "transcript": transcript, "fix_reply": fix_reply}), encoding="utf-8")
 
 
 @pytest.fixture(autouse=True)
@@ -77,20 +77,28 @@ def db_one(sql, *a):
     return r
 
 
-def open_draft(browser, server, draft_id, fix=False):  # noqa: F811
-    return open_page(browser, server, f"/drafts/{draft_id}" + ("?fix=1" if fix else "")), None
+def open_draft(browser, server, draft_id, fix=False, back="/recordings"):  # noqa: F811
+    url = f"/drafts/{draft_id}?back={back}" + ("&fix=1" if fix else "")
+    return open_page(browser, server, url), None
+
+
+def home(server, path="/recordings"):
+    return f"http://127.0.0.1:{server}{path}"
 
 
 def ready(pg):
     pg.wait_for_function("document.body.dataset.ready === '1'")
 
 
-def test_edit_items_and_plans_then_confirm(server, browser):  # noqa: F811
+def test_edit_items_and_plans_then_record(server, browser):  # noqa: F811
     s = make_rec(server)
     pg, _ = open_draft(browser, server, s["draft_id"])
     ready(pg)
     assert "下書き まだ記録に入っていません" in pg.inner_text("[data-part=draft-mark]")
     notes_before = db_one("SELECT COUNT(*) FROM clinical_notes")[0]
+    # ボタンは「カルテに記録する」と「あとで直す」の2つだけ。「保存」は無い
+    assert [b.strip() for b in pg.locator(".draft-actions button").all_inner_texts()] == ["カルテに記録する", "あとで直す"]
+    assert pg.locator("#btn-save").count() == 0
     # キーボードで直す: 書き換え、行を足し、行を消す
     first = pg.locator("[data-section=done] .tx").first
     first.click()
@@ -101,20 +109,26 @@ def test_edit_items_and_plans_then_confirm(server, browser):  # noqa: F811
     pg.click("[data-section=done] .add")
     pg.keyboard.type("消す行")
     pg.locator("[data-section=done] li.row").last.locator(".del").click()
-    # 治療計画: 今の計画と新しい計画を並べる。話に出ていない歯はそのまま残る
-    rows = pg.locator("#plan-rows tr")
-    texts = rows.all_inner_texts()
+    # 保存のボタンは押さない。直した所は、その場で自動で保存される
+    pg.wait_for_function("document.body.dataset.autosave === 'saved'")
+    saved = json.loads(db_one("SELECT items FROM drafts WHERE id = ?", s["draft_id"])[0])
+    assert any("直した" in r["text"] for r in saved["done"]) and any("違和感" in r["text"] for r in saved["explained"])
+    assert not any("消す行" in r["text"] for r in saved["done"])
+    assert db_one("SELECT COUNT(*) FROM clinical_notes")[0] == notes_before  # 記録するまでは入らない
+    # 治療計画の変更: 今の計画と新しい計画を並べる。話に出ていない歯はそのまま残る
+    texts = pg.locator("#plan-rows tr").all_inner_texts()
     assert any("右下6番" in t and "被せ物" in t for t in texts)
     left7 = next(t for t in texts if "左下7番" in t)
-    assert "そのまま残ります" in left7
+    assert "そのまま残す" in left7
+    assert pg.locator("#plan-rows tr", has_text="左下7番").locator("input[data-key^=d]").is_checked() is False  # 削除は印なし
     r6 = pg.locator("#plan-rows tr", has_text="被せ物").first
     r6.locator("input[data-key^=c]").check()
-    assert db_one("SELECT COUNT(*) FROM clinical_notes")[0] == notes_before  # 確定前は入らない
+    assert db_one("SELECT COUNT(*) FROM clinical_notes")[0] == notes_before
     pg.click("#btn-confirm")
-    pg.wait_for_function("document.body.dataset.status === 'confirmed'")
-    assert "確定済み" in pg.inner_text("[data-part=draft-mark]")
+    pg.wait_for_url(home(server))  # 押したら、来た画面へ自動で戻る
     note = db_one("SELECT * FROM clinical_notes ORDER BY id DESC LIMIT 1")
     assert db_one("SELECT COUNT(*) FROM clinical_notes")[0] == notes_before + 1
+    assert db_one("SELECT status FROM drafts WHERE id = ?", s["draft_id"])[0] == "confirmed"
     assert "直した" in note["body"] and "違和感" in note["body"] and "消す行" not in note["body"]
     active = [r[0] for r in connect().execute("SELECT body FROM treatment_plans WHERE kind='plan' AND superseded_on IS NULL "
                                               "AND patient_id = 1")]
@@ -123,17 +137,100 @@ def test_edit_items_and_plans_then_confirm(server, browser):  # noqa: F811
     pg.close()
 
 
-def test_later_then_today_mark_then_fix_and_confirm(server, browser):  # noqa: F811
+def test_plan_defaults_and_layout(server, browser):  # noqa: F811
+    set_fake(reply=json.dumps({**{k: [] for k in memo.KEYS},
+                               "future_plan": [{"text": "左上3番は経過観察をする", "quote": "右下6番は被せ物を入れます"}]},
+                              ensure_ascii=False))
     s = make_rec(server)
     pg, _ = open_draft(browser, server, s["draft_id"])
     ready(pg)
+    assert pg.locator("#plan-compare h2").inner_text().strip() == "治療計画の変更"
+    # 今の計画の行: 削除は印なし（そのまま残す）
+    existing = pg.locator("#plan-rows tr:not(.add)")
+    assert existing.count() >= 3
+    for tr in existing.all():
+        assert tr.locator("input[data-key^=d]").is_checked() is False
+    # 新しく出た計画: 追加するは印あり
+    add = pg.locator("#plan-rows tr.add")
+    assert add.count() == 1 and add.locator("input[data-key^='a:']").is_checked() is True
+    # 見出しは表の上、表は全部の幅（左に縦に寄らない）、右の項目の下を隠さない
+    h2, table = pg.locator("#plan-compare h2").bounding_box(), pg.locator("#plan-compare table").bounding_box()
+    right, cols = pg.locator(".draft-right").bounding_box(), pg.locator(".draft-cols").bounding_box()
+    assert h2["y"] + h2["height"] <= table["y"] + 1
+    assert table["width"] > 900
+    assert pg.locator("#plan-compare th").first.bounding_box()["width"] > 150
+    assert table["y"] >= right["y"] + right["height"] - 1 and table["y"] >= cols["y"] + cols["height"] - 1
+    assert pg.locator("[data-section=future_policy]").is_visible()
+    # 見た目の部品の名前（.rec は右下に固定する録音中の札）とぶつかって、表が画面に固定されないこと
+    fixed = pg.evaluate("[...document.querySelectorAll('body *')].filter(e => getComputedStyle(e).position === 'fixed').length")
+    assert fixed == 0
+    assert pg.evaluate("getComputedStyle(document.querySelector('#plan-compare table')).display") == "table"
+    pg.close()
+
+
+def test_back_button_and_voice_keep_draft_and_go_back(server, browser):  # noqa: F811
+    s = make_rec(server)
+    pg, _ = open_draft(browser, server, s["draft_id"], back="/today")
+    ready(pg)
+    assert pg.locator("#btn-back").inner_text().strip() == "戻る"
+    box = pg.locator("#btn-back").bounding_box()
+    assert box["x"] < 200 and box["y"] < 100  # 左上
+    pg.locator("[data-section=done] .tx").first.click()
+    pg.keyboard.press("Control+A")
+    pg.keyboard.type("戻る前に直した")
+    pg.click("#btn-back")  # 保存の確認は出ない。直した所は自動で保存され、下書きのまま戻る
+    pg.wait_for_url(home(server, "/today"))
+    assert db_one("SELECT status FROM drafts WHERE id = ?", s["draft_id"])[0] == "draft"
+    assert "戻る前に直した" in db_one("SELECT items FROM drafts WHERE id = ?", s["draft_id"])[0]
+    # 声の「戻して」も同じ動き。「使えません」は出ない
+    pg, _ = open_draft(browser, server, s["draft_id"], back="/recordings")
+    ready(pg)
+    pg.evaluate("window.cvTyped('見せて')")
+    assert "使えません" in pg.inner_text("#msg")
+    assert pg.evaluate("window.cvTyped('戻して')") == "back"
+    pg.wait_for_url(home(server))
+    assert db_one("SELECT status FROM drafts WHERE id = ?", s["draft_id"])[0] == "draft"
+    pg.close()
+
+
+@pytest.mark.parametrize("back", ["https://example.com/", "//example.com/x", "javascript:alert(1)", "/a b", ""])
+def test_back_never_leaves_the_server(server, back):  # noqa: F811
+    s = make_rec(server)
+    r = httpx.get(f"http://127.0.0.1:{server}/drafts/{s['draft_id']}", params={"back": back})
+    assert r.status_code == 200 and "data-back='/'" in r.text and "example.com" not in r.text.split("<body")[1]
+
+
+def test_fixes_are_shown_as_from_to_and_original_text_is_kept(server, browser):  # noqa: F811
+    talk = "今日は右下6番の根幹重点をしました。仮歯はTEKを入れました。"
+    set_fake(reply=json.dumps({**{k: [] for k in memo.KEYS},
+                               "done": [{"text": "右下6番の根管充填", "quote": "右下6番の根管充填をしました"}]}, ensure_ascii=False),
+             transcript=talk, fix_reply=json.dumps([{"from": "根幹重点", "to": "根管充填"}], ensure_ascii=False))
+    s = make_rec(server)
+    assert db_one("SELECT transcript FROM recordings WHERE id = ?", s["id"])[0] == talk  # 話したままの文字は残る
+    d = db_one("SELECT transcript, fixed_transcript, fixes FROM drafts WHERE id = ?", s["draft_id"])
+    assert d["transcript"] == talk and "根管充填" in d["fixed_transcript"] and "TeC" in d["fixed_transcript"]
+    assert [(f["from"], f["to"]) for f in json.loads(d["fixes"])] == [("根幹重点", "根管充填"), ("TEK", "TeC")]
+    pg, _ = open_draft(browser, server, s["draft_id"])
+    ready(pg)
+    assert "根幹重点" in pg.inner_text("[data-part=draft-transcript] p")  # 話したまま
+    fx = pg.inner_text("[data-part=draft-fixes]")
+    assert "根幹重点 → 根管充填" in fx and "TEK → TeC" in fx  # 元→直し
+    assert pg.locator("[data-section=done] .tx").first.input_value() == "右下6番の根管充填。"
+    pg.close()
+
+
+def test_later_then_today_mark_then_fix_and_record(server, browser):  # noqa: F811
+    s = make_rec(server)
+    pg, _ = open_draft(browser, server, s["draft_id"], back="/today")
+    ready(pg)
+    assert pg.locator("#btn-later").inner_text().strip() == "あとで直す"
     pg.click("#btn-later")
-    pg.wait_for_function("document.body.dataset.recState === '後で直す'")
+    pg.wait_for_url(home(server, "/today"))  # 押したら、来た画面へ自動で戻る
     assert db_one("SELECT state FROM recordings WHERE id = ?", s["id"])[0] == "後で直す"
     assert (Path(os.environ.get("CV_DATA_DIR", Path(__file__).resolve().parents[1] / "data" / "runtime")) / "audio" /
             f"rec_{s['id']}.webm").exists()  # 音声を残す
 
-    t = open_page(browser, server, "/today")
+    t = pg  # 戻ってきた今日の診療一覧
     t.wait_for_selector(".addendum")
     assert "大川内先生 追記必要" in t.inner_text(".addendum")
     assert t.evaluate("getComputedStyle(document.querySelector('.addendum')).animationName") == "recblink"  # 点滅
@@ -141,18 +238,22 @@ def test_later_then_today_mark_then_fix_and_confirm(server, browser):  # noqa: F
     assert [x.strip() for x in t.locator("thead th").all_inner_texts()] == ["時間", "カルテ番号", "氏名", "処置", "状態"]
     assert "●●" in t.inner_text("#today-rows tr")  # 氏名は伏せ字
     assert t.locator(".addendum").count() == 1  # 後で直す人だけ
+    assert t.locator("a.addendum").get_attribute("href").startswith("/drafts/")  # 印から下書きを開ける
+    t.click("a.addendum")
+    t.wait_for_selector("[data-part=draft-mark]")
+    assert "back=" in t.url and "today" in t.url
+    t.close()
 
-    f = open_page(browser, server, f"/fix/{s['id']}")
+    f = open_page(browser, server, f"/fix/{s['id']}?back=/today")
     f.wait_for_selector("[data-part=fix-audio]")  # 音声を聞きながら
     assert f.locator("#fix-text").is_visible()
     f.wait_for_selector("[data-section=done] .tx")
     ready(f)
     f.click("#btn-confirm")
-    f.wait_for_function("document.body.dataset.status === 'confirmed'")
-    t.wait_for_selector(".addendum", state="detached", timeout=8000)  # 確定すると消える
-    assert db_one("SELECT audio_file FROM recordings WHERE id = ?", s["id"])[0] == ""  # 確定したら音声を消す
-    for p in (pg, t, f):
-        p.close()
+    f.wait_for_url(home(server, "/today"))
+    f.wait_for_selector(".addendum", state="detached", timeout=8000)  # 記録すると消える
+    assert db_one("SELECT audio_file FROM recordings WHERE id = ?", s["id"])[0] == ""  # 記録したら音声を消す
+    f.close()
 
 
 def test_leaving_patient_with_draft_is_stopped(server, browser):  # noqa: F811
@@ -166,15 +267,17 @@ def test_leaving_patient_with_draft_is_stopped(server, browser):  # noqa: F811
     assert [b.strip() for b in pg.locator("#memo-block button").all_inner_texts()] == ["メモを開く", "後で直す"]
     assert "/unit" in pg.url  # 止まっている
     pg.click("#memo-block [data-action=memo-open]")
-    pg.wait_for_url(f"**/drafts/{s['draft_id']}")
-    pg.goto(f"http://127.0.0.1:{server}/unit?appt={appt}&role=doctor")
+    pg.wait_for_url(lambda u: f"/drafts/{s['draft_id']}" in u and "back=" in u)  # 記録したら、この診療の画面へ戻る
+    assert "unit" in pg.url
+    ready(pg)
+    pg.click("#btn-back")  # 来た診療の画面へ戻る
+    pg.wait_for_url(lambda u: "/unit" in u)
     pg.wait_for_selector("[data-part=important]")
     pg.click("[data-action=change-patient]")
     pg.wait_for_selector("#memo-block")
     pg.click("#memo-block [data-action=memo-later]")
     pg.wait_for_url(f"http://127.0.0.1:{server}/")
     assert db_one("SELECT state FROM recordings WHERE id = ?", s["id"])[0] == "後で直す"
-    # 確定した人には止めない
     pg.close()
 
 
@@ -198,11 +301,13 @@ def test_failed_goes_later_then_fix_by_fixing_transcript(server, browser):  # no
     f.click("#fix-reorg")
     f.wait_for_function("location.pathname.startsWith('/drafts/')", timeout=15000)  # 新しい下書きの画面へ
     ready(f)
-    assert "下書き まだ記録に入っていません" in f.inner_text("[data-part=draft-mark]")  # 人が見てから確定
+    assert "back=" in f.url
+    assert "下書き まだ記録に入っていません" in f.inner_text("[data-part=draft-mark]")  # 人が見てから記録する
     assert db_one("SELECT COUNT(*) FROM clinical_notes WHERE body LIKE '%被せ物%'")[0] == 0
     assert "直した文字" in f.inner_text("[data-part=draft-transcript]") or "直した文字" in f.locator("[data-part=draft-transcript]").inner_html()
+    assert db_one("SELECT fix_off FROM recordings WHERE id = ?", s["id"])[0] == 1  # 人が直した文字は、自動の直しをしない
     f.click("#btn-confirm")
-    f.wait_for_function("document.body.dataset.status === 'confirmed'")
+    f.wait_for_url(home(server, "/"))
     assert db_one("SELECT state FROM recordings WHERE id = ?", s["id"])[0] == "確定"
     pg.close()
     f.close()
@@ -212,13 +317,13 @@ def test_voice_confirm_needs_second_word(server, browser):  # noqa: F811
     s = make_rec(server)
     pg, _ = open_draft(browser, server, s["draft_id"])
     ready(pg)
-    pg.evaluate("window.cvTyped('確定')")  # いきなり「確定」では確定しない
+    pg.evaluate("window.cvTyped('確定')")  # いきなり「確定」では記録しない
     assert pg.evaluate("document.body.dataset.status") == "draft"
     pg.evaluate("window.cvTyped('確定する')")
     assert "もう一度「確定」" in pg.inner_text("#msg")
     assert pg.evaluate("document.body.dataset.status") == "draft"  # まだ入らない
     assert db_one("SELECT status FROM drafts WHERE id = ?", s["draft_id"])[0] == "draft"
     pg.evaluate("window.cvTyped('確定')")
-    pg.wait_for_function("document.body.dataset.status === 'confirmed'")
+    pg.wait_for_url(home(server))  # 記録して、来た画面へ戻る
     assert db_one("SELECT status FROM drafts WHERE id = ?", s["draft_id"])[0] == "confirmed"
     pg.close()

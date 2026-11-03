@@ -33,10 +33,14 @@
       tr.appendChild(td(r.treatment, "proc"));
       var st = td(r.state, "state");
       if (r.mark) {
-        var m = document.createElement("span");
+        var m = document.createElement(r.memo_href ? "a" : "span");
         m.className = "addendum";
         m.setAttribute("data-part", "addendum-mark");
         m.textContent = r.mark;
+        if (r.memo_href) {
+          m.href = r.memo_href;    // 押すと下書き（記録したら今日の診療一覧へ戻る）
+          m.addEventListener("click", function (e) { e.stopPropagation(); });
+        }
         st.appendChild(m);
       }
       tr.appendChild(st);
