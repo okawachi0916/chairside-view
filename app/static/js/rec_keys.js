@@ -13,7 +13,7 @@
       band: (function () {
         var b = document.createElement("div");
         b.hidden = true;
-        b.setAttribute("style", "position:fixed;top:0;left:0;right:0;z-index:50;background:#1f3b73;color:#fff;padding:14px 24px;font-size:22px;display:flex;justify-content:space-between");
+        b.setAttribute("style", "position:absolute;top:0;left:0;right:0;z-index:50;background:#1f3b73;color:#fff;padding:14px 24px;font-size:22px;display:flex;justify-content:space-between");
         b.innerHTML = "<span data-band-text></span><span data-band-left></span>";
         document.body.appendChild(b);
         return b;
