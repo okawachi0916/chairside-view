@@ -93,6 +93,7 @@ def open_unit(browser, server, path=DOC):  # noqa: F811
     pg.wait_for_selector('[data-part="important"]')
     pg.wait_for_function("!!(window.cvTyped && window.cvNumbers)")
     pg.wait_for_function("document.body.dataset.numbersReady")
+    pg.evaluate("document.fonts.ready")
     return pg
 
 
@@ -111,17 +112,18 @@ def heard(pg):
 def test_badges_doctor_over_fullscreen_buttons_and_big(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     assert badges(pg) == []
-    assert pg.evaluate("window.cvNumbers(true)") == 6
+    assert pg.evaluate("window.cvNumbers(true)") == 7
     assert sorted(badges(pg)) == [
         [1, "important"], [2, "medical-history"], [3, "today-treatment"],
-        [4, "treatment-history"], [5, "intraoral-photos"], [6, "spoken-summary"],
+        [4, "treatment-history"], [5, "intraoral-photos"], [6, "spoken-summary"], [8, "say-list"],
     ]
     assert pg.locator("#num-dim").count() == 1
     dim = pg.locator("#num-dim").evaluate("e => getComputedStyle(e).backgroundColor")
     assert dim.startswith("rgba(0, 0, 0, 0.")  # 少し暗く
     for n, key in badges(pg):
         b = pg.locator(f'.num-badge[data-n="{n}"]').bounding_box()
-        btn = pg.locator(f'[data-part="{key}"] [data-action="fullscreen"]').bounding_box()
+        sel = "#say-list-btn" if key == "say-list" else f'[data-part="{key}"] [data-action="fullscreen"]'
+        btn = pg.locator(sel).bounding_box()
         assert abs((b["x"] + b["width"] / 2) - (btn["x"] + btn["width"] / 2)) <= 2, key
         assert abs((b["y"] + b["height"] / 2) - (btn["y"] + btn["height"] / 2)) <= 2, key
         assert b["width"] >= 70 and b["height"] >= 70, key
@@ -136,7 +138,7 @@ def test_same_part_same_number_on_hygienist(server, browser):  # noqa: F811
     pg.evaluate("window.cvNumbers(true)")
     got = dict((key, n) for n, key in badges(pg))
     assert got["important"] == 1 and got["medical-history"] == 2
-    assert got["intraoral-photos"] == 5 and got["spoken-summary"] == 6 and got["perio-exam"] == 7
+    assert got["intraoral-photos"] == 5 and got["spoken-summary"] == 6 and got["perio-exam"] == 7 and got["say-list"] == 8
     assert "today-treatment" not in got and "treatment-history" not in got  # 画面に無い部品は出さない
     pg.evaluate("window.cvNumbers(false)")
 
@@ -268,9 +270,10 @@ def test_numbers_config_and_say_list(server, browser):  # noqa: F811
     assert "back" not in cfg and cfg["parts"]["important"] == 1 and cfg["parts"]["medical-history"] == 2
     assert cfg["parts"]["today-treatment"] == 3
     assert len(set(cfg["parts"].values())) == len(cfg["parts"])
+    assert cfg["parts"]["say-list"] == 8
     pg.click("#say-list-btn")
-    pg.wait_for_selector("#say-list li")
-    assert "(" not in pg.inner_text("#say-list")
+    pg.wait_for_selector('[data-fs-panel="say-list"]')
+    assert "(" not in pg.inner_text('[data-fs-panel="say-list"]')
 
 
 FAKE_MIC = """
@@ -300,13 +303,13 @@ def test_button2_numbers_during_listening_and_timing_log(server, browser):  # no
     pg.evaluate("CVActions.run('button2')")
     pg.wait_for_selector(".topbar .mic.rec")
     pg.wait_for_selector(".num-badge")
-    assert pg.locator(".num-badge").count() == 6 and pg.locator("#num-dim").count() == 1
+    assert pg.locator(".num-badge").count() == 7 and pg.locator("#num-dim").count() == 1
     pg.evaluate("CVActions.run('button2')")  # 1回で止まる（止め方は今のまま）
     pg.wait_for_selector('[data-fs-panel="important"]')
     assert pg.locator(".num-badge").count() == 0 and pg.locator("#num-dim").count() == 0
     pg.wait_for_function("document.body.dataset.timing")
     t = json.loads(pg.evaluate("document.body.dataset.timing"))
-    assert set(t) == {"transcribe_ms", "interpret_ms", "apply_ms", "total_ms", "kind"} and t["kind"] == "操作"
+    assert set(t) == {"transcribe_ms", "interpret_ms", "apply_ms", "total_ms", "mic_ms", "kind"} and t["kind"] == "操作"
     assert t["total_ms"] >= t["transcribe_ms"] + t["interpret_ms"] - 3
     for _ in range(30):
         if log.exists() and log.read_text(encoding="utf-8").count(chr(10)) == before + 1:
@@ -314,6 +317,205 @@ def test_button2_numbers_during_listening_and_timing_log(server, browser):  # no
         time.sleep(0.2)
     assert log.read_text(encoding="utf-8").count(chr(10)) == before + 1  # 1回の声で1行
     last = log.read_text(encoding="utf-8").strip().splitlines()[-1]
-    assert "文字起こし" in last and "判定" in last and "画面の反映" in last and "合計" in last
+    assert "文字起こし" in last and "判定" in last and "画面の反映" in last and "合計" in last and "録音の開始" in last
     assert "1番" not in last  # 言葉の中身は残さない
     pg.close()
+
+
+# ---- 暗い画面の文字・質問のボタン・全画面の上の帯・言える言葉・写真の並べて・/app への移動 ----
+import json  # noqa: E402
+
+from tests.screen_helper import ROOT  # noqa: E402
+
+EX = json.loads((ROOT / "config" / "examples.json").read_text(encoding="utf-8"))
+QUESTIONS = ["前回は何をした？", "アレルギーは？", "薬は？", "次回は？"]
+
+
+def chips(pg):
+    return pg.evaluate("Array.from(document.querySelectorAll('#num-band .ex-chip')).map(e => e.textContent)")
+
+
+def test_badge_text_has_ban(server, browser):  # noqa: F811
+    pg = open_unit(browser, server)
+    pg.evaluate("window.cvNumbers(true)")
+    texts = pg.evaluate("Array.from(document.querySelectorAll('.num-badge')).map(e => e.textContent)")
+    assert sorted(texts) == sorted(["1番", "2番", "3番", "4番", "5番", "6番", "8番"])
+    say(pg, "1番")
+    pg.wait_for_selector('[data-fs-panel="important"]')
+
+
+def test_question_buttons_shown_bright_and_work_as_written(server, browser):  # noqa: F811
+    pg = open_unit(browser, server)
+    pg.evaluate("window.cvNumbers(true)")
+    got = pg.evaluate("Array.from(document.querySelectorAll('#num-questions .q-btn')).map(e => e.textContent)")
+    assert got == QUESTIONS
+    z_dim = pg.locator("#num-dim").evaluate("e => Number(getComputedStyle(e).zIndex)")
+    assert pg.locator("#num-questions").evaluate("e => Number(getComputedStyle(e).zIndex)") > z_dim  # 暗い画面より明るく手前に
+    for q in QUESTIONS:
+        pg.evaluate("window.cvNumbers(true)")
+        pg.evaluate("document.body.dataset.answer = ''")
+        say(pg, q)  # 出ている言葉のとおりに言えば動く
+        pg.wait_for_function("document.body.dataset.answer && document.body.dataset.answer !== 'waiting'", timeout=20000)
+        assert pg.locator("#num-questions").count() == 0  # 聞き取りが終わったら消える
+        pg.evaluate("CVActions.run('fs-close')")
+    pg.evaluate("window.cvNumbers(true)")
+    pg.evaluate("document.body.dataset.answer = ''")
+    say(pg, "アレルギーは？")
+    pg.wait_for_selector('[data-fs-panel="answer"]')  # 記録から直接答える
+
+
+def open_screen(pg, name):
+    if name == "answer":
+        say(pg, "アレルギーは？")
+    elif name == "say-list":
+        pg.click("#say-list-btn")
+    else:
+        say(pg, {"important": "重要事項を全画面にして", "intraoral-photos": "口腔内写真の3番を拡大して",
+                 "spoken-summary": "話した内容を全画面にして"}[name])
+    pg.wait_for_selector(f'[data-fs-panel="{name}"]')
+
+
+SCREENS = ["important", "intraoral-photos", "spoken-summary", "answer", "say-list"]
+
+
+@pytest.mark.parametrize("name", SCREENS)
+def test_fullscreen_top_band_dark_with_examples_that_work(server, browser, name):  # noqa: F811
+    pg = open_unit(browser, server)
+    open_screen(pg, name)
+    assert pg.evaluate("window.cvNumbers(true)") == 0  # 全画面の中に丸の番号は付けない
+    band = pg.locator("#num-band")
+    assert band.count() == 1 and pg.locator("#num-dim").count() == 0  # 全体は暗くしない
+    top = pg.locator(".topbar").bounding_box()
+    b = band.bounding_box()
+    assert b["y"] <= 1 and abs(b["height"] - top["height"]) <= 6 and b["width"] >= 1900  # 上の帯だけ
+    bg = band.evaluate("e => getComputedStyle(e).backgroundColor")
+    assert bg.startswith("rgba(8, 10, 14")
+    panel = pg.locator(f'[data-fs-panel="{name}"]').bounding_box()
+    assert panel["y"] + 1 >= b["y"] + b["height"] - 1  # 本文は帯の下。暗くならない
+    sc = EX["screens"][name]
+    want = (EX["page_words"] if sc["pages"] and pg.evaluate("(() => { const n = document.querySelector('.fs-panel [data-action=fs-next]'); return !!n && !n.hidden })()") else []) + sc["words"]
+    assert chips(pg) == ["「" + w + "」" for w in want]
+    assert "戻して" in sc["words"]
+    # 例文はそのまま言えば動く
+    for w in want:
+        pg.evaluate("window.cvNumbers(true)")
+        say(pg, w)
+        pg.wait_for_function("document.querySelectorAll('#num-band').length === 0")  # 聞き取りが終わったら元に戻る
+        if w == "戻して":
+            pg.wait_for_function("document.querySelectorAll('[data-fs-panel]').length === 0")
+        elif "拡大" in w or "並べて" in w:
+            assert pg.evaluate("Array.from(document.querySelectorAll('.fs-fig')).map(e => Number(e.dataset.n))") == [1, 3]
+        else:
+            assert pg.locator(f'[data-fs-panel="{name}"]').count() == 1
+    assert pg.locator("#num-band, #num-dim").count() == 0
+
+
+def test_photos_not_dimmed_in_photo_fullscreen(server, browser):  # noqa: F811
+    pg = open_unit(browser, server)
+    open_screen(pg, "intraoral-photos")
+    pg.evaluate("window.cvNumbers(true)")
+    img = pg.locator(".fs-fig img").first.bounding_box()
+    band = pg.locator("#num-band").bounding_box()
+    assert img["y"] >= band["y"] + band["height"]
+    # 写真の上に重なる暗い物は無い
+    cx, cy = img["x"] + img["width"] / 2, img["y"] + img["height"] / 2
+    top_el = pg.evaluate("([x, y]) => document.elementFromPoint(x, y).tagName", [cx, cy])
+    assert top_el == "IMG"
+    assert pg.locator("#num-dim").count() == 0
+
+
+def test_every_fullscreen_has_an_examples_row():
+    # 全画面が増えたら config/examples.json の表に足す。足し忘れを見つける
+    import re
+
+    html = open(ROOT / "app" / "views" / "render.py", encoding="utf-8").read()
+
+    parts = set(re.findall(r'data-fs="([a-z-]+)"', html))
+    assert parts >= {"important", "intraoral-photos", "spoken-summary"}
+    for p in parts:
+        assert p in EX["screens"], p + " の例文が表に無い"
+    assert "answer" in EX["screens"] and "say-list" in EX["screens"]
+
+
+def test_hidden_screen_still_gets_a_dark_band(server, browser):  # noqa: F811
+    pg = open_unit(browser, server)
+    pg.evaluate("CVActions.run('hide-toggle')")
+    pg.evaluate("window.cvNumbers(true)")
+    assert pg.locator("#num-band").count() == 1
+    assert "画面を隠しています" in pg.inner_text("#num-band")
+    pg.evaluate("window.cvNumbers(false)")
+    pg.evaluate("CVActions.run('hide-toggle')")
+
+
+def test_say_list_by_number_and_word(server, browser):  # noqa: F811
+    pg = open_unit(browser, server)
+    pg.evaluate("window.cvNumbers(true)")
+    say(pg, "8番")
+    pg.wait_for_selector('[data-fs-panel="say-list"]')
+    say(pg, "戻して")
+    pg.wait_for_function("document.querySelectorAll('[data-fs-panel]').length === 0")
+    for w in ["言える言葉を全画面にして", "言える言葉"]:
+        say(pg, w)
+        pg.wait_for_selector('[data-fs-panel="say-list"]')
+        say(pg, "戻して")
+        pg.wait_for_function("document.querySelectorAll('[data-fs-panel]').length === 0")
+
+
+def test_side_by_side_photo_words():
+    for w, nums in [("1番と3番を並べて拡大して", [1, 3]), ("1番と3番を並べて", [1, 3]), ("1番と3番を並べて大きく", [1, 3]),
+                    ("1番と3番と5番を並べて", [1, 3, 5])]:
+        res = interpret(w)
+        assert res["kind"] == OP and res["action"] == "photo-show" and res["numbers"] == nums, w
+    res = interpret("口腔内写真の1番と3番を並べて拡大して")
+    assert res["action"] == "photo-open" and res["numbers"] == [1, 3]
+
+
+def test_side_by_side_in_photo_fullscreen(server, browser):  # noqa: F811
+    pg = open_unit(browser, server)
+    say(pg, "口腔内写真の1番と3番を並べて")
+    pg.wait_for_function("document.querySelectorAll('.fs-fig').length === 2")
+    say(pg, "3番を拡大して")
+    pg.wait_for_function("document.querySelectorAll('.fs-fig').length === 1")
+    say(pg, "1番と3番を並べて拡大して")
+    pg.wait_for_function("document.querySelectorAll('.fs-fig').length === 2")
+
+
+def test_outside_app_opens_same_screen_inside_app(server, browser):  # noqa: F811
+    import time
+
+    for path, sel in [("/", "[data-part=appointment-list]"), ("/recordings", "body")]:
+        pg = open_page(browser, server, path)
+        pg.wait_for_selector(sel)
+        time.sleep(0.4)
+        key = json.loads((ROOT / "config" / "keys.json").read_text(encoding="utf-8"))["button1"].split("+")[-1]
+        for _ in range(2):
+            pg.evaluate("k => window.dispatchEvent(new KeyboardEvent('keydown', {code: k, key: k, ctrlKey: true, shiftKey: true, bubbles: true}))", key)
+            time.sleep(0.08)
+        pg.wait_for_url("**/app?**")
+        assert "go=" in pg.url and "start=1" in pg.url
+        inner_src = pg.evaluate("document.getElementById('inner').getAttribute('src')")
+        assert inner_src == path
+        pg.close()
+
+
+def test_app_go_only_takes_local_screens(server, browser):  # noqa: F811
+    for go, want in [("/recordings", "/recordings"), ("//evil.example/x", "/"), ("http://evil.example", "/"), ("/app?go=/", "/"),
+                     ("/unit?appt=1&role=doctor", "/unit?appt=1&amp;role=doctor")]:
+        import urllib.parse
+        import urllib.request
+
+        with urllib.request.urlopen(f"http://127.0.0.1:{server}/app?go=" + urllib.parse.quote(go, safe="")) as r:
+            body = r.read().decode("utf-8")
+        assert f"src='{want}'" in body, (go, want)
+
+
+def test_unit_button1_outside_app_goes_to_app(server, browser):  # noqa: F811
+    import time
+
+    pg = open_unit(browser, server)
+    key = json.loads((ROOT / "config" / "keys.json").read_text(encoding="utf-8"))["button1"].split("+")[-1]
+    for _ in range(2):
+        pg.evaluate("k => window.dispatchEvent(new KeyboardEvent('keydown', {code: k, key: k, ctrlKey: true, shiftKey: true, bubbles: true}))", key)
+        time.sleep(0.08)
+    pg.wait_for_url("**/app?**")
+    assert pg.evaluate("document.getElementById('inner').getAttribute('src')").startswith("/unit?appt=")

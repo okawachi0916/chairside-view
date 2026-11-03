@@ -157,7 +157,7 @@ def recordings_page():
         "<textarea id='paste-text' placeholder='話した内容の文字'></textarea><br>"
         "<select id='paste-target'><option value=''>患者様なし（あとで選ぶ）</option></select> "
         "<button type='button' id='paste-go'>下書きにする</button> <span id='paste-msg' class='err'></span></div>"
-        "</main><script src='/static/js/recordings.js'></script></body></html>", headers=NO_STORE)
+        "</main><script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script><script src='/static/js/recordings.js'></script></body></html>", headers=NO_STORE)
 
 
 def safe_back(back: str) -> str:
@@ -247,12 +247,15 @@ def draft_page(draft_id: int, chart: str = "", fix: int = 0, back: str = ""):
 
 
 @router.get("/app", response_class=HTMLResponse)
-def parent_app():
-    """録音と右下の窓を持つ親の画面。中の画面だけを替えるので、画面が替わっても録音は切れない。"""
+def parent_app(go: str = ""):
+    """録音と右下の窓を持つ親の画面。中の画面だけを替えるので、画面が替わっても録音は切れない。
+    go=/recordings のように同じ場所の画面を渡すと、その画面を中に開く（親の無い画面から録音を使うとき）。"""
+    if not (go.startswith("/") and not go.startswith("//") and "\\" not in go and "\n" not in go and not go.startswith("/app")):
+        go = "/"
     return HTMLResponse(
         "<!doctype html><html lang='ja'><head><meta charset='utf-8'><title>チェアサイドビュー</title>"
         "<link rel='stylesheet' href='/static/css/mock.css'><link rel='stylesheet' href='/static/css/rec.css'></head><body class='rec-parent'>"
-        "<iframe id='inner' title='画面' src='/'></iframe>"
+        "<iframe id='inner' title='画面' src='" + html.escape(go, quote=True) + "'></iframe>"
         "<div id='band' data-part='key-band' hidden><span data-band-text></span><span data-band-left></span></div>"
         "<div id='rec-win' data-part='rec-window' hidden><span class='dot'></span><span class='msg'></span></div>"
         "<script src='/static/js/voice_keys.js'></script><script src='/static/js/rec.js'></script></body></html>",

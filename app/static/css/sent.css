@@ -1,0 +1,19 @@
+/* Claude へ送った文の画面 /sent。色・文字・角丸・余白は mock.css の :root の変数だけを使う（先に mock.css を読み込む）。 */
+body.sent-page { display: block; height: auto; min-height: 100%; overflow: auto; padding: 0; }
+.sent-head { background: var(--c-doctor); color: var(--c-surface); padding: var(--sp-3) var(--sp-6); font-size: var(--fs-4);
+  font-weight: var(--fw-bold); display: flex; gap: var(--sp-4); align-items: center; }
+.sent-head a.back { color: var(--c-surface); font-size: var(--fs-3); font-weight: var(--fw-bold); padding: var(--sp-1) var(--sp-4);
+  border: 2px solid var(--c-surface); border-radius: var(--r-s); text-decoration: none; }
+.sent-main { padding: var(--sp-5) var(--sp-6); }
+.sent-note { margin: 0 0 var(--sp-4); font-size: var(--fs-3); color: var(--c-sub); }
+.sent-item { background: var(--c-surface); border: 1px solid var(--c-line-strong); border-radius: var(--r-l);
+  padding: var(--sp-3) var(--sp-5); margin-bottom: var(--sp-4); }
+.sent-item header { font-size: var(--fs-3); margin-bottom: var(--sp-2); }
+.sent-item .when { color: var(--c-sub); margin-right: var(--sp-3); }
+.sent-item h3 { margin: 0 0 var(--sp-1); font-size: var(--fs-2); color: var(--c-sub); }
+.sent-item pre { margin: 0 0 var(--sp-2); white-space: pre-wrap; word-break: break-all; font-family: inherit; font-size: var(--fs-3);
+  line-height: var(--lh-text); }
+.sent-item summary { cursor: pointer; font-size: var(--fs-2); color: var(--c-sub); }
+mark.masked { background: var(--c-warn-soft); color: var(--c-warn); font-weight: var(--fw-bold); border-radius: var(--r-s);
+  padding: 0 var(--sp-1); }
+.none { font-size: var(--fs-3); color: var(--c-sub); }

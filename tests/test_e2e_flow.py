@@ -110,12 +110,14 @@ def flow(server, browser):  # noqa: F811
 
     # 3. 丸の番号で重要事項（1番）を開き、「戻して」で戻す
     pg.evaluate("window.cvNumbers(true)")
-    assert pg.locator(".num-badge").count() == 6
+    assert pg.locator(".num-badge").count() == 7  # 6つの部品と「言える言葉」
     say(pg, "1番")
     pg.wait_for_selector('[data-fs-panel="important"]')
     panel = pg.inner_text('[data-fs-panel="important"]')
     assert all(b in panel for b in important)
     assert pg.locator(".num-badge").count() == 0  # 全画面の中に番号は付けない
+    pg.evaluate("window.cvNumbers(true)")  # 全画面の中では上の帯だけ暗くなり、例文が出る
+    assert "「戻して」" in pg.inner_text("#num-band") and pg.locator("#num-dim").count() == 0
     say(pg, "もとに戻す")
     gone(pg, "[data-fs-panel]")
     assert pg.locator('[data-part="today-treatment"]').is_visible()
@@ -147,6 +149,8 @@ def flow(server, browser):  # noqa: F811
     shown = pg.inner_text(".ai-frame")
     assert all(line in shown for line in last_ref.lines)
     assert "出どころ" in pg.inner_text(".ai-src")
+    pg.evaluate("window.cvNumbers(true)")
+    assert pg.inner_text("#num-band").strip() == "「戻して」"  # 答えの画面は「戻して」だけ
     say(pg, "戻して")
     gone(pg, '[data-fs-panel="answer"]')
 

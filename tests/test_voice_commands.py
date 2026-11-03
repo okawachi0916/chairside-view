@@ -161,10 +161,13 @@ def test_role_switch_by_voice(server, browser):  # noqa: F811
 
 def test_say_list_button(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
-    pg.click("#say-list-btn")
-    pg.wait_for_selector("#say-list li")
-    text = pg.inner_text("#say-list")
-    assert "重要事項を全画面にして" in text and "治療歴を全画面にして" in text
+    pg.click("#say-list-btn")  # プルダウンではなく全画面
+    pg.wait_for_selector('[data-fs-panel="say-list"]')
+    assert pg.locator("#say-list").count() == 0
+    text = pg.inner_text('[data-fs-panel="say-list"]')
+    assert "1番と3番を並べて" in text and "前回は何をした？" in text and "8番 言える言葉" in text
+    pg.evaluate("window.cvTyped('戻して')")
+    pg.wait_for_function("document.querySelectorAll('[data-fs-panel]').length === 0")
 
 
 def test_reception_has_no_voice(server, browser):  # noqa: F811
