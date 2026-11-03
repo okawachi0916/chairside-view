@@ -124,6 +124,11 @@ def unit_data(appt, role):
     return d
 
 
+def percent(part, whole):
+    """パーセントは四捨五入で整数 (0.5 は切り上げ)。"""
+    return int(100 * part / whole + 0.5) if whole else 0
+
+
 def _perio(c, pid, limit=2):
     exams = _all(c, "SELECT id, exam_date FROM perio_exams WHERE patient_id = ? ORDER BY exam_date DESC, id DESC"
                     + (f" LIMIT {int(limit)}" if limit else ""), pid)
@@ -135,8 +140,8 @@ def _perio(c, pid, limit=2):
         out.append({
             "date": e["exam_date"], "teeth": teeth, "n": len(teeth),
             "deep": sum(t["pocket"] >= 4 for t in teeth.values()),
-            "bop": round(100 * sum(t["bop"] for t in teeth.values()) / n),
-            "pcr": round(100 * sum(t["plaque"].count("1") for t in teeth.values()) / (n * 4)),
+            "bop": percent(sum(t["bop"] for t in teeth.values()), n),
+            "pcr": percent(sum(t["plaque"].count("1") for t in teeth.values()), n * 4),
             "loose": sum(t["mobility"] > 0 for t in teeth.values()),
         })
     return out

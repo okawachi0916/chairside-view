@@ -20,7 +20,7 @@ def plaque_svg(sides):
         "l": "0,0 0,100 50,50",
     }
     polys = "".join(
-        f'<polygon class="{"pq-on" if k in sides else "pq-off"}" points="{p}"/>'
+        f'<polygon class="{"pq-on" if k in sides else "pq-off"}" data-side="{k}" points="{p}"/>'
         for k, p in pts.items()
     )
     return (
@@ -36,21 +36,21 @@ def _cells(teeth, tooth_nos, make):
     for i, t in enumerate(tooth_nos):
         mid = "mid" if i == 8 else ""
         d = teeth.get(t)
-        out.append(f'<td class="gone {mid}">―</td>' if d is None else make(d, mid))
+        out.append(f'<td class="gone {mid}">―</td>' if d is None else make({**d, "tooth": t}, mid))
     return "".join(out)
 
 
 def _pocket(d, mid):
     cls = ("deep " if d["pocket"] >= 4 else "") + ("bop " if d["bop"] else "")
-    return f'<td class="{cls}{mid}">{d["pocket"]}</td>'
+    return f'<td class="{cls}{mid}" data-tooth="{d["tooth"]}" data-k="pocket">{d["pocket"]}</td>'
 
 
 def _loose(d, mid):
-    return f'<td class="{mid}">{d["mobility"]}</td>'
+    return f'<td class="{mid}" data-tooth="{d["tooth"]}" data-k="mob">{d["mobility"]}</td>'
 
 
 def _plaque(d, mid):
-    return f'<td class="pl {mid}">{plaque_svg(d["sides"])}</td>'
+    return f'<td class="pl {mid}" data-tooth="{d["tooth"]}" data-k="plq">{plaque_svg(d["sides"])}</td>'
 
 
 def _stat(label, now, prev):
