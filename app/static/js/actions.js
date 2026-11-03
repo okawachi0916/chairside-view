@@ -17,6 +17,7 @@
   // ---- 隠す・戻す (ボタン3) ----
   function hide() {
     if (hidden) return;
+    if (window.CVPhone && document.getElementById("phone-modal")) window.CVPhone.close(); // QR が出たまま残さない
     var r = root();
     if (window.cv && window.cv.cancel) window.cv.cancel(); // 読み込み中の応答が隠した画面へ入らないようにする
     var scrolls = [];

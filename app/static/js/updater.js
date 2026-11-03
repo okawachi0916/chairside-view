@@ -1,4 +1,4 @@
-// 新しい版が入ったら右上に「更新」のボタンを出す。勝手には読み直さず、押したときだけ読み直す。
+// 新しい版が入ったら画面の下に横いっぱいの帯「新しい版があります　更新」を出す。勝手には読み直さず、押したときだけ読み直す。
 // 同じブラウザの全部の画面（ほかのタブ）にも知らせる。録音・下書きの途中は、終わるまで待ってから読み直す。
 (function () {
   if (window.__cvUpdater) return;
@@ -75,7 +75,7 @@
       btn = document.createElement("button");
       btn.type = "button";
       btn.id = "cv-update";
-      btn.textContent = "更新";
+      btn.textContent = "新しい版があります　更新";
       btn.addEventListener("click", function () {
         if (ch) { try { ch.postMessage({ v: info.v, time: info.time }); } catch (e) { /* 知らせられない */ } }
         apply(info);
@@ -83,7 +83,23 @@
       document.body.appendChild(btn);
     }
     btn.hidden = false;
+    lift();
   }
+
+  // 下の質問のボタン（#num-questions）が出ているあいだは、その上に帯を出す。中の画面にあっても見る
+  function lift() {
+    if (!btn || btn.hidden) return;
+    var top = 0, docs = [document], fr = document.querySelectorAll("iframe");
+    for (var i = 0; i < fr.length; i++) { try { docs.push(fr[i].contentDocument); } catch (e) { /* 見ない */ } }
+    docs.forEach(function (d) {
+      var q = d && d.getElementById("num-questions");
+      if (!q || !q.children.length) return;
+      var r = q.getBoundingClientRect();
+      if (r.height > 0) top = Math.max(top, window.innerHeight - r.top + 4);
+    });
+    btn.style.bottom = top + "px";
+  }
+  setInterval(lift, 300);
 
   function check() {
     fetch(url, { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {

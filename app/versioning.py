@@ -65,8 +65,8 @@ def _inject(html: str, mobile: bool) -> str:
 
 
 MOBILE_CSS = (
-    "#cv-update{position:fixed;top:0;right:0;z-index:2147483600;font:inherit;font-size:14px;font-weight:700;"
-    "line-height:20px;padding:0 12px;border:0;border-radius:0 0 0 8px;background:#1f5fbf;color:#fff;cursor:pointer}"
+    "#cv-update{position:fixed;left:0;right:0;bottom:0;width:100%;z-index:2147483600;font:inherit;font-size:24px;font-weight:700;"
+    "line-height:1.2;padding:6px 12px;border:0;border-radius:0;background:#d9480f;color:#fff;cursor:pointer;text-align:center}"
     "#cv-update[hidden]{display:none}#cv-update.waiting{opacity:.5}"
     "#cv-updated{position:fixed;top:0;right:0;z-index:2147483600;font-size:14px;font-weight:700;line-height:20px;"
     "padding:0 12px;border-radius:0 0 0 8px;background:#1c2a33;color:#fff}"

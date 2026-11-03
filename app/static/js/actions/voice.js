@@ -323,6 +323,8 @@
         return res;
       }
       say("「" + t + "」");
+      // QR の画面が開いているときの「戻して」「閉じて」は、QR だけ閉じる（開く前の画面に戻る）。phone.js の close を呼ぶだけ
+      if (res.action === "fs-close" && document.getElementById("phone-modal") && window.CVPhone) { window.CVPhone.close(); return res; }
       if (res.action === "fs-open") openPart(res.arg);
       else if (res.action === "phone-open") openPhone();
       else window.CVActions.run(res.action, res.arg);
