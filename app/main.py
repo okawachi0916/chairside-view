@@ -6,9 +6,10 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from app import routers
+from app import routers, versioning
 
 app = FastAPI(title="チェアサイドビュー")
+versioning.install(app)
 
 static_dir = Path(__file__).parent / "static"
 static_dir.mkdir(exist_ok=True)

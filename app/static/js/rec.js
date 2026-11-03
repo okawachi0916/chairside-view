@@ -203,7 +203,12 @@
   // 親が持つボタン。中の画面が持たない場所 (一覧など) でも、親にフォーカスがあるときに効くようにする
   VoiceKeys.init({
     band: document.getElementById("band"),
-    isActive: function (n) { return n === 1 && window.CVRec.active(); },
+    isActive: function (n) {
+      if (n === 2) { // 声の受付中は、親にフォーカスがあっても1回で止まる
+        try { var a = inner.contentWindow.CVActive; return !!(a && a[2] && a[2]()); } catch (e) { return false; }
+      }
+      return n === 1 && window.CVRec.active();
+    },
     onAction: function (n) {
       if (n === 1) return press();
       try { inner.contentWindow.CVActions.run("button" + n); } catch (e) { /* 中の画面に無い */ }

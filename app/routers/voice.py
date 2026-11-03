@@ -118,3 +118,28 @@ async def combo(request: Request):
     except OSError:
         pass
     return {"ok": True, "line": line}
+
+
+@router.post("/voice/keylog")
+async def keylog(request: Request):
+    """ボタン1〜3のキーの押した・離した信号を、ミリ秒の時刻つきで1行ずつ残す（実物のボタンの送り方を知るため）。"""
+    try:
+        b = await request.json()
+        kind = "keydown" if b.get("kind") == "keydown" else "keyup"
+        button, t = int(b.get("button") or 0), int(b.get("t") or 0)
+        key = str(b.get("key") or "")[:40]
+        repeat = bool(b.get("repeat"))
+    except Exception:
+        return JSONResponse({"error": "形が違います"}, status_code=400)
+    if button not in (1, 2, 3):
+        return JSONResponse({"error": "ボタンではありません"}, status_code=400)
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t / 1000)) + f".{t % 1000:03d}"
+    line = f"{stamp} ボタンの信号 {'押した' if kind == 'keydown' else '離した'} ボタン{button} キー {key} repeat={'はい' if repeat else 'いいえ'} t={t}"
+    try:
+        d = ROOT / "data" / "runtime" / "logs"
+        d.mkdir(parents=True, exist_ok=True)
+        with open(d / "voice_timing.log", "a", encoding="utf-8") as f:
+            f.write(line + chr(10))
+    except OSError:
+        pass
+    return {"ok": True, "line": line}

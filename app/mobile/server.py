@@ -8,11 +8,13 @@ import sqlite3
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 
+from app import versioning
 from app.db import TODAY, data_dir
 from app.mobile import links
 from app.views import photos as PH
 
 app = FastAPI(title="スマホの写真", docs_url=None, redoc_url=None, openapi_url=None)
+versioning.install(app, mobile=True)
 
 HEADERS = {
     "Cache-Control": "no-store",
@@ -159,6 +161,12 @@ button.sec{background:#fff;color:#1f5fbf;border:2px solid #1f5fbf}
   });
 })();
 </script></body></html>"""
+
+
+@app.get("/m/version")
+def version():
+    """画面の版の印（更新ボタン用）。患者様の情報は無い。"""
+    return _json(versioning.current())
 
 
 @app.get("/m/{token}")

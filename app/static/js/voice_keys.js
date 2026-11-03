@@ -25,7 +25,21 @@
     const band = opts.band;
     const comboMs = Number(cfg.combo_ms) || 300; // ボタン1と2が、この時間以内に続いたら同時押し
     let pending = null; // { n, timer, t }
-    let shown = null;   // { n, until, tick, hide }
+    let shown = null;   // { n, until, tick, hide, t }
+    const held = {};    // いま押したままのボタン { n: 押した時刻 }（離した信号が来るまで）
+    const codeOf = (name) => name.split("+").pop();
+    const byCode = {};
+    Object.keys(keys).forEach((name) => { byCode[codeOf(name)] = { n: keys[name], name }; });
+
+    // 実物のボタンが、どんな信号をどんな順で送るかの記録（ボタン1〜3のキーだけ。軽い）
+    function keyLog(e, kind, n, name) {
+      if (e.__cvKeyLogged) return;
+      e.__cvKeyLogged = true;
+      try {
+        fetch("/voice/keylog", { method: "POST", headers: { "Content-Type": "application/json" }, keepalive: true,
+          body: JSON.stringify({ kind, key: name, button: n, repeat: !!e.repeat, t: Date.now() }) }).catch(() => {});
+      } catch (err) { /* 記録できなくても操作は続ける */ }
+    }
 
     function hideBand() {
       if (shown) { clearInterval(shown.tick); clearTimeout(shown.hide); shown = null; }
@@ -34,7 +48,7 @@
     function clearPending() {
       if (pending) { clearTimeout(pending.timer); pending = null; }
     }
-    function showBand(n) {
+    function showBand(n, t) {
       const until = Date.now() + cfg.double_press_ms;
       band.hidden = false;
       const text = band.querySelector("[data-band-text]");
@@ -42,7 +56,7 @@
       text.textContent = (opts.textFor && opts.textFor(n)) || texts[n];
       const paint = () => { left.textContent = Math.max(0, Math.ceil((until - Date.now()) / 1000)) + "秒"; };
       paint();
-      shown = { n, until, tick: setInterval(paint, 200), hide: setTimeout(hideBand, cfg.double_press_ms) };
+      shown = { n, until, t: t || Date.now(), tick: setInterval(paint, 200), hide: setTimeout(hideBand, cfg.double_press_ms) };
     }
     function act(n) {
       clearPending();
@@ -50,19 +64,31 @@
       opts.onAction(n);
     }
 
+    window.addEventListener("keyup", (e) => {
+      const b = byCode[e.code];
+      if (!b) return;
+      delete held[b.n];
+      keyLog(e, "keyup", b.n, b.name);
+    });
+    window.addEventListener("blur", () => { for (const k in held) delete held[k]; }); // 離した信号を受け損ねた押したままを残さない
+
     window.addEventListener("keydown", (e) => {
       const name = keyName(e);
       if (!name) return;
+      if (keys[name]) keyLog(e, "keydown", keys[name], name);
       if (e.repeat) { if (keys[name]) e.preventDefault(); return; } // 押し続けは1回
       if (opts.onKey) opts.onKey(name);
       const n = keys[name];
       if (!n) return;
+      held[n] = Date.now();
       e.preventDefault();
       if (opts.isActive && opts.isActive(n)) return act(n); // 録音中などは1回で止まる
       const now = Date.now();
       // ボタン1と2の同時押し: 1つ目はまだ帯も出ていない1回目の押しなので、何も動いていない。帯を消して「戻して」だけを動かす
-      if (opts.onCombo && pending && pending.n !== n && pending.n <= 2 && n <= 2 && now - pending.t <= comboMs) {
-        const gap = now - pending.t, first = pending.n;
+      // 同時押しは、①1つ目をまだ離していない ②1つ目から combo_ms 以内（帯が出ていても）、のどちらか。実物のボタンは信号を順に送ることがある
+      const f = pending || shown; // 1つ目（まだ動いていない1回目の押し）
+      if (opts.onCombo && f && f.n !== n && f.n <= 2 && n <= 2 && (held[f.n] !== undefined || now - f.t <= comboMs)) {
+        const gap = now - f.t, first = f.n;
         clearPending();
         hideBand();
         return opts.onCombo({ first, second: n, gap_ms: gap });
@@ -71,7 +97,7 @@
       if (pending && pending.n === n) return act(n);        // 0.4秒以内の2回目: 帯なしで動く
       clearPending();
       hideBand();                                            // 別のボタンなら切り替え
-      pending = { n, t: now, timer: setTimeout(() => { pending = null; showBand(n); }, cfg.quick_press_ms) };
+      pending = { n, t: now, timer: setTimeout(() => { pending = null; showBand(n, now); }, cfg.quick_press_ms) };
     });
     return cfg;
   }

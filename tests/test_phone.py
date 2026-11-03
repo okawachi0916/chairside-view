@@ -375,25 +375,32 @@ def test_qr_is_big_and_fills_its_box(server, browser, mobile):  # noqa: F811
     assert pg.evaluate("document.querySelector('#phone-modal .box').getBoundingClientRect().bottom") <= 1030
 
 
-def test_phone_button_reachable_from_every_screen(server, browser, mobile):  # noqa: F811
+def test_phone_button_in_photo_card_and_fullscreen_opens_qr(server, browser, mobile):  # noqa: F811
+    """G25c: ボタンは口腔内写真の欄の右上と、その全画面の中。上の行の固定のボタンは無い。本物のクリックで QR が開く。"""
     for role in ("doctor", "hygienist"):
         pg = open_page(browser, server, f"/unit?appt={APPT}&role={role}")
-        pg.wait_for_selector(".phone-fab")
-        assert pg.locator(".phone-fab").is_visible()
-        pg.click(".phone-fab")
+        pg.wait_for_selector('[data-part="intraoral-photos"] [data-action="phone"]')
+        assert pg.locator(".phone-fab").count() == 0 and pg.locator(".topbar [data-action=phone], body > [data-action=phone]").count() == 0
+        card = pg.locator('[data-part="intraoral-photos"]').bounding_box()
+        btn = pg.locator('[data-part="intraoral-photos"] [data-action="phone"]')
+        box = btn.bounding_box()
+        assert box["y"] < card["y"] + 60 and box["x"] + box["width"] > card["x"] + card["width"] * 0.5  # 欄の右上
+        btn.click()
         pg.wait_for_selector("#phone-modal .qr svg")
+        _qr_fills_box(pg)
         pg.click("#phone-modal [data-act=close]")
-        # 全画面の中でも押せる: 口腔内写真は枠の中、そのほかは固定のボタン
-        for part in ("intraoral-photos", "important", "medical-history"):
-            pg.evaluate(f"CVActions.run('fs-open', '{part}')")
-            pg.wait_for_selector(".fs-panel")
-            btn = pg.locator(".fs-head .phone-btn") if part == "intraoral-photos" else pg.locator(".phone-fab")
-            assert btn.is_visible(), (role, part)
-            if part == "intraoral-photos":
-                assert pg.locator(".phone-fab").is_hidden()
-            btn.click()
-            pg.wait_for_selector("#phone-modal .qr svg")
-            _qr_fills_box(pg)
-            pg.click("#phone-modal [data-act=close]")
-            pg.evaluate("CVActions.run('fs-close')")
+        pg.evaluate("CVActions.run('fs-open', 'intraoral-photos')")
+        pg.wait_for_selector(".fs-head .phone-btn")
+        pg.click(".fs-head .phone-btn")
+        pg.wait_for_selector("#phone-modal .qr svg")
+        _qr_fills_box(pg)
+        pg.click("#phone-modal [data-act=close]")
         pg.close()
+
+
+def test_phone_button_works_inside_recording_parent(server, browser, mobile):  # noqa: F811
+    pg = open_page(browser, server, f"/app?go=/unit%3Fappt%3D{APPT}%26role%3Ddoctor")
+    fr = pg.frame_locator("#inner")
+    fr.locator('[data-part="intraoral-photos"] [data-action="phone"]').click()
+    fr.locator("#phone-modal .qr svg").wait_for()
+    pg.close()

@@ -1,0 +1,9 @@
+/* 新しい版の「更新」ボタンと「更新しました」の表示。右上の隅に小さく出す */
+#cv-update, #cv-updated { position: fixed; top: 0; right: 0; z-index: 2147483600; font-family: inherit; font-size: var(--fs-1); font-weight: var(--fw-bold); line-height: var(--lh-tight); padding: var(--sp-1) var(--sp-3); border-radius: var(--r-s); }
+#cv-update { border: 0; background: var(--c-doctor); color: var(--c-surface); cursor: pointer; }
+#cv-update[hidden] { display: none; }
+#cv-update.waiting { opacity: .5; }
+#cv-updated { background: var(--c-ink); color: var(--c-surface); }
+
+/* G21c: 画面の下いっぱいの帯。本文より大きい字。どこを押しても更新 */
+#cv-update { top: auto; left: 0; right: 0; bottom: 0; width: 100%; background: var(--c-alert); color: var(--c-surface); font-size: var(--fs-4); line-height: var(--lh-tight); padding: var(--sp-1) var(--sp-3); text-align: center; }

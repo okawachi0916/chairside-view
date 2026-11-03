@@ -82,15 +82,6 @@
     var b = e.target.closest('[data-action="phone"]');
     if (b) { e.stopPropagation(); open(); }
   });
-  // どの画面からも押せる固定のボタン（歯科医師・歯科衛生士の画面と全画面。口腔内写真の全画面は枠の中にも置く）
-  if (document.body.getAttribute("data-kind") === "unit" && !document.querySelector(".phone-fab")) {
-    var fab = document.createElement("button");
-    fab.type = "button";
-    fab.className = "phone-fab";
-    fab.setAttribute("data-action", "phone");
-    fab.textContent = "スマホで写真をやり取り";
-    document.body.appendChild(fab);
-  }
   window.CVPhone = { open: open, close: close };
   if (window.CVActions) CVActions.register("phone-open", open);
 })();

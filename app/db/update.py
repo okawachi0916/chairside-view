@@ -26,6 +26,12 @@ def update(path=None) -> dict:
                     for row in rows:
                         if col in row:
                             con.execute(f"UPDATE {table} SET {col} = ? WHERE id = ?", (row[col], row["id"]))
+        # G21d: 見本データの担当者の名前を架空の名前に替える（すでに入っているデータベースにも効かせる）
+        for t in schema.TABLES:
+            cols = [r[1] for r in con.execute(f"PRAGMA table_info({t})")]
+            if "staff_name" in cols:
+                for old, new in (("大川内", "山本"), ("田中", "佐藤")):
+                    con.execute(f"UPDATE {t} SET staff_name = ? WHERE staff_name = ?", (new, old))
         con.commit()
         return {"added_columns": added, "inserted": inserted}
     finally:
