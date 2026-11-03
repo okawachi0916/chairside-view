@@ -110,7 +110,7 @@ def flow(server, browser):  # noqa: F811
 
     # 3. 丸の番号で重要事項（1番）を開き、「戻して」で戻す
     pg.evaluate("window.cvNumbers(true)")
-    assert pg.locator(".num-badge").count() == 7  # 6つの部品と「言える言葉」
+    assert pg.locator(".num-badge").count() == 9  # 6つの部品と「言える言葉」と「役割を変える」と「スマホ」
     say(pg, "1番")
     pg.wait_for_selector('[data-fs-panel="important"]')
     panel = pg.inner_text('[data-fs-panel="important"]')

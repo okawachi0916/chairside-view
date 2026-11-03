@@ -17,7 +17,8 @@
     "@keyframes cvblink{50%{opacity:.15}}" +
     "body[data-numbers] .ph .no{display:none}" +
     "#num-dim{position:fixed;left:0;top:0;right:0;bottom:0;z-index:30;background:rgba(0,0,0,.55);pointer-events:none}" +
-    ".num-badge{position:fixed;z-index:35;transform:translate(-50%,-50%);height:76px;padding:0 22px;border-radius:38px;box-sizing:border-box;white-space:nowrap;" +
+    "body[data-numbers] [data-action=phone]{position:relative;z-index:31}" + // 暗い幕より前に出して、明るく見せる
+    ".num-badge{position:fixed;z-index:35;transform:translate(-50%,-50%);height:76px;padding:0 16px;border-radius:38px;box-sizing:border-box;white-space:nowrap;" +
     "background:#ffd43b;color:#111;border:4px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.6);" +
     "font-size:48px;font-weight:800;line-height:68px;text-align:center;pointer-events:none}" +
     "#num-questions{position:fixed;z-index:35;left:0;right:0;bottom:36px;display:flex;justify-content:center;gap:20px;pointer-events:none}" +
@@ -143,6 +144,13 @@
     if (btn) btn.click();
     else window.CVActions.run("fs-open", key);
   }
+  // スマホの QR の画面を開く。マウスでボタンを押したときと同じ道（data-action="phone" の click）。
+  // 口腔内写真の全画面の中にはボタンが見えないので、ボタンが無ければ入口を直接呼ぶ。
+  function openPhone() {
+    var btn = document.querySelector('[data-action="phone"]');
+    if (btn) btn.click();
+    else window.CVActions.run("phone-open");
+  }
   // 番号の写真を左に出す。無い番号があれば何も変えず、言い方を返す。
   function showPhotos(numbers) {
     var list = [], bad = [];
@@ -186,6 +194,8 @@
     var out = [];
     Object.keys(numCfg.parts).forEach(function (part) {
       var btn = part === "say-list" ? document.getElementById("say-list-btn")
+        : part === "change-role" ? document.querySelector('[data-action="change-role"]')
+        : part === "phone" ? document.querySelector('[data-action="phone"]')
         : document.querySelector('[data-part="' + part + '"] [data-action="fullscreen"]');
       if (btn && inView(btn)) out.push({ n: numCfg.parts[part], key: part, el: btn });
     });
@@ -277,6 +287,14 @@
     var key = shown[n];
     if (!key) { say("「" + t + "」 その番号はありません"); return; }
     if (key === "say-list") { say("「" + t + "」"); window.CVActions.run("say-list-open"); return; }
+    if (key === "phone") { say("「" + t + "」"); openPhone(); return; }
+    if (key === "change-role") { // マウスで「役割を変える」を押したのと同じ（view.js の click）
+      var rb = document.querySelector('[data-action="change-role"]');
+      if (!rb) { say("「" + t + "」 まだ開けません"); return; }
+      say("「" + t + "」");
+      rb.click();
+      return;
+    }
     if (!document.querySelector('template[data-fs="' + key + '"]')) { say("「" + t + "」 まだ開けません"); return; }
     say("「" + t + "」");
     openPart(key);
@@ -306,6 +324,7 @@
       }
       say("「" + t + "」");
       if (res.action === "fs-open") openPart(res.arg);
+      else if (res.action === "phone-open") openPhone();
       else window.CVActions.run(res.action, res.arg);
     } else if (res.kind === "質問" && window.CVAsk && !window.CVActions.isHidden()) {
       say("「" + t + "」 調べています");
