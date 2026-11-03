@@ -79,9 +79,17 @@ def test_button_appears_only_for_new_version_and_reload_is_manual(server, browse
     with new_version():
         pg.wait_for_selector("#cv-update", state="visible", timeout=8000)
         b = pg.locator("#cv-update")
-        assert b.inner_text() == "更新"  # 説明の文は付けない
-        box = b.bounding_box()
-        assert box["x"] + box["width"] >= 1900 and box["y"] <= 4 and box["height"] <= 30 and box["width"] <= 100
+        assert b.inner_text() == "新しい版があります　更新"
+        box = b.bounding_box()  # 下いっぱいの帯。高さは最低限、字は本文より大きい
+        assert box["x"] <= 1 and box["width"] >= 1900 and box["y"] + box["height"] >= 1029 and box["height"] <= 60
+        assert float(b.evaluate("e => parseFloat(getComputedStyle(e).fontSize)")) > float(
+            pg.evaluate("parseFloat(getComputedStyle(document.body).fontSize)"))
+        pg.evaluate("""() => { const q = document.createElement('div'); q.id = 'num-questions';
+          q.style.cssText = 'position:fixed;left:0;right:0;bottom:36px;height:60px'; q.innerHTML = '<span>前回は何をした？</span>';
+          document.body.appendChild(q); }""")
+        time.sleep(0.8)  # 質問のボタンと重なるときは帯が上に出る
+        assert pg.locator("#cv-update").bounding_box()["y"] + pg.locator("#cv-update").bounding_box()["height"] <=             pg.locator("#num-questions").bounding_box()["y"] + 1
+        pg.evaluate("document.getElementById('num-questions').remove()")
         time.sleep(1.5)
         assert pg.evaluate("window.__mark") == 1  # 勝手には読み直さない
         b.click()
