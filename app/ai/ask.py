@@ -8,6 +8,7 @@ import json
 import re
 
 from app.ai.gateway import Gateway, sensitive_from_db
+from app.ai.quick import quick_record
 from app.ai.records import build_records
 from app.ai.redact import RedactionFailed
 from app.ai.settings import ClaudeUnavailable
@@ -57,14 +58,23 @@ def parse_reply(raw: str, numbers):
     return None
 
 
-def answer(text: str, con, patient_id: int, gateway: Gateway) -> dict:
-    """戻り値の sends は Claude へ送った回数。"""
+def found(rec, sends: int) -> dict:
+    return {"result": "found", "title": rec.kind, "lines": rec.lines, "source": rec.source,
+            "part": rec.part, "ref": rec.ref, "sends": sends}
+
+
+def answer(text: str, con, patient_id: int, gateway: Gateway, quick: bool = True) -> dict:
+    """戻り値の sends は Claude へ送った回数。quick=False は、表を使わず必ず Claude に聞く（確認用）。"""
     heard = interpret(text, "unit")
     if heard["kind"] != QUESTION:
         return {"result": "skip", "kind": heard["kind"], "message": MSG_RETRY, "sends": 0}
     records = build_records(con, patient_id)
     if not records:
         return {"result": "none", "message": MSG_NONE, "sends": 0}
+    if quick:
+        rec = quick_record(text, records)  # よく聞く質問は、記録から直接出す（Claude へ送らない）
+        if rec:
+            return found(rec, 0)
     sens = sensitive_from_db(con)
     try:
         reply = gateway.send(build_prompt(records, text), sens, system=SYSTEM, max_tokens=1500, purpose="question")
@@ -80,5 +90,4 @@ def answer(text: str, con, patient_id: int, gateway: Gateway) -> dict:
     if parsed[0] == "none":
         return {"result": "none", "message": MSG_NONE, "sends": 1}
     rec = next(r for r in records if r.number == parsed[1])
-    return {"result": "found", "title": rec.kind, "lines": rec.lines, "source": rec.source,
-            "part": rec.part, "ref": rec.ref, "sends": 1}
+    return found(rec, 1)

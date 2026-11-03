@@ -25,13 +25,15 @@ class Reply:
 class AnthropicMouth:
     """本物の Claude の口。鍵とモデル名は使うときに読む。"""
 
-    def complete(self, system: str, user: str, max_tokens: int) -> str:
+    wants_purpose = True  # 目的ごとのモデルを選ぶ。偽物の口は3つの引数だけを受け取る
+
+    def complete(self, system: str, user: str, max_tokens: int, purpose: str = "") -> str:
         import anthropic  # この中だけで読み込む
 
         client = anthropic.Anthropic(api_key=load_key())  # ANTHROPIC_API_KEY は使わない
         kwargs = {"system": system} if system else {}
         res = client.messages.create(
-            model=load_model(), max_tokens=max_tokens, messages=[{"role": "user", "content": user}], **kwargs
+            model=load_model(purpose), max_tokens=max_tokens, messages=[{"role": "user", "content": user}], **kwargs
         )
         return "".join(b.text for b in res.content if getattr(b, "type", "") == "text")
 
@@ -54,7 +56,10 @@ class Gateway:
         check_clean(table, m_user + "\n" + m_system)  # 残っていれば RedactionFailed。送らない
         self._log(purpose, m_system, m_user)
         try:
-            raw = self.mouth.complete(m_system, m_user, max_tokens)
+            if getattr(self.mouth, "wants_purpose", False):
+                raw = self.mouth.complete(m_system, m_user, max_tokens, purpose=purpose)
+            else:
+                raw = self.mouth.complete(m_system, m_user, max_tokens)
         except ClaudeUnavailable:
             raise
         except Exception as e:  # noqa: BLE001

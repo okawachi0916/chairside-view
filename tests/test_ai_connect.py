@@ -56,6 +56,40 @@ def test_model_comes_from_config_only():
         assert not re.search(r"claude-(sonnet|opus|haiku|fable)-\d", p.read_text(encoding="utf-8")), p
 
 
+def test_model_per_purpose(monkeypatch, tmp_path):
+    f = tmp_path / "model.json"
+    f.write_text(json.dumps({"model": "base-m", "purposes": {"question": "quick-m", "bad": 5, "empty": " "}}), encoding="utf-8")
+    monkeypatch.setattr(settings, "MODEL_JSON", f)
+    assert settings.load_model() == "base-m"
+    assert settings.load_model("question") == "quick-m"
+    assert settings.load_model("memo") == "base-m"    # 目的が表に無ければ既定
+    assert settings.load_model("bad") == "base-m" and settings.load_model("empty") == "base-m"
+    f.write_text(json.dumps({"model": "base-m", "purposes": "壊れた形"}), encoding="utf-8")
+    assert settings.load_model("question") == "base-m"
+
+
+def test_draft_organizing_stays_on_default_model():
+    """下書き（memo）は目的別の表に入れず、既定のモデル（Sonnet）のまま。"""
+    cfg = json.loads((ROOT / "config" / "model.json").read_text(encoding="utf-8"))
+    assert "memo" not in cfg.get("purposes", {})
+    assert settings.load_model("memo") == cfg["model"]
+
+
+def test_gateway_passes_purpose_only_to_real_mouth(tmp_path):
+    from app.ai.gateway import AnthropicMouth, Gateway
+    from app.ai.redact import Sensitive
+
+    seen = {}
+
+    class Real(AnthropicMouth):
+        def complete(self, system, user, max_tokens, purpose=""):
+            seen["purpose"] = purpose
+            return "ok"
+
+    assert Gateway(mouth=Real(), log_dir=tmp_path).send("こんにちは", Sensitive(patients=[], staff=[], clinics=[]), purpose="question").text == "ok"
+    assert seen["purpose"] == "question"
+
+
 def test_no_secret_in_repo_files():
     for p in [ROOT / "config" / "model.json", ROOT / "docs" / "実API結果.md"]:
         if p.exists():

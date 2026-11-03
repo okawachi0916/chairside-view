@@ -34,10 +34,15 @@ def load_key() -> str:
     return key
 
 
-def load_model() -> str:
+def load_model(purpose: str = "") -> str:
+    """config/model.json の "model" が既定。"purposes" に目的（question, memo など）があれば、その目的だけ別のモデルを使う。"""
     try:
-        model = json.loads(MODEL_JSON.read_text(encoding="utf-8")).get("model", "")
-    except (OSError, ValueError):
+        cfg = json.loads(MODEL_JSON.read_text(encoding="utf-8"))
+        model = cfg.get("model", "")
+        by_purpose = cfg.get("purposes")
+        if purpose and isinstance(by_purpose, dict) and isinstance(by_purpose.get(purpose), str):
+            model = by_purpose[purpose].strip() or model
+    except (OSError, ValueError, AttributeError):
         model = ""
     if not model:
         raise ClaudeUnavailable("Claude のモデル名が設定されていないため、この機能は使えません。")

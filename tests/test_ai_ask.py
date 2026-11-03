@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 Q = json.loads((ROOT / "tests" / "questions.json").read_text(encoding="utf-8"))
 CASES = Q["cases"]
 ASKED = [c for c in CASES if c["kind"] == "質問"]
+Q_CLAUDE = "ペニシリンの記録は？"  # 表（config/quick_answers.json）に当たらないので、必ず Claude に聞く質問
 
 
 @pytest.fixture(scope="module")
@@ -139,6 +140,74 @@ def test_ten_cases(client, db, hanako, appt, monkeypatch, tmp_path, case):
         assert "lines" not in res
 
 
+@pytest.mark.parametrize("case", ASKED, ids=lambda c: f"case{c['id']}")
+def test_claude_path_without_table(db, hanako, tmp_path, case):
+    """表を使わず Claude に聞く道筋でも、10例は同じ答えになる（Claude が正しく選んだ場合）。"""
+    records = build_records(db, hanako)
+    exp = case["expect"]
+    reply = (json.dumps({"result": "found", "record": number_of(records, exp["ref"])}) if exp["result"] == "found"
+             else '{"result":"none"}')
+    mouth = ScriptedMouth(reply)
+    res = ask_mod.answer(case["text"], db, hanako, Gateway(mouth=mouth, log_dir=tmp_path / "log"), quick=False)
+    assert len(mouth.sent) == case.get("claude_sends", case["sends"]) == res["sends"]
+    assert res["result"] == exp["result"] and res.get("ref") == exp.get("ref")
+
+
+# ---- よく聞く質問は Claude を通さず記録から直接出す（config/quick_answers.json） ----
+
+QUICK = [("前回は何をした？", "note:2026-10-23"), ("前回は？", "note:2026-10-23"), ("この前は何をしましたか", "note:2026-10-23"),
+         ("アレルギーは？", "important:1"), ("アレルギーはありますか", "important:1"), ("アレルギーを教えて", "important:1"),
+         ("飲んでいる薬は？", "medical"), ("お薬は？", "medical"), ("薬は何を飲んでいますか", "medical"),
+         ("次回は何をする予定？", "plan:1"), ("次は何をする予定？", "plan:1"), ("次回は？", "plan:1"), ("今後の予定は？", "plan:1")]
+
+
+@pytest.mark.parametrize("text,ref", QUICK)
+def test_common_questions_skip_claude(client, db, hanako, appt, monkeypatch, tmp_path, text, ref):
+    mouth = use_mouth(monkeypatch, tmp_path, ScriptedMouth("これは使われない"))
+    res = post(client, appt, text)
+    assert mouth.sent == [] and res["sends"] == 0
+    rec = next(r for r in build_records(db, hanako) if r.ref == ref)
+    assert res["result"] == "found" and res["ref"] == ref and res["lines"] == rec.lines  # データベースの本文そのまま
+    assert not list((tmp_path / "log").glob("*.jsonl"))  # 送った記録も無い
+
+
+# 言葉が混ざる質問・2項目にまたがる質問は、表で当てずに Claude へ回す
+NOT_QUICK = ["前回の右下6番の治療はいつ？", "次回の予約はいつ？", "前回の薬は？", "アレルギーと薬は？", "昨日のアレルギーの検査は？",
+             "前回の歯周検査の結果は？", "薬を飲み始めたのはいつ？", "右下6番の次回の予定は？", "アレルギーが出たのはいつ？"]
+
+
+@pytest.mark.parametrize("text", NOT_QUICK)
+def test_mixed_questions_go_to_claude(client, appt, monkeypatch, tmp_path, text):
+    from app.ai.quick import pick_entry
+
+    assert pick_entry(text) is None
+    mouth = use_mouth(monkeypatch, tmp_path, ScriptedMouth('{"result":"none"}'))
+    res = post(client, appt, text)
+    assert len(mouth.sent) == 1 and res["sends"] == 1
+
+
+def test_quick_miss_goes_to_claude_when_no_record(db, tmp_path):
+    """アレルギーの記録が無い患者様は、表では答えず Claude に回す（記録が無いと決めつけない）。"""
+    pid = next(r["id"] for r in db.execute("SELECT id FROM patients WHERE chart_no = '1024'"))
+    assert not any("アレルギー" in "".join(r.lines) for r in build_records(db, pid) if r.part == "important")
+    mouth = ScriptedMouth('{"result":"none"}')
+    res = ask_mod.answer("アレルギーは？", db, pid, Gateway(mouth=mouth, log_dir=tmp_path / "log"))
+    assert len(mouth.sent) == 1 and res["sends"] == 1
+
+
+def test_quick_table_is_in_config_and_broken_file_falls_back(monkeypatch, tmp_path):
+    from app.ai import quick
+
+    t = quick.load_table()
+    assert {e["name"] for e in t["entries"]} == {"前回", "アレルギー", "薬", "次回"}
+    bad = tmp_path / "q.json"
+    bad.write_text("{壊れている", encoding="utf-8")
+    monkeypatch.setattr(quick, "CONFIG", bad)
+    assert quick.pick_entry("アレルギーは？") is None  # 表が読めないときは全部 Claude へ
+    monkeypatch.setattr(quick, "CONFIG", tmp_path / "none.json")
+    assert quick.pick_entry("アレルギーは？") is None
+
+
 def test_questions_json_matches_interpreter():
     from app.voice.interpret import interpret
 
@@ -152,11 +221,11 @@ def test_three_answers_all_shown(client, db, hanako, appt, monkeypatch, tmp_path
     records = build_records(db, hanako)
     mouth = use_mouth(monkeypatch, tmp_path, ScriptedMouth())
     mouth.reply = json.dumps({"result": "found", "record": records[0].number})
-    assert post(client, appt, "アレルギーは？")["result"] == "found"
+    assert post(client, appt, Q_CLAUDE)["result"] == "found"
     mouth.reply = '{"result":"none"}'
-    assert post(client, appt, "アレルギーは？")["message"] == "記録がありません"
+    assert post(client, appt, Q_CLAUDE)["message"] == "記録がありません"
     mouth.reply = '{"result":"unclear"}'
-    assert post(client, appt, "アレルギーは？")["message"] == "もう一度お願いします"
+    assert post(client, appt, Q_CLAUDE)["message"] == "もう一度お願いします"
 
 
 BAD = [
@@ -182,7 +251,7 @@ BAD = [
 @pytest.mark.parametrize("reply", BAD)
 def test_bad_replies_never_reach_screen(client, appt, monkeypatch, tmp_path, reply):
     use_mouth(monkeypatch, tmp_path, ScriptedMouth(reply))
-    res = post(client, appt, "アレルギーは？")
+    res = post(client, appt, Q_CLAUDE)
     assert res["result"] == "retry" and res["message"] == "もう一度お願いします"
     assert "lines" not in res and "ref" not in res
     assert "抜歯" not in json.dumps(res, ensure_ascii=False) and "診断" not in json.dumps(res, ensure_ascii=False)
@@ -193,7 +262,7 @@ def test_other_patients_number_is_rejected(client, db, hanako, appt, monkeypatch
     n = build_records(db, other)[0].number  # 別の患者様の1番目の記録の番号
     assert n not in {r.number for r in build_records(db, hanako)}
     use_mouth(monkeypatch, tmp_path, ScriptedMouth(json.dumps({"result": "found", "record": n})))
-    res = post(client, appt, "アレルギーは？")
+    res = post(client, appt, Q_CLAUDE)
     assert res["result"] == "retry" and "lines" not in res
 
 
@@ -204,7 +273,7 @@ def test_fenced_json_is_accepted():
 def test_claude_text_is_never_shown(client, db, hanako, appt, monkeypatch, tmp_path):
     records = build_records(db, hanako)
     use_mouth(monkeypatch, tmp_path, ScriptedMouth(json.dumps({"result": "found", "record": records[0].number})))
-    res = post(client, appt, "アレルギーは？")
+    res = post(client, appt, Q_CLAUDE)
     assert set(res) == {"result", "title", "lines", "source", "part", "ref", "sends"}
     assert res["lines"] == records[0].lines
 
@@ -254,7 +323,7 @@ def test_unavailable_when_no_key(client, appt, monkeypatch, tmp_path):
             raise ClaudeUnavailable("鍵が無い")
 
     use_mouth(monkeypatch, tmp_path, NoKey())
-    res = post(client, appt, "アレルギーは？")
+    res = post(client, appt, Q_CLAUDE)
     assert res["result"] == "unavailable" and "使えません" in res["message"]
 
 
@@ -265,9 +334,9 @@ def test_network_error_shows_retry_without_details(client, appt, monkeypatch, tm
 
     monkeypatch.setenv("CHAIRSIDE_CLAUDE_KEY", "sk-test-secret-1")
     use_mouth(monkeypatch, tmp_path, Boom())
-    res = post(client, appt, "アレルギーは？")
+    res = post(client, appt, Q_CLAUDE)
     assert res["result"] == "retry" and "sk-test" not in json.dumps(res, ensure_ascii=False)
 
 
 def test_unknown_appointment_is_404(client):
-    assert client.post("/ai/ask", json={"text": "アレルギーは？", "appt": 999999}).status_code == 404
+    assert client.post("/ai/ask", json={"text": Q_CLAUDE, "appt": 999999}).status_code == 404
