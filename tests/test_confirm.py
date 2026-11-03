@@ -140,7 +140,7 @@ def test_later_keeps_audio_and_draft_and_marks_today(env):
     assert c.execute("SELECT status FROM drafts WHERE id = ?", (r["draft_id"],)).fetchone()[0] == "draft"  # 下書きのまま
     rows = api(env, "get", "/api/today")[1]["rows"]
     marked = [x for x in rows if x["mark"]]
-    assert [x["chart_no"] for x in marked] == ["0123"] and marked[0]["mark"] == "山本先生 追記必要"
+    assert [x["chart_no"] for x in marked] == ["0123"] and marked[0]["mark"] == "大川内先生 追記必要"
     d = items_of(env, r["draft_id"])
     assert api(env, "post", f"/api/drafts/{r['draft_id']}/confirm", json={"items": d["items"]})[0] == 200
     assert not [x for x in api(env, "get", "/api/today")[1]["rows"] if x["mark"]]  # 確定すると消える

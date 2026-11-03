@@ -38,6 +38,12 @@ SYSTEM = (
     '{"done":[{"text":"…","quote":"…"}],"explained":[],"next_plan":[],"future_plan":[],"future_policy":[]}'
 )
 
+JOIN = chr(10)  # 区切りの文字をつなぐ改行
+COMBINED_NOTE = (
+    "\nこの文は、1回の診療で何度かに分けて録音した話を、録音した順につないだものです。"
+    "同じ話が重なっているときは1つにまとめます。言い直した所は、後の言い方に従います。"
+)
+
 
 def _squash(s: str) -> str:
     """抜き出しの照合用。全角半角と空白・句読点の違いを無くす。"""
@@ -74,21 +80,43 @@ def parse_items(raw: str, transcript: str) -> dict:
     return out
 
 
-def organize(transcript: str, sens, gateway: Gateway) -> dict:
+def organize(transcript: str, sens, gateway: Gateway, combined: bool = False) -> dict:
     """話した文字を Claude に渡して5つに分ける。送るのは送信口だけ（伏字つき）。
     sens は sensitive_from_db(con) の結果（接続は別の処理に渡さないので、呼ぶ側で作る）。"""
-    reply = gateway.send(f"話した内容:\n{transcript}", sens, system=SYSTEM, max_tokens=4000, purpose="memo")
+    system = SYSTEM + COMBINED_NOTE if combined else SYSTEM
+    reply = gateway.send(f"話した内容:\n{transcript}", sens, system=system, max_tokens=4000, purpose="memo")
     return parse_items(reply.text, transcript)  # 名前を戻したあとの文字で、話した文字と照らす
 
 
-def make_draft(transcript: str, sens, gateway: Gateway, fix: bool = True):
+def make_draft(transcript: str, sens, gateway: Gateway, fix: bool = True, combined: bool = False):
     """下書きを作る。先に聞き違いを直し（fix=True）、直した文字を5つに分ける。
     抜き出しの確認は直した文字に対して行う。戻り値: (項目, 直した文字, 直した一覧)。
     fix=False は、人が直した文字（そのまま5つに分ける）。"""
     if not fix:
-        return organize(transcript, sens, gateway), transcript, []
+        return organize(transcript, sens, gateway, combined), transcript, []
     fixed, fixes = fixtalk.fix_transcript(transcript, sens, gateway)
-    return organize(fixed, sens, gateway), fixed, fixes
+    return organize(fixed, sens, gateway, combined), fixed, fixes
+
+
+def make_combined(texts, offs, sens, gateway: Gateway):
+    """診療回の区切りを録音した順につないで、1つの要約にする。聞き違いを直す段は必ず通す。
+    texts は区切りの文字、offs は人が直した区切り（直さない）。戻り値: (項目, つないだ直した文字, 直した一覧)。"""
+    if not any(offs):
+        fixed, fixes = fixtalk.fix_transcript(JOIN.join(texts), sens, gateway)
+    else:
+        parts, fixes, seen = [], [], set()
+        for t, off in zip(texts, offs):
+            if off:
+                parts.append(t)
+                continue
+            f, fx = fixtalk.fix_transcript(t, sens, gateway)
+            parts.append(f)
+            for x in fx:
+                if x["from"] not in seen:
+                    seen.add(x["from"])
+                    fixes.append(x)
+        fixed = JOIN.join(parts)
+    return organize(fixed, sens, gateway, combined=True), fixed, fixes
 
 
 def body_lines(items: dict) -> str:

@@ -53,7 +53,7 @@ def test_found_dims_surroundings_and_shows_tall_frame(server, browser):  # noqa:
     text = frame.inner_text()
     assert "ペニシリン" in text and "出どころ: 重要事項" in text
     box = frame.bounding_box()
-    assert box["height"] > box["width"] * 1.1, box  # 縦に長い大きな枠
+    assert box["width"] > 1600 and box["height"] > 700, box  # G07e: 空いている所いっぱいの大きな枠
     assert pg.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(27, 34, 43)"  # 周りが暗い
     assert not pg.locator('[data-part="important"]').is_visible()  # G14e: 答えは答えの場所に出す。重要事項を上に残さない
     assert pg.locator("main.body").is_hidden() or pg.locator("main.body").count() == 0

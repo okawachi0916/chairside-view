@@ -2,5 +2,6 @@
   "model": "claude-sonnet-5-5",
   "purposes": {
     "question": "claude-haiku-5-5"
-  }
+  },
+  "auto_summary": false
 }

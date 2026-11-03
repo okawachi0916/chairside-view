@@ -200,6 +200,8 @@ def _draft_html(d, p, v, rec, fix, back="/"):
     audio = ""
     if fix and rec and rec["audio_file"] and not done:
         audio = f"<audio controls src='/rec/{rec['id']}/audio' data-part='fix-audio'></audio>"
+    if d["combined"]:
+        fix = False  # まとめた要約は、区切りごとの文字から作る。ここでは文字を直して整理し直さない
     if fix and not done:
         left = (f"{audio}<textarea id='fix-text' class='fix-text'>{h(d['transcript'])}</textarea>"
                 "<button type='button' id='fix-reorg'>この文字で整理し直す</button>")
@@ -224,7 +226,7 @@ def _draft_html(d, p, v, rec, fix, back="/"):
         "<table class='rtab plan-table'><thead><tr><th>今の計画</th><th>新しい計画</th><th>操作</th></tr></thead>"
         "<tbody id='plan-rows'></tbody></table></section>"
         "<script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script>"
-        "<script src='/static/js/draft.js'></script></body></html>"
+        "<script src='/static/js/draft.js'></script><script src='/static/js/actions/look.js'></script></body></html>"
     )
 
 
