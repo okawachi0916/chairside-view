@@ -10,12 +10,19 @@
   }
 
   window.CVActive = window.CVActive || {};
-  window.CVActive[1] = function () { var r = rec(); return !!(r && r.active()); }; // 録音中・OK待ちは1回で動く
+  window.CVActive[1] = function () { var r = rec(); return !!(r && r.active()); }; // 録音中は1回で止まる
 
   CVActions.register("button1", function () {
     var r = rec();
     if (r) r.press();
     else say("録音は /app から開いたときに使えます");
+  });
+
+  // 「下書きを開いて」。右下の窓に「下書きができました」と出ているときだけ開く
+  CVActions.register("draft-open", function () {
+    var r = rec();
+    if (r && r.openDraft()) return;
+    say("開ける下書きはありません");
   });
 
   var style = document.createElement("style");

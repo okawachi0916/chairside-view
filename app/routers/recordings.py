@@ -254,7 +254,6 @@ def parent_app():
         "<link rel='stylesheet' href='/static/css/mock.css'><link rel='stylesheet' href='/static/css/rec.css'></head><body class='rec-parent'>"
         "<iframe id='inner' title='画面' src='/'></iframe>"
         "<div id='band' data-part='key-band' hidden><span data-band-text></span><span data-band-left></span></div>"
-        "<div id='rec-win' data-part='rec-window' hidden><span class='dot'></span><span class='msg'></span>"
-        "<button type='button' class='ok' hidden>OK</button></div>"
+        "<div id='rec-win' data-part='rec-window' hidden><span class='dot'></span><span class='msg'></span></div>"
         "<script src='/static/js/voice_keys.js'></script><script src='/static/js/rec.js'></script></body></html>",
         headers=NO_STORE)

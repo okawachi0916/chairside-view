@@ -72,10 +72,10 @@ def wait_db(pred, sec=15):
     raise AssertionError(f"待っても揃わない: {[(r['state'], r['error']) for r in rec_rows()]}")
 
 
-def open_app(browser, server, okwait=None):  # noqa: F811
+def open_app(browser, server):  # noqa: F811
     ctx = browser.new_context(viewport={"width": 1920, "height": 1030}, permissions=["microphone"])
     pg = ctx.new_page()
-    pg.goto(f"http://127.0.0.1:{server}/app" + (f"?okwait={okwait}" if okwait else ""))
+    pg.goto(f"http://127.0.0.1:{server}/app")
     pg.wait_for_function("document.body.dataset.rec === 'idle'")
     pg.wait_for_function("document.getElementById('inner').contentDocument.querySelector('[data-part=appointment-list]')")
     return pg
@@ -104,8 +104,8 @@ def start_rec(pg):
 
 
 def stop_rec(pg):
-    press(pg, F6, 1)  # 録音中は1回で止まる
-    pg.wait_for_function("document.body.dataset.rec === 'okwait'")
+    press(pg, F6, 1)  # 録音中は1回で止まる。止めたあとは何も押さなくてよい
+    pg.wait_for_function("document.body.dataset.rec === 'idle'")
 
 
 UNIT = lambda chart: f"/unit?appt={appt_of(chart)}&role=doctor&typed=1&hide=1"  # noqa: E731
@@ -157,12 +157,11 @@ def test_patientless_recording_survives_screen_changes_and_features_work(server,
 
     time.sleep(0.8)
     stop_rec(pg)
-    assert pg.is_visible("#rec-win .ok") and "録音が終わりました" in pg.inner_text("#rec-win")
+    assert pg.locator("#rec-win .ok").count() == 0 and "録音が終わりました" not in pg.inner_text("body")  # OK の段は無い
+    pg.wait_for_function("document.getElementById('rec-win').textContent.includes('転送待ちにしました')")  # 患者様なしは転送待ち
     rows = wait_db(lambda r: r and r[0]["state"] == "転送待ち" and r[0]["transcript"])
     assert rows[0]["patient_id"] is None and rows[0]["duration_sec"] > 0.5  # 声の指示の間は長さに入らない
     assert rows[0]["audio_file"]
-    pg.click("#rec-win .ok")  # 患者様なしは OK で転送待ち
-    pg.wait_for_function("document.getElementById('rec-win').textContent.includes('転送待ちにしました')")
     pg.wait_for_function("document.getElementById('rec-win').textContent.includes('転送待ち 1件')", timeout=9000)
 
     # 窓を押すと一覧が開き、患者様と診療回を選ぶと、その診療回の下書きになる
@@ -200,8 +199,7 @@ def test_fixed_recording_blocks_next_patient_until_stopped(server, browser):  # 
     assert "/unit" in pg.evaluate("document.getElementById('inner').contentWindow.location.pathname")
     time.sleep(0.8)
     stop_rec(pg)
-    press(pg, F6, 1)  # OK は REC を1回押しても受け付ける
-    pg.wait_for_function("document.getElementById('rec-win').textContent.includes('転送しました')")
+    pg.wait_for_function("document.getElementById('rec-win').textContent.match(/下書きにしています|下書きができました/)")
     # 文字起こしと整理は裏で進む。止めずに次の患者様へ進める
     f = inner(pg)
     f.click("[data-action=change-patient]")
@@ -217,20 +215,72 @@ def test_fixed_recording_blocks_next_patient_until_stopped(server, browser):  # 
     pg.context.close()
 
 
-def test_without_ok_it_becomes_waiting_after_the_time(server, browser):  # noqa: F811
-    pg = open_app(browser, server, okwait=2)  # 試験のため30秒を2秒にしてある
+def summary_items(pg):
+    return inner(pg).locator('[data-part="spoken-summary"] li').all_inner_texts()
+
+
+def test_stop_makes_draft_by_itself_and_column_changes(server, browser):  # noqa: F811
+    pg = open_app(browser, server)
+    go(pg, UNIT("0123"), "[data-part=important]")
+    before = summary_items(pg)
+    assert any("側方加圧" in t for t in before)  # 録音の下書きが無いときは見本の文
+    start_rec(pg)
+    time.sleep(0.8)
+    stop_rec(pg)
+    # 何も押さずに、転送 → 文字起こし → 整理 → 下書き。窓に出て、欄が読み直し無しで変わる
+    pg.wait_for_function("document.getElementById('rec-win').textContent.includes('下書きができました')", timeout=15000)
+    assert pg.locator("#rec-win .ok").count() == 0
+    pg.wait_for_function("document.querySelector('#inner').contentDocument.querySelector('[data-part=spoken-summary]').innerText.includes('根管充填')")
+    now = summary_items(pg)
+    assert "右下6番の根管充填" in now[0] and not any("側方加圧" in t for t in now)  # 一番新しい下書きが先頭、見本は出ない
+    assert "根管充填をしました" in inner(pg).evaluate("document.querySelector('template[data-fs=spoken-summary]').innerHTML")
+    # 窓を押すと下書きの画面が開く
+    pg.locator("#rec-win").click()
+    pg.wait_for_function("((d) => !!(d && d.body && d.body.dataset.page === 'draft'))(document.getElementById('inner').contentDocument)")
+    pg.context.close()
+
+
+def test_voice_opens_the_draft(server, browser):  # noqa: F811
+    pg = open_app(browser, server)
+    go(pg, UNIT("0123"), "[data-part=important]")
+    f = inner(pg)
+    f.evaluate("window.cvTyped('下書きを開いて')")
+    pg.wait_for_function("document.getElementById('inner').contentDocument.getElementById('heard').textContent.includes('開ける下書きはありません')")
+    start_rec(pg)
+    time.sleep(0.8)
+    stop_rec(pg)
+    pg.wait_for_function("document.getElementById('rec-win').textContent.includes('下書きができました')", timeout=15000)
+    inner(pg).evaluate("window.cvTyped('下書きを開いて')")
+    pg.wait_for_function("((d) => !!(d && d.body && d.body.dataset.page === 'draft'))(document.getElementById('inner').contentDocument)")
+    assert pg.evaluate("document.body.dataset.draftReady") == ""
+    pg.context.close()
+
+
+def test_new_draft_while_hidden_shows_after_restore(server, browser):  # noqa: F811
+    pg = open_app(browser, server)
     go(pg, UNIT("0123"), "[data-part=important]")
     start_rec(pg)
     time.sleep(0.8)
     stop_rec(pg)
-    pg.wait_for_function("document.body.dataset.rec === 'idle'", timeout=6000)
-    pg.wait_for_function("document.getElementById('rec-win').textContent.includes('転送待ち 1件')", timeout=6000)
-    assert pg.is_hidden("#rec-win .ok")
-    time.sleep(1.5)
-    rows = rec_rows()
-    assert rows[0]["state"] == "転送待ち" and rows[0]["patient_id"]  # 患者様は固定のまま、下書きにはならない
-    c = connect()
-    assert c.execute("SELECT COUNT(*) FROM drafts WHERE recording_id IS NOT NULL").fetchone()[0] == 0
+    f = inner(pg)  # 隠したままでも、下書きの内容は隠した画面に出ない
+    f.evaluate("CVActions.run('hide-toggle')")
+    pg.wait_for_function("document.getElementById('rec-win').textContent.includes('下書きができました')", timeout=15000)
+    time.sleep(0.5)
+    assert "根管充填" not in inner(pg).inner_text("body")
+    f.evaluate("CVActions.run('hide-toggle')")
+    pg.wait_for_function("document.querySelector('#inner').contentDocument.querySelector('[data-part=spoken-summary]').innerText.includes('右下6番の根管充填')")
+    pg.context.close()
+
+
+def test_patientless_recording_stays_waiting_without_ok(server, browser):  # noqa: F811
+    pg = open_app(browser, server)
+    start_rec(pg)
+    time.sleep(0.8)
+    stop_rec(pg)
+    pg.wait_for_function("document.getElementById('rec-win').textContent.includes('転送待ち 1件')", timeout=9000)
+    time.sleep(1.0)
+    assert rec_rows()[0]["state"] == "転送待ち"
+    assert connect().execute("SELECT COUNT(*) FROM drafts WHERE recording_id IS NOT NULL").fetchone()[0] == 0
     pg.context.close()
 
 
@@ -241,7 +291,6 @@ def test_failure_screen_and_retry(server, browser):  # noqa: F811
     start_rec(pg)
     time.sleep(0.8)
     stop_rec(pg)
-    press(pg, F6, 1)
     wait_db(lambda r: r and r[0]["state"] == "失敗")
     pg.evaluate("document.getElementById('inner').src = '/recordings'")
     pg.wait_for_function("((d) => !!(d && d.querySelector(\"tr[data-state='失敗']\")))(document.getElementById('inner').contentDocument)")

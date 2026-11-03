@@ -50,6 +50,7 @@
     while (r.firstChild) r.removeChild(r.firstChild);
     r.appendChild(h.frag);
     h.scrolls.forEach(function (s) { s[0].scrollTop = s[1]; });
+    if (window.cv && window.cv.restored) window.cv.restored();
   }
 
   // ---- 全画面 (重要事項・口腔内写真・話した内容の整理) ----

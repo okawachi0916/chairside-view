@@ -17,9 +17,8 @@ body.rec-parent { display: block; padding: 0; background: var(--c-ink); }
 #rec-win[data-mode=paused] .dot { background: var(--c-warn); }
 #rec-win[data-mode=waiting] { cursor: pointer; border-color: var(--c-warn); }
 #rec-win[data-mode=waiting] .dot { background: var(--c-warn); }
-#rec-win .ok { font-family: inherit; font-size: var(--fs-3); font-weight: var(--fw-bold); padding: var(--sp-1) var(--sp-5);
-  border: 2px solid var(--c-doctor); border-radius: var(--r-s); background: var(--c-doctor); color: var(--c-surface); cursor: pointer; }
-#rec-win .ok[hidden] { display: none; }
+#rec-win[data-mode=ready] { cursor: pointer; border-color: var(--c-doctor); }
+#rec-win[data-mode=ready] .dot { background: var(--c-doctor); }
 @keyframes recblink { 50% { opacity: 0.2; } }
 
 /* 録音の一覧と下書きの画面 */
