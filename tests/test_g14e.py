@@ -250,8 +250,9 @@ def test_slow_second_press_is_not_a_combo(real_keys_unit):
     pg = real_keys_unit
     mouse_open(pg, "important")
     keydown(pg, CFG["button1"])
+    pg.evaluate("window.dispatchEvent(new KeyboardEvent('keyup', {code: 'F6', bubbles: true}))")  # 離した
     pg.wait_for_timeout(CFG["combo_ms"] + 150)
-    keydown(pg, CFG["button2"])  # 300ミリ秒より後: 同時押しではない
+    keydown(pg, CFG["button2"])  # 離してから300ミリ秒より後: 同時押しではない
     pg.wait_for_timeout(500)
     assert pg.locator(".fs-panel").count() == 1
     assert not pg.evaluate("document.body.dataset.combo")
