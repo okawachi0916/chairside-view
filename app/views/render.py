@@ -93,7 +93,39 @@ def intraoral(d, cols, cols_class):
 
 def spoken(d, cols):
     li = "".join(f"<li>{h(x)}</li>" for x in d["summary"])
-    return card("spoken-summary", "話した内容の整理", f'<ul class="summary">{li}</ul>', cols, actions=FULL)
+    todo = sum(1 for x in d["segments"] if x["state"] == "文字起こし済み")
+    note = f'<p class="seg-note">録音の区切り {todo} 件（まだ要約していません）</p>' if todo else ""
+    return card("spoken-summary", "話した内容の整理", f'<ul class="summary">{li}</ul>{note}', cols, actions=FULL)
+
+
+def _seg_rows(d):
+    """全画面の右の列。区切りを録音した順に。区切りごとに要約と消すのボタン。"""
+    appt = d["appt"]["id"]
+    rows = []
+    for i, x in enumerate(d["segments"], 1):
+        if x["deleted"]:
+            rows.append(
+                f'<div class="seg seg-gone" data-seg-id="{x["id"]}" data-undo="{x["undo_left"]:.1f}">'
+                f'<span>区切り {i} を消しました</span> '
+                f'<button type="button" data-seg="undelete" data-id="{x["id"]}">元に戻す</button></div>')
+            continue
+        working = x["state"] in ("文字起こし中", "整理中")
+        btns = ""
+        if x["state"] in ("文字起こし済み", "失敗", "後で直す") and x["text"]:
+            btns += f'<button type="button" data-seg="summarize" data-id="{x["id"]}">この区切りを要約</button>'
+        if x["state"] == "下書き" and x["draft_id"]:
+            btns += f'<button type="button" data-seg="open" data-draft="{x["draft_id"]}">要約を見て記録する</button>'
+        if not working and x["state"] != "録音中":
+            btns += f'<button type="button" class="seg-del" data-seg="delete" data-id="{x["id"]}">この区切りを消す</button>'
+        lines = "".join(f"<li>{h(t)}</li>" for t in x["lines"])
+        summ = f'<ul class="seg-sum">{lines}</ul>' if lines else ""
+        err = f'<p class="seg-err">{h(x["error"])}</p>' if x["error"] and x["state"] in ("失敗", "文字起こし済み", "後で直す") else ""
+        rows.append(
+            f'<div class="seg" data-seg-id="{x["id"]}" data-state="{h(x["state"])}"'
+            f'{" data-working=1" if working else ""}>'
+            f'<div class="seg-head"><b>区切り {i}</b> <span>{h(x["time"])} 録音</span> <em>{h(x["label"])}</em></div>'
+            f'<p class="seg-text">{h(x["text"])}</p>{summ}{err}<div class="seg-btns">{btns}</div></div>')
+    return "".join(rows), appt
 
 
 def fullscreen_templates(d):
@@ -122,10 +154,21 @@ def fullscreen_templates(d):
     )
     li = "".join(f"<li>{h(x)}</li>" for x in d["summary"])
     talk = h(d["transcript"])
+    seg_html, appt = _seg_rows(d)
+    live = [x for x in d["segments"] if not x["deleted"]]
+    can_combine = any(x["state"] in ("文字起こし済み", "下書き", "後で直す", "失敗") and x["text"] for x in live)
+    combine = (f'<button type="button" class="seg-combine" data-seg="combine" data-appt="{appt}">今日の分をまとめて要約</button>'
+               if can_combine else "")
+    open_c = (f'<button type="button" data-seg="open" data-draft="{d["combined_draft"]}">まとめた要約を見て記録する</button>'
+              if d.get("combined_draft") else "")
+    right = (f'<div class="fs-scroll seg-list" data-appt="{appt}">{seg_html}</div>' if live or seg_html
+             else f'<div class="fs-scroll"><p>{talk}</p></div>')
     spoken_t = (
-        '<template data-fs="spoken-summary" data-title="話した内容の整理"><div class="fs-cols">'
-        f'<div class="fs-col"><h3>要約</h3><div class="fs-scroll"><ul>{li}</ul></div></div>'
-        f'<div class="fs-col"><h3>話したままの文字</h3><div class="fs-scroll"><p>{talk}</p></div></div>'
+        '<template data-fs="spoken-summary" data-title="話した内容の整理"><div class="fs-cols" data-seg-root '
+        f'data-appt="{appt}">'
+        f'<div class="fs-col"><h3>要約</h3><div class="fs-scroll"><ul>{li}</ul></div>'
+        f'<div class="seg-total">{combine}{open_c}<span class="seg-msg" role="status"></span></div></div>'
+        f'<div class="fs-col"><h3>{"録音の区切り" if (live or seg_html) else "話したままの文字"}</h3>{right}</div>'
         "</div></template>"
     )
     return important_t + photos_t + spoken_t + _fs_medical(d) + (_fs_doctor(d) if d["role"] == "doctor" else _fs_perio(d))
@@ -502,7 +545,7 @@ def shell(kind, title):
         + ("<div id='band' data-part='key-band' hidden><span data-band-text></span><span data-band-left></span></div>"
            "<script src='/static/js/voice_keys.js'></script>" if kind == "unit" else "")
         + "<script src='/static/js/actions.js'></script>"
-        + ("<script src='/static/js/actions/voice.js'></script><script src='/static/js/actions/ai.js'></script><script src='/static/js/actions/rec.js'></script><script src='/static/js/actions/phone.js'></script><script src='/static/js/actions/perio.js'></script>"
+        + ("<script src='/static/js/actions/voice.js'></script><script src='/static/js/actions/ai.js'></script><script src='/static/js/actions/rec.js'></script><script src='/static/js/actions/phone.js'></script><script src='/static/js/actions/perio.js'></script><script src='/static/js/segments.js'></script>"
            if kind == "unit" else "")
         + "<script src='/static/js/view.js'></script></body></html>"
     )

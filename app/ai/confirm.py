@@ -71,9 +71,9 @@ def confirm(con, draft_id: int, items, plan=None) -> dict:
             raise RecError("その下書きが見つかりません", 404)
         if d["status"] != "draft":
             raise RecError("この下書きはもう確定しています", 409)
-        rec = con.execute("SELECT * FROM recordings WHERE draft_id = ? OR id = ?",
-                          (draft_id, d["recording_id"] or -1)).fetchone()
-        if rec and rec["state"] in recpipe.WORKING:
+        recs = con.execute("SELECT * FROM recordings WHERE draft_id = ? OR id = ?",
+                           (draft_id, d["recording_id"] or -1)).fetchall()  # まとめの要約は、区切りが何件も同じ下書きにつながる
+        if any(r["state"] in recpipe.WORKING for r in recs):
             raise RecError("整理の途中です。終わってから確定してください", 409)
         v = con.execute("SELECT * FROM visits WHERE id = ? AND patient_id = ?", (d["visit_id"], d["patient_id"])).fetchone()
         if not v:
@@ -107,16 +107,20 @@ def confirm(con, draft_id: int, items, plan=None) -> dict:
                     (pid, d["visit_id"], day, v["role"] or "doctor", body))
         con.execute("UPDATE drafts SET status = 'confirmed', confirmed_at = ?, items = ?, body = ? WHERE id = ?",
                     (now(), json.dumps(items, ensure_ascii=False), body, draft_id))
-        audio = None
-        if rec:
-            audio = rec["audio_file"]
+        audios = []
+        for rec in recs:
+            if rec["state"] == recpipe.DELETED:
+                continue
+            audios.append(rec["audio_file"])
             con.execute("UPDATE recordings SET state = ?, audio_file = '', updated_at = ? WHERE id = ?",
                         (recpipe.CONFIRMED, now(), rec["id"]))
         con.commit()
     except Exception:
         con.rollback()
         raise
-    if audio:  # 確定したら音声を消す
+    for audio in audios:  # 確定したら音声を消す
+        if not audio:
+            continue
         try:
             (audio_dir() / Path(audio).name).unlink()
         except OSError:
@@ -127,11 +131,11 @@ def confirm(con, draft_id: int, items, plan=None) -> dict:
 # ---- 追記が必要な患者様 ----
 
 def pending_rows(con, patient_id=None):
-    """確定していない診療メモ（下書き・失敗・後で直す）。録音から作ったものだけ。"""
+    """確定していない診療メモ（下書き・失敗・後で直す・要約していない区切り）。録音から作ったものだけ。"""
     sql = ("SELECT r.id AS rec_id, r.state, r.patient_id, r.visit_id, r.draft_id, p.chart_no, v.appointment_id "
            "FROM recordings r JOIN patients p ON p.id = r.patient_id LEFT JOIN visits v ON v.id = r.visit_id "
-           "WHERE r.state IN (?, ?, ?)")
-    args = [recpipe.DRAFT, recpipe.FAILED, recpipe.LATER]
+           "WHERE r.state IN (?, ?, ?, ?)")
+    args = [recpipe.DRAFT, recpipe.FAILED, recpipe.LATER, recpipe.SEGMENT]
     if patient_id:
         sql += " AND r.patient_id = ?"
         args.append(patient_id)

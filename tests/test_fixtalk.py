@@ -110,8 +110,18 @@ def test_fenced_json_and_empty_list_are_ok():
 
 
 def test_unsure_means_no_change(tmp_path):
+    plain = "今日は右下6番の形成をしました。次回は2週間後に印象をとります。"
+    text, done = fixtalk.fix_transcript(plain, SENS, gw(tmp_path, [])[0])
+    assert text == plain and done == []
+
+
+def test_known_mishearings_are_fixed_by_rule_even_if_claude_misses_them(tmp_path):
+    """G19b: Claude が直さなかった根幹重点・肺脳・次第蓄造・次第地駆動も、決まり（spellings）で直る。"""
     text, done = fixtalk.fix_transcript(REC1, SENS, gw(tmp_path, [])[0])
-    assert text == REC1 and done == []
+    assert text == "今日は右下6番の根管充填をしました。排膿があったので洗浄しました。次回は2週間後に支台築造をします。"
+    assert {d["by"] for d in done} == {"rule"}
+    text2, _ = fixtalk.fix_transcript("右下6番の次第地駆動の形成をしました。", SENS, gw(tmp_path, [])[0])
+    assert text2 == "右下6番の支台築造の形成をしました。"
 
 
 # ---- 書き方の統一（仮歯は TeC） ----
@@ -166,7 +176,7 @@ def test_untalked_treatment_is_not_added(tmp_path):
     # 直しの一覧で話していない治療を足そうとしても、from が話に無いので入らない
     sneaky = [{"from": "抜歯をしました", "to": "抜歯と投薬をしました"}]
     text, _ = fixtalk.fix_transcript(talk, SENS, gw(tmp_path, sneaky)[0])
-    assert text == talk
+    assert text == fixtalk.normalize_spellings(talk)[0]  # 決まりの直し（根幹重点→根管充填）以外は変わらない
 
 
 def test_human_fixed_text_is_not_auto_fixed(tmp_path):

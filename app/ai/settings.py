@@ -49,6 +49,17 @@ def load_model(purpose: str = "") -> str:
     return model
 
 
+def auto_summary() -> bool:
+    """録音を止めたあと、自動で要約まで進めるか。既定は false（文字起こしまで）。環境変数 CHAIRSIDE_AUTO_SUMMARY=1/0 が先。"""
+    env = os.environ.get("CHAIRSIDE_AUTO_SUMMARY", "").strip().lower()
+    if env:
+        return env in ("1", "true", "yes", "on")
+    try:
+        return json.loads(MODEL_JSON.read_text(encoding="utf-8")).get("auto_summary") is True
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
 def redact_key(text: str) -> str:
     """文字列の中に鍵があれば伏せる。ログや画面に出す前に通す。"""
     try:

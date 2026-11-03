@@ -8,6 +8,7 @@
       --model 名前    質問だけ別のモデルで試す（config は書き換えない）
   python scripts/real_api_check.py --memo      G17 の話6通りを本物の Claude で（聞き違いを直してから）5つに分け、期待と照らす
   python scripts/real_api_check.py --fix       聞き違いを直す段を、作り直した録音1・2の文字で確かめる（根管充填・排膿・支台築造・TeC）
+  python scripts/real_api_check.py --combine   G19b 診療回の区切り3つ（同じ話・言い直しを含む架空の話）を、まとめて1つの要約にする
 結果は docs/実API結果.md に追記する。鍵は出力にも記録にも出さない。
 """
 import argparse
@@ -211,15 +212,74 @@ def run_fix() -> int:
     return 0 if ok_all else 1
 
 
+SEGMENTS = [
+    "見本 花子さんの診療です。今日は右下6番の根幹重点をしました。",
+    "右下6番の根幹重点を行いました。肺脳があったので洗浄しました。次回は二週間後に形成をします。",
+    "さっきの次回の予定は言い直します。次回は三週間後に次第蓄造をします。仮歯はTEKを入れる予定です。",
+]
+
+
+def run_combine() -> int:
+    """区切り3つをつないで1つの要約にする。同じ話は1つ・言い直しは後の言い方・聞き違いは直る・名前は送らない、を確かめる。"""
+    import os
+    import tempfile
+
+    tmp = tempfile.mkdtemp(prefix="cv_combine_")
+    os.environ["CV_DATA_DIR"] = tmp
+    subprocess.run([sys.executable, str(ROOT / "scripts" / "seed.py")], check=True, capture_output=True,
+                   env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+    from app.ai import memo
+    from app.ai.gateway import Gateway, sensitive_from_db
+    from app.db import connect
+
+    con = connect()
+    gw = Gateway(log_dir=Path(tmp) / "sent_log")
+    NL = chr(10)
+    try:
+        items, fixed, fixes = memo.make_combined(SEGMENTS, [False] * 3, sensitive_from_db(con), gw)
+    except ClaudeUnavailable as e:
+        print(e)
+        return 2
+    body = memo.body_lines(items)
+    bad = [w for w in ("根幹重点", "肺脳", "次第蓄造", "次第地駆動", "TEK") if w in fixed or w in body]
+    bad += [f"項目に無い: {w}" for w in ("根管充填", "排膿", "支台築造", "TeC") if w not in body]
+    if sum("根管充填" in r["text"] for r in items["done"]) != 1:
+        bad.append("同じ話（根管充填）が1つにまとまっていない")
+    plans = " ".join(r["text"] for r in items["next_plan"] + items["future_plan"])
+    if not any(w in plans for w in ("三週間", "3週間")) or any(w in plans for w in ("二週間", "2週間")):
+        bad.append("言い直しの後の言い方（三週間後）になっていない")
+    sent = "".join(p.read_text(encoding="utf-8") for p in (Path(tmp) / "sent_log").glob("*.jsonl"))
+    left = [w for w in ("見本", "花子", "ハナコ") if w in sent]
+    if left:
+        bad.append("送った文に名前が残っています: " + "、".join(left))
+    print("合格" if not bad else "不合格", bad)
+    print(body)
+    sample = json.loads(sent.splitlines()[0])["user"][:200] if sent else ""
+    with RESULT_MD.open("a", encoding="utf-8") as f:
+        f.write(
+            f"{NL}## {datetime.now():%Y-%m-%d %H:%M} G19b 今日の分をまとめて要約（区切り3つ）{NL}"
+            f"- コミット: {commit_id()}{NL}- モデル: {load_model()}{NL}"
+            f"- 入力（伏字後の送信文の先頭）: {sample}{NL}"
+            f"- 送った文に名前が残っていない: {'はい' if not left else 'いいえ'}{NL}"
+            f"- 直し: {', '.join(f['from'] + '→' + f['to'] for f in fixes) or 'なし'}{NL}"
+            f"- 要約: {body.replace(NL, ' / ')}{NL}"
+            f"- 判定: {'全部合格' if not bad else '不合格 ' + '; '.join(bad)}{NL}"
+        )
+    return 0 if not bad else 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-write", action="store_true")
     ap.add_argument("--questions", action="store_true")
     ap.add_argument("--memo", action="store_true")
     ap.add_argument("--fix", action="store_true")
+    ap.add_argument("--combine", action="store_true")
     ap.add_argument("--claude-only", action="store_true", help="--questions で、表を使わず全部 Claude に聞く")
     ap.add_argument("--model", default="", help="--questions で、質問だけこのモデルで試す")
     args = ap.parse_args()
+    if args.combine:
+        return run_combine()
     if args.fix:
         return run_fix()
     if args.memo:

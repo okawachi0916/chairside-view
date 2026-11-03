@@ -137,7 +137,10 @@
         fetch("/api/recordings/" + j.id, { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (s) {
           if (s.state === "文字起こし中" || s.state === "整理中" || s.state === "転送待ち") return;
           jobs = jobs.filter(function (x) { return x.id !== j.id; });
-          if (s.state === "下書き" && s.draft_id) {
+          if (s.state === "文字起こし済み") {
+            toast("録音を区切りとして残しました", 3000);
+            refreshInner(j.appt);
+          } else if (s.state === "下書き" && s.draft_id) {
             ready = { id: j.id, draftId: s.draft_id, appt: j.appt, origin: j.origin };
             refreshInner(j.appt);
           } else {

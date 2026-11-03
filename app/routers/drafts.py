@@ -177,7 +177,7 @@ def api_today():
             rows.append({"id": a["id"], "time": f"{a['start_time']}〜{a['end_time']}", "chart_no": a["chart_no"],
                          "name": a["name"], "treatment": a["treatment"], "role": a["role"], "state": state,
                          "mark": DOCTOR_MARK if a["id"] in pend else "",
-                         "memo_href": _memo_href(pend[a["id"]][0]) if a["id"] in pend else ""})
+                         "memo_href": _memo_href(min(pend[a["id"]], key=lambda m: not m["draft_id"])) if a["id"] in pend else ""})
         return _json({"rows": rows})
     finally:
         con.close()
