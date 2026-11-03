@@ -152,4 +152,9 @@ def main(stdin=None) -> int:
 
 
 if __name__ == "__main__":
+    for stream in (sys.stdin, sys.stderr):  # 日本語の文字化けを防ぐ（環境の文字コードに頼らない）
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
     sys.exit(main())
