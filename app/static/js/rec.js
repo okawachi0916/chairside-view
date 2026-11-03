@@ -78,12 +78,21 @@
     } catch (e) { return "/"; }
   }
 
+  // いま中の画面で選んでいる役割（9番で切り替える）。分からなければ空で、サーバーが診療回の担当にする
+  function currentRole() {
+    try {
+      var c = inner.contentWindow.document.body.className || "";
+      return /role-hygienist/.test(c) ? "hygienist" : /role-doctor/.test(c) ? "doctor" : "";
+    } catch (e) { return ""; }
+  }
+
   function start() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return toast("この接続ではマイクを使えません");
     var appt = context(); // 押した瞬間の画面で固定する
+    var role = currentRole();
     var from = origin();
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
-      return post("/rec/start", { appt: appt }).then(function (r) {
+      return post("/rec/start", { appt: appt, role: role }).then(function (r) {
         var recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
         cur = { id: r.id, fixed: r.patient_id != null, appt: appt, origin: from, recorder: recorder, stream: stream, chunks: [], activeMs: 0, last: Date.now() };
         recorder.ondataavailable = function (e) { if (e.data.size) cur.chunks.push(e.data); };

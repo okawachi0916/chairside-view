@@ -75,14 +75,37 @@ def visit_for(con, appt_id: int):
     return a["patient_id"], cur.lastrowid
 
 
-def start(con, appt_id=None) -> dict:
+ROLES = ("doctor", "hygienist")
+
+
+def today_str() -> str:
+    """区切りの「今日」。録音の時刻と同じ、パソコンの日付。"""
+    return datetime.now().date().isoformat()
+
+
+def role_of(con, rec) -> str:
+    """区切りの役割。残っていなければ診療回の担当、それも決められなければ歯科医師。"""
+    if rec["role"] in ROLES:
+        return rec["role"]
+    if rec["visit_id"]:
+        v = con.execute("SELECT role FROM visits WHERE id = ?", (rec["visit_id"],)).fetchone()
+        if v and v["role"] in ROLES:
+            return v["role"]
+    return "doctor"
+
+
+def date_of(rec) -> str:
+    return (rec["started_at"] or "")[:10]
+
+
+def start(con, appt_id=None, role="") -> dict:
     pid = vid = None
     if appt_id:
         pid, vid = visit_for(con, int(appt_id))
     n = con.execute("SELECT COALESCE(MAX(rec_no), 0) + 1 FROM recordings").fetchone()[0]
     cur = con.execute(
-        "INSERT INTO recordings (rec_no, started_at, patient_id, visit_id, state, updated_at) "
-        "VALUES (?, ?, ?, ?, ?, ?)", (n, now(), pid, vid, RECORDING, now()))
+        "INSERT INTO recordings (rec_no, started_at, patient_id, visit_id, state, updated_at, role) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)", (n, now(), pid, vid, RECORDING, now(), role if role in ROLES else ""))
     con.commit()
     return get(con, cur.lastrowid)
 
@@ -387,12 +410,18 @@ def segments_of_visit(con, visit_id: int):
         "SELECT * FROM recordings WHERE visit_id = ? AND state != ? ORDER BY rec_no, id", (visit_id, DELETED))]
 
 
-def combine(con, appt_id: int) -> dict:
-    """その診療回の区切りを、録音した順に全部つないで1つの要約にする。前の区切りごとの要約は置き換える。"""
+def combine(con, appt_id: int, role: str = "") -> dict:
+    """その診療回の、今日の・今の役割の区切りだけを、録音した順につないで1つの要約にする。
+    前の日の区切り・もう一方の役割の区切りは入れない。まとめる区切りの前の要約は置き換える。"""
     v = con.execute("SELECT v.id FROM visits v WHERE v.appointment_id = ?", (appt_id,)).fetchone()
     if not v:
         raise RecError("その診療回が見つかりません", 404)
     segs = segments_of_visit(con, v["id"])
+    if role not in ROLES:  # 画面が役割を渡さないときは、診療回の担当
+        vr = con.execute("SELECT role FROM visits WHERE id = ?", (v["id"],)).fetchone()
+        role = vr["role"] if vr and vr["role"] in ROLES else "doctor"
+    today = today_str()
+    segs = [x for x in segs if date_of(x) == today and role_of(con, x) == role]
     if any(x["state"] in WORKING or x["state"] == RECORDING for x in segs):
         raise RecError("録音か文字起こしの途中の区切りがあります。終わってからお試しください", 409)
     use = [x for x in segs if x["state"] in (SEGMENT, DRAFT, LATER, FAILED) and x["transcript"]]

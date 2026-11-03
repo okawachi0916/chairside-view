@@ -27,15 +27,16 @@ def _run(fn):
 
 class ApptBody(BaseModel):
     appt: int
+    role: str = ""
 
 
 @router.get("/api/segments")
-def api_segments(appt: int):
+def api_segments(appt: int, role: str = ""):
     def go(con):
         recpipe.recover_stale(con)
         v = con.execute("SELECT id FROM visits WHERE appointment_id = ?", (appt,)).fetchone()
         vid = v["id"] if v else None
-        return {"segments": segview.list_for_visit(con, vid), "combined_draft": segview.combined_draft(con, vid)}
+        return {"segments": segview.list_for_visit(con, vid), "combined_draft": segview.combined_draft(con, vid, role or None)}
     return _run(go)
 
 
@@ -46,7 +47,7 @@ def rec_summarize(rec_id: int):
 
 @router.post("/rec/combine")
 def rec_combine(body: ApptBody):
-    return _run(lambda con: recpipe.combine(con, body.appt))
+    return _run(lambda con: recpipe.combine(con, body.appt, body.role))
 
 
 @router.post("/rec/{rec_id}/delete")

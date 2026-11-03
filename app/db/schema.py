@@ -255,6 +255,7 @@ TABLES = {
             ("fix_off", "INTEGER", "0", True),  # 1=人が直した文字なので、聞き違いの自動の直しをしない
             ("deleted_at", "TEXT", None, False),  # 「この区切りを消す」を押した時刻。数秒だけ元に戻せる。そのあと音声と文字を消す
             ("prev_state", "TEXT", "''", True),  # 消す前の状態（元に戻すとき）
+            ("role", "TEXT", "''", True),  # 録音したときの役割（doctor / hygienist）。空なら診療回の担当
         ],
         "extra": [_PATIENT_FK, _VISIT_FK],
     },

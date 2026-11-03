@@ -4,7 +4,9 @@ from datetime import datetime
 
 from app.ai import recpipe
 
+ROLE_NAME = {"doctor": "歯科医師", "hygienist": "歯科衛生士"}
 LABEL = {
+    recpipe.CONFIRMED: "確定",
     recpipe.SEGMENT: "まだ要約していません",
     recpipe.TRANSCRIBING: "文字にしています…",
     recpipe.ORGANIZING: "要約しています…",
@@ -52,18 +54,51 @@ def list_for_visit(con, visit_id):
             "id": r["id"], "rec_no": r["rec_no"], "time": _hm(r["started_at"]), "state": r["state"],
             "label": LABEL.get(r["state"], r["state"]), "text": r["transcript"], "lines": lines,
             "error": r["error"], "draft_id": r["draft_id"], "deleted": deleted,
+            "date": recpipe.date_of(r), "role": role_of_row(con, r), "can_delete": r["state"] != recpipe.CONFIRMED,
             "undo_left": undo_left(r["deleted_at"]) if deleted else 0,
         })
     return out
 
 
-def combined_draft(con, visit_id):
-    """この診療回の、まとめた要約（確定前）。無ければ None。"""
+def role_of_row(con, r):
+    return recpipe.role_of(con, r)
+
+
+def combined_draft(con, visit_id, role=None):
+    """この診療回の、今日の（role があればその役割の）まとめた要約（確定前）。無ければ None。"""
     if not visit_id:
         return None
-    r = con.execute("SELECT id FROM drafts WHERE visit_id = ? AND combined = 1 AND status = 'draft' ORDER BY id DESC",
-                    (visit_id,)).fetchone()
-    return r["id"] if r else None
+    today = recpipe.today_str()
+    best = None
+    for r in con.execute("SELECT * FROM recordings WHERE visit_id = ? AND state = ? AND draft_id IS NOT NULL",
+                         (visit_id, recpipe.DRAFT)):
+        if recpipe.date_of(r) != today or (role and recpipe.role_of(con, r) != role):
+            continue
+        d = con.execute("SELECT id FROM drafts WHERE id = ? AND combined = 1 AND status = 'draft'",
+                        (r["draft_id"],)).fetchone()
+        if d and (best is None or d["id"] > best):
+            best = d["id"]
+    return best
+
+
+def groups(segments, cur_role, today=None):
+    """日付 × 役割の組に分ける。新しい日付が上。同じ日では今の役割が上。戻り値: [{date, role, is_today, items}]"""
+    today = today or recpipe.today_str()
+    out = {}
+    for x in segments:
+        out.setdefault((x["date"], x["role"]), []).append(x)
+    keys = sorted(out, key=lambda k: (k[0], k[1] == cur_role), reverse=True)
+    return [{"date": d, "role": r, "is_today": d == today, "items": out[(d, r)]} for d, r in keys]
+
+
+def date_label(date, today=None):
+    today = today or recpipe.today_str()
+    try:
+        y, m, d = (int(x) for x in date.split("-"))
+        text = f"{m}月{d}日"
+    except ValueError:
+        text = date or "日付なし"
+    return f"{text}（今日）" if date == today else text
 
 
 def to_json(segments):

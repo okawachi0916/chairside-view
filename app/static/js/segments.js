@@ -24,17 +24,17 @@
   }
 
   // 文字にしている・要約している区切りがある間は、読み直して進みを見せる。まとめの要約ができたら下書きの画面へ
-  function watch(appt, openWhenDone) {
+  function watch(appt, openWhenDone, role) {
     clearTimeout(timer);
     timer = setTimeout(function () {
-      fetch("/api/segments?appt=" + appt, { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {
+      fetch("/api/segments?appt=" + appt + (role ? "&role=" + role : ""), { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {
         var segs = d.segments || [];
         var busy = segs.some(function (s) { return s.state === "文字起こし中" || s.state === "整理中"; });
-        if (busy) return watch(appt, openWhenDone);
+        if (busy) return watch(appt, openWhenDone, role);
         reload(appt);
         if (openWhenDone && d.combined_draft) openDraft(d.combined_draft);
         else if (openWhenDone) say(((segs.filter(function (s) { return s.error; })[0] || {}).error) || "要約できませんでした");
-      }).catch(function () { watch(appt, openWhenDone); });
+      }).catch(function () { watch(appt, openWhenDone, role); });
     }, 700);
   }
 
@@ -57,7 +57,7 @@
         .catch(function (x) { b.disabled = false; say(x.message); });
     } else if (act === "combine") {
       say("今日の分をまとめて要約しています…");
-      post("/rec/combine", { appt: Number(appt) }).then(function () { watch(appt, true); })
+      post("/rec/combine", { appt: Number(appt), role: b.dataset.role || "" }).then(function () { watch(appt, true, b.dataset.role); })
         .catch(function (x) { b.disabled = false; say(x.message); });
     } else if (act === "delete") {
       post("/rec/" + b.dataset.id + "/delete").then(function () { reload(appt); })
