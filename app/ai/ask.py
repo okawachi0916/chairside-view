@@ -8,7 +8,7 @@ import json
 import re
 
 from app.ai.gateway import Gateway, sensitive_from_db
-from app.ai.quick import quick_record
+from app.ai.quick import pick_entry, pick_record
 from app.ai.records import build_records
 from app.ai.redact import RedactionFailed
 from app.ai.settings import ClaudeUnavailable
@@ -69,12 +69,19 @@ def answer(text: str, con, patient_id: int, gateway: Gateway, quick: bool = True
     if heard["kind"] != QUESTION:
         return {"result": "skip", "kind": heard["kind"], "message": MSG_RETRY, "sends": 0}
     records = build_records(con, patient_id)
+    if quick:
+        entry = pick_entry(text)  # よく聞く質問は、記録から直接出す（Claude へ送らない）
+        if entry:
+            rec = pick_record(entry, records)
+            if rec:
+                return found(rec, 0)
+            # 記録が空でも、何も出ないことが無いようにする（アレルギー・薬は「なし」と書くよう促す）。
+            # ただし、ほかの記録の中にその言葉が出てくるときは、決めつけずに Claude に聞く
+            whole = "".join(r.prompt for r in records)
+            if entry.get("empty") and not any(t in whole for t in entry["triggers"]):
+                return {"result": "none", "message": entry["empty"], "sends": 0}
     if not records:
         return {"result": "none", "message": MSG_NONE, "sends": 0}
-    if quick:
-        rec = quick_record(text, records)  # よく聞く質問は、記録から直接出す（Claude へ送らない）
-        if rec:
-            return found(rec, 0)
     sens = sensitive_from_db(con)
     try:
         reply = gateway.send(build_prompt(records, text), sens, system=SYSTEM, max_tokens=1500, purpose="question")

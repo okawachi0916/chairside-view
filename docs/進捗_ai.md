@@ -1,5 +1,4 @@
 # 進捗 ai（AI 担当）
-
 ## 動く版
 - 送信口 app/ai/gateway.py と伏字 app/ai/redact.py（直接 Claude を呼ぶのはここだけ）。モデルは config/model.json（目的ごとは purposes）。質問は Haiku、下書きは Sonnet
 - 質問: POST /ai/ask（app/ai/ask.py）。前回・アレルギー・薬・次回は表（config/quick_answers.json）で直接、ほかは Claude が記録の番号を選ぶだけ。結果は docs/モデルの選び方.md
@@ -18,7 +17,8 @@
 - G19b: 録音を止めたら文字起こしまで（区切り＝状態「文字起こし済み」。auto_summary は config/model.json、既定 false）。話した内容の整理の全画面に区切りを順に並べ、「この区切りを要約」「今日の分をまとめて要約」（recpipe.combine、memo.make_combined：直す段を通して、同じ話は1つ・言い直しは後）「この区切りを消す」（5秒だけ元に戻せる）。API は app/routers/segments.py、画面は render.py の _seg_rows と static/js/segments.js。まとめた下書きは drafts.combined=1（区切りが同じ下書きにつながる）。根幹重点などは spellings の決まりで必ず直る
 - G19c: 区切りは日付 × 役割で分けて並べる（segview.groups、見出しは render の _seg_rows）。recordings.role は録音を始めた画面の役割（rec.js が渡す）、空なら診療回の担当→歯科医師。「今日の分をまとめて要約」は今日（パソコンの日付）・今の役割の区切りだけ。確定した区切りには消すボタンを出さない。見本データに前の日の確定済み区切りあり（花子様の歯科医師の診療回）
 - G19d: 聞き違いの直しは {from,to,from_yomi,to_yomi}（fixtalk.same_reading。読みが違う・無い直しは捨てる）。readings（dental_terms.json）の決まりが Claude より先（副髄→覆髄など）。terms は80語まで。同じ項目は memo.parse_items が1つにする
-- 試験: 全体 616 件（偽物の口）。送信文・伏字・応答・モデルを変えたら real_api_check.py の --questions、--memo、--fix、--combine を動かし直す
+- G19e: 要約・下書きの見出しは「2026年11月6日にやったこと」（memo.title_of。「今日」と書かない）。アレルギー・薬・前回・次回は、記録が空でも quick_answers.json の empty の言葉を出す（ほかの記録にその言葉があれば Claude へ）。見本は3人目に「アレルギー: 特になし」、K は空。聞き違いに 全身起用・今前病変・陰霊 を足した（terms 66語）
+- 試験: 全体 (件数は下)（偽物の口）。送信文・伏字・応答・モデルを変えたら real_api_check.py の --questions、--memo、--fix、--combine を動かし直す
 
 ## 残り
 - 録音は /app から開いたときだけ使える。実機のマイクでの通しは院長の確認待ち（試験は偽物のマイク）

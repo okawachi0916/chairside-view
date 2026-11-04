@@ -186,12 +186,26 @@ def test_mixed_questions_go_to_claude(client, appt, monkeypatch, tmp_path, text)
     assert len(mouth.sent) == 1 and res["sends"] == 1
 
 
-def test_quick_miss_goes_to_claude_when_no_record(db, tmp_path):
-    """アレルギーの記録が無い患者様は、表では答えず Claude に回す（記録が無いと決めつけない）。"""
+def test_quick_miss_gives_the_empty_message_when_no_record(db, tmp_path):
+    """G19e: アレルギーの記録が無く、ほかの記録にもその言葉が無い患者様は、Claude に聞かず「記録がありません」を出す。"""
     pid = next(r["id"] for r in db.execute("SELECT id FROM patients WHERE chart_no = '1024'"))
     assert not any("アレルギー" in "".join(r.lines) for r in build_records(db, pid) if r.part == "important")
     mouth = ScriptedMouth('{"result":"none"}')
     res = ask_mod.answer("アレルギーは？", db, pid, Gateway(mouth=mouth, log_dir=tmp_path / "log"))
+    assert res["result"] == "none" and "アレルギーの記録がありません" in res["message"] and not mouth.sent
+
+
+def test_quick_miss_goes_to_claude_when_another_record_mentions_it(db, tmp_path):
+    """重要事項に無くても、ほかの記録にアレルギーの言葉があるなら、記録が無いと決めつけず Claude に回す。"""
+    pid = next(r["id"] for r in db.execute("SELECT id FROM patients WHERE chart_no = '1024'"))
+    vid = db.execute("SELECT id FROM visits WHERE patient_id = ? LIMIT 1", (pid,)).fetchone()["id"]
+    db.execute("INSERT INTO clinical_notes (patient_id, visit_id, note_date, author_role, body) VALUES (?, ?, '2026-11-05', 'doctor', ?)",
+               (pid, vid, "麻酔のあとアレルギーの症状なし"))
+    try:
+        mouth = ScriptedMouth('{"result":"none"}')
+        res = ask_mod.answer("アレルギーは？", db, pid, Gateway(mouth=mouth, log_dir=tmp_path / "log"))
+    finally:
+        db.rollback()
     assert len(mouth.sent) == 1 and res["sends"] == 1
 
 
