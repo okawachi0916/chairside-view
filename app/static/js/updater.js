@@ -1,4 +1,4 @@
-// 新しい版が入ったら画面の下に横いっぱいの帯「新しい版があります　更新」を出す。勝手には読み直さず、押したときだけ読み直す。
+// 新しい版が入ったら画面の下に横いっぱいの帯「新しい版があります。更新するにはここをクリック」を出す。勝手には読み直さず、押したときだけ読み直す。
 // 同じブラウザの全部の画面（ほかのタブ）にも知らせる。録音・下書きの途中は、終わるまで待ってから読み直す。
 (function () {
   if (window.__cvUpdater) return;
@@ -75,7 +75,7 @@
       btn = document.createElement("button");
       btn.type = "button";
       btn.id = "cv-update";
-      btn.textContent = "新しい版があります　更新";
+      btn.textContent = "新しい版があります。更新するにはここをクリック";
       btn.addEventListener("click", function () {
         if (ch) { try { ch.postMessage({ v: info.v, time: info.time }); } catch (e) { /* 知らせられない */ } }
         apply(info);

@@ -79,7 +79,7 @@ def test_button_appears_only_for_new_version_and_reload_is_manual(server, browse
     with new_version():
         pg.wait_for_selector("#cv-update", state="visible", timeout=8000)
         b = pg.locator("#cv-update")
-        assert b.inner_text() == "新しい版があります　更新"
+        assert b.inner_text() == "新しい版があります。更新するにはここをクリック"
         box = b.bounding_box()  # 下いっぱいの帯。高さは最低限、字は本文より大きい
         assert box["x"] <= 1 and box["width"] >= 1900 and box["y"] + box["height"] >= 1029 and box["height"] <= 60
         assert float(b.evaluate("e => parseFloat(getComputedStyle(e).fontSize)")) > float(
