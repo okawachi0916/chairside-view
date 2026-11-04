@@ -54,7 +54,8 @@ def save_items(con, draft_id: int, items) -> dict:
         raise RecError("確定済みの下書きは直せません", 409)
     items = check_items(items)
     con.execute("UPDATE drafts SET items = ?, body = ? WHERE id = ? AND status = 'draft'",
-                (json.dumps(items, ensure_ascii=False), memo.body_lines(items), draft_id))
+                (json.dumps(items, ensure_ascii=False),
+                 memo.body_lines(items, recpipe.visit_day(con, d["visit_id"])), draft_id))
     con.commit()
     return {"saved": True}
 
@@ -102,7 +103,7 @@ def confirm(con, draft_id: int, items, plan=None) -> dict:
             seq += 1
             con.execute("INSERT INTO treatment_plans (patient_id, seq, kind, body) VALUES (?, ?, 'plan', ?)", (pid, seq, t))
 
-        body = memo.body_lines(items)
+        body = memo.body_lines(items, day)
         con.execute("INSERT INTO clinical_notes (patient_id, visit_id, note_date, author_role, body) VALUES (?, ?, ?, ?, ?)",
                     (pid, d["visit_id"], day, v["role"] or "doctor", body))
         con.execute("UPDATE drafts SET status = 'confirmed', confirmed_at = ?, items = ?, body = ? WHERE id = ?",

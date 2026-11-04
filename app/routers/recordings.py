@@ -186,14 +186,14 @@ def _draft_html(d, p, v, rec, fix, back="/"):
     done = d["status"] == "confirmed"
     dis = " disabled" if done else ""
     cols = ""
-    for key, title in memo.SECTIONS:
+    for key, _title in memo.SECTIONS:
         rows = items.get(key, [])
         body = "".join(
             f"<li class='row' data-quote='{h(r['quote'], quote=True)}'>"
             f"<input class='tx' type='text' value='{h(r['text'], quote=True)}'{dis}>"
             f"<button type='button' class='del'{dis}>消す</button>"
             f"<span class='qt'>もとの話: {h(r['quote'])}</span></li>" for r in rows)
-        cols += (f"<section class='draft-sec' data-section='{key}'><h3>{h(title)}</h3><ul>{body}</ul>"
+        cols += (f"<section class='draft-sec' data-section='{key}'><h3>{h(memo.title_of(key, v['visit_date']))}</h3><ul>{body}</ul>"
                  f"<button type='button' class='add'{dis}>＋ 行を足す</button></section>")
     mark = "確定済み（診療メモに入りました）" if done else "下書き まだ記録に入っていません"
     rec_id = rec["id"] if rec else ""
