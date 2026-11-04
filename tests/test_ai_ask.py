@@ -50,7 +50,7 @@ def hanako(db):
 
 @pytest.fixture(scope="module")
 def appt(db, hanako):
-    return db.execute("SELECT id FROM appointments WHERE patient_id = ? LIMIT 1", (hanako,)).fetchone()["id"]
+    return db.execute("SELECT id FROM appointments WHERE patient_id = ? AND appt_date = ? LIMIT 1", (hanako, "2026-11-06")).fetchone()["id"]
 
 
 @pytest.fixture
