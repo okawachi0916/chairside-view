@@ -1,7 +1,11 @@
 """架空の患者様5人の初期データ。番号は毎回同じになるよう、書いた順に1から振る。"""
-from datetime import date
+import re
+from datetime import date, timedelta
 
-TODAY = "2026-11-06"  # 今日の日付は固定
+from app.today import BASE, today
+
+TODAY = today()  # 今日はパソコンの日付（app/today.py。CV_TODAY で止められる）
+_ISO = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 UPPER = list(range(18, 10, -1)) + list(range(21, 29))
 LOWER = list(range(48, 40, -1)) + list(range(31, 39))
@@ -17,6 +21,12 @@ class _Rows(dict):
     """表ごとの行の一覧。id は表ごとに書いた順に 1 から振る。"""
 
     def add(self, table, **row):
+        # 見本の日付は 2026-11-06 を今日として書いてある。今日からの日数の差を保って、本当の今日に合わせる（生年月日は動かさない）
+        shift = (date.fromisoformat(TODAY) - date.fromisoformat(BASE)).days
+        if shift:
+            row = {k: ((date.fromisoformat(v) + timedelta(days=shift)).isoformat()
+                       if k != "birth_date" and isinstance(v, str) and _ISO.fullmatch(v) else v)
+                   for k, v in row.items()}
         rows = self.setdefault(table, [])
         row = {"id": len(rows) + 1, **row}
         rows.append(row)
@@ -100,18 +110,18 @@ def build() -> dict:
         r.add("cancellations", patient_id=pid, appointment_id=ca, cancel_date=d, no_show=0, reason=reason)
 
     # 今日の予約 (予約一覧の6行)
-    today_h_doc = appt(H, TODAY, "14:30", "15:30", "doctor", "RCT", 2, status="booked", detail="右下6番 根管充填",
+    today_h_doc = appt(H, BASE, "14:30", "15:30", "doctor", "RCT", 2, status="booked", detail="右下6番 根管充填",
                        sub="根管治療 3回目", recep="右下第一大臼歯 RCT", staff="大川内")
-    appt(I, TODAY, "14:30", "15:00", "hygienist", "SPT", 1, status="booked", recep="SPT", staff="佐藤")
-    appt(T, TODAY, "14:30", "15:00", "doctor", "義歯調整", 3, status="booked", recep="義歯調整", staff="大川内")
-    appt(K, TODAY, "15:00", "15:30", "doctor", "CR", 3, status="booked", recep="CR", staff="大川内")
-    today_h_hyg = appt(H, TODAY, "15:30", "16:00", "hygienist", "SPT", 2, status="booked", recep="SPT＋TBI",
+    appt(I, BASE, "14:30", "15:00", "hygienist", "SPT", 1, status="booked", recep="SPT", staff="佐藤")
+    appt(T, BASE, "14:30", "15:00", "doctor", "義歯調整", 3, status="booked", recep="義歯調整", staff="大川内")
+    appt(K, BASE, "15:00", "15:30", "doctor", "CR", 3, status="booked", recep="CR", staff="大川内")
+    today_h_hyg = appt(H, BASE, "15:30", "16:00", "hygienist", "SPT", 2, status="booked", recep="SPT＋TBI",
                        staff="佐藤")
-    appt(M, TODAY, "15:30", "16:00", "doctor", "インレー", 3, status="booked", recep="インレー", staff="大川内")
+    appt(M, BASE, "15:30", "16:00", "doctor", "インレー", 3, status="booked", recep="インレー", staff="大川内")
     # 花子の今日の診療回 (診察を始めると作られる) と、話した内容の下書き。下書きは確定するまで記録ではない。
-    tv_doc = r.add("visits", patient_id=H, appointment_id=today_h_doc, visit_date=TODAY, start_time="14:30",
+    tv_doc = r.add("visits", patient_id=H, appointment_id=today_h_doc, visit_date=BASE, start_time="14:30",
                    role="doctor", unit=2, status="open")
-    tv_hyg = r.add("visits", patient_id=H, appointment_id=today_h_hyg, visit_date=TODAY, start_time="15:30",
+    tv_hyg = r.add("visits", patient_id=H, appointment_id=today_h_hyg, visit_date=BASE, start_time="15:30",
                    role="hygienist", unit=2, status="open")
     r.add("drafts", patient_id=H, visit_id=tv_doc, kind="spoken_summary", status="draft",
           body="右下6番 根管充填、側方加圧\nデンタルで確認、問題なし\n次回 支台築造と形成、2週間後ごろ",
@@ -141,7 +151,7 @@ def build() -> dict:
         I: [("金属アレルギー（ニッケル）", "2015年", "装飾品で皮膚炎")],
         T: [("ワルファリン服用中", "2020年", "心房細動の治療で開始")],
         K: [("関節リウマチ 手に力が入りにくい", "2012年", "診断を受けた")],
-        M: [("ラテックスアレルギー", "2018年", "手袋で手がかゆくなった")],
+        M: [("ラテックスアレルギー", "2018年", "")],
     }.items():
         for i, (b, period, detail) in enumerate(items, 1):
             r.add("important_notes", patient_id=pid, seq=i, body=b, period=period, detail=detail)

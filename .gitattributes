@@ -1,2 +1,3 @@
 docs/制作記録.md merge=union
 docs/使った部品.md merge=union
+*.bat text eol=crlf

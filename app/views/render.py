@@ -200,6 +200,11 @@ def _fs_medical(d):
                 f"<tbody>{rows}</tbody></table></div>")
 
 
+def _treat_title(a):
+    """今日の診療回だけ「今日の処置」。過去・先の診療回は、その年月日で出す。"""
+    return "今日の処置" if a["appt_date"] == TODAY else f"{D.ja_date(a['appt_date'])}の処置"
+
+
 def _fs_doctor(d):
     """今日の処置・治療計画・治療方針・過去の診療メモを同時に広げる。治療歴は行を増やして遡る。"""
     a = d["appt"]
@@ -209,9 +214,9 @@ def _fs_doctor(d):
         f'<div class="fs-note"><b>{D.ja_date(n["note_date"])}{" 歯科衛生士" if n["author_role"] == "hygienist" else ""}</b> {h(n["body"])}</div>'
         for n in d["notes"]
     )
-    today = _tpl("today-treatment", "今日の処置",
+    today = _tpl("today-treatment", _treat_title(a),
                  '<div class="fs-cols"><div class="fs-col"><div class="fs-scroll">'
-                 f'<h3>今日の処置</h3><p class="fs-big-line">{h(a["detail"] or a["treatment"])}</p><p>{h(a["detail_sub"])}</p>'
+                 f'<h3>{_treat_title(a)}</h3><p class="fs-big-line">{h(a["detail"] or a["treatment"])}</p><p>{h(a["detail_sub"])}</p>'
                  f"<h3>治療計画</h3><ul>{plan}</ul><h3>治療方針</h3>{policy}</div></div>"
                  f'<div class="fs-col"><h3>過去の診療メモ</h3><div class="fs-scroll">{notes}</div></div></div>')
     rows = "".join(
@@ -289,7 +294,7 @@ def _doctor_today(d):
         '<h3 class="notes-h">過去の診療メモ</h3>'
         f'<div class="notes" data-part="past-notes">{notes}</div>'
     )
-    return card("today-treatment", "今日の処置", inner, 4, actions=FULL)
+    return card("today-treatment", _treat_title(a), inner, 4, actions=FULL)
 
 
 def _doctor_history(d):

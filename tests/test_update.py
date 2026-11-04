@@ -112,6 +112,7 @@ def test_press_in_one_tab_reloads_all_tabs_and_keeps_inner_screen(server, browse
     b.wait_for_function("document.getElementById('inner').contentWindow.document.querySelector('[data-part=\"intraoral-photos\"]')")
     with new_version():
         c.wait_for_selector("#cv-update", state="visible", timeout=8000)
+        b.wait_for_selector("#cv-update", state="attached", timeout=8000)  # 帯の出る早さは画面ごとに少しずれる
         assert b.locator("#cv-update").count() == 1  # 親の画面に1つだけ（中の画面には出ない）
         assert b.frame_locator("#inner").locator("#cv-update").count() == 0
         c.click("#cv-update")  # どこで押しても全部が新しくなる
