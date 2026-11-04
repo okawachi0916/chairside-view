@@ -22,6 +22,16 @@ class RedactionFailed(Exception):
         super().__init__(FAIL_MESSAGE)
 
 
+NAMES_UNREADABLE = "名前の一覧が読めないので Claude へ送れません"
+
+
+class NameListUnreadable(RedactionFailed):
+    """患者様・スタッフの名前の一覧が読めない。伏字にできないので、送らずに止める。"""
+
+    def __init__(self):
+        Exception.__init__(self, NAMES_UNREADABLE)
+
+
 @dataclass
 class Patient:
     name: str = ""

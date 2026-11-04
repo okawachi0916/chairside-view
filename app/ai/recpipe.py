@@ -17,9 +17,11 @@ from concurrent.futures import TimeoutError as FutureTimeout
 from datetime import datetime
 from pathlib import Path
 
+from app import errlog
 from app.ai import fake, fixtalk, memo
 from app.ai.polish_context import context_for
 from app.ai.gateway import sensitive_from_db
+from app.ai.redact import NAMES_UNREADABLE, NameListUnreadable
 from app.ai.settings import ClaudeUnavailable, redact_key
 from app.db import connect, data_dir
 
@@ -294,6 +296,8 @@ def _fail(con, rec_id, attempt, state, e):
         why = "時間切れ（もう一度お試しください）"
     elif isinstance(e, ClaudeUnavailable):
         why = "Claude が使えません（鍵が設定されていません）"
+    elif isinstance(e, NameListUnreadable):
+        why = NAMES_UNREADABLE
     else:
         why = redact_key(f"{type(e).__name__}: {str(e)[:80]}")
     cur = con.execute("UPDATE recordings SET state = ?, error = ?, updated_at = ? "
@@ -613,6 +617,16 @@ def _purge_later():
         con.close()
 
 
+def remove_audio(name, why):
+    """音声を消す。もう無いのは問題なし。消せなかったときは、消し漏れとして記録に残す。"""
+    try:
+        (audio_dir() / Path(name).name).unlink()
+    except FileNotFoundError:
+        pass
+    except OSError as e:
+        errlog.record("音声", f"{why}の音声を消せませんでした（{Path(name).name}）。残っています", e)
+
+
 def purge_deleted(con):
     """元に戻せる時間が過ぎた区切りの、音声・文字・その区切りの話が入った下書きを消す。"""
     rows = con.execute("SELECT * FROM recordings WHERE state = ? AND deleted_at IS NOT NULL", (DELETED,)).fetchall()
@@ -621,10 +635,7 @@ def purge_deleted(con):
         if age <= UNDO_SEC + UNDO_GRACE:
             continue
         if r["audio_file"]:
-            try:
-                (audio_dir() / Path(r["audio_file"]).name).unlink()
-            except OSError:
-                pass
+            remove_audio(r["audio_file"], "削除した区切り")
         d = r["draft_id"]
         if d:
             row = con.execute("SELECT status FROM drafts WHERE id = ?", (d,)).fetchone()

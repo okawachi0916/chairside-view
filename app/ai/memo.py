@@ -8,6 +8,7 @@ import json
 import re
 import unicodedata
 
+from app import errlog
 from app.ai.fixtalk import finish_text
 from app.ai.gateway import Gateway
 from app.ai.records import jp_date
@@ -71,8 +72,10 @@ def parse_items(raw: str, transcript: str) -> dict:
         obj = json.loads(s)
     except ValueError:
         raise ValueError("応答の形が違います") from None
-    if not isinstance(obj, dict) or set(obj) != set(KEYS):
-        raise ValueError("応答の形が違います")
+    if not isinstance(obj, dict) or not set(KEYS) <= set(obj):
+        raise ValueError("応答の形が違います")  # 5つの項目が足りないときだけ失敗にする
+    if set(obj) != set(KEYS):  # 余計な項目だけ無視する。捨てたことは記録に残す
+        errlog.record("要約", f"応答に余計な項目があったので無視しました: {sorted(set(obj) - set(KEYS))}")
     spoken = _squash(transcript)
     out = {}
     for k in KEYS:
@@ -81,8 +84,10 @@ def parse_items(raw: str, transcript: str) -> dict:
             raise ValueError("応答の形が違います")
         kept, seen = [], set()
         for r in rows:
-            if not isinstance(r, dict) or set(r) != {"text", "quote"} or not all(isinstance(r[x], str) for x in r):
+            if not isinstance(r, dict) or not {"text", "quote"} <= set(r) or not all(isinstance(r[x], str) for x in ("text", "quote")):
                 raise ValueError("応答の形が違います")
+            if set(r) != {"text", "quote"}:
+                errlog.record("要約", f"行に余計な項目があったので無視しました: {sorted(set(r) - {'text', 'quote'})}")
             q = _squash(r["quote"])
             if r["text"].strip() and q and q in spoken:  # 抜き出しが無い、話の中に無い行は出さない
                 text = finish_text(r["text"])

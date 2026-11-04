@@ -97,5 +97,8 @@
       if (rec) stop(); else start();
     },
   });
+  fetch("/voice/status").then((r) => r.json()).then((s) => {
+    $("engine").textContent = s.device + (s.fallback_reason ? "（GPU で読めず CPU に切り替えました: " + s.fallback_reason + "）" : "");
+  }).catch(() => { $("engine").textContent = "状況を読めません"; });
   checkDevices().catch(() => setMic("none", "マイクにつながっていません"));
 })();

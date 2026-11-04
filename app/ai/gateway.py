@@ -4,6 +4,7 @@
 対応表は send() の中だけで作る。同時に呼んでも混ざらない。
 """
 import json
+import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
@@ -11,7 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from app.ai.redact import RedactionFailed, Sensitive, Table, check_clean
+from app.ai.redact import NameListUnreadable, RedactionFailed, Sensitive, Table, check_clean
 from app.ai.settings import ClaudeUnavailable, load_key, load_model, redact_key
 from app.db import data_dir
 
@@ -96,14 +97,17 @@ def sensitive_from_db(con, clinics=None) -> Sensitive:
     """データベースの患者様とスタッフから、伏字にする一覧を作る。"""
     from app.ai.redact import Patient
 
-    patients = [
-        Patient(name=r["name"], kana=r["name_kana"], chart_no=r["chart_no"], birth_date=r["birth_date"])
-        for r in con.execute("SELECT name, name_kana, chart_no, birth_date FROM patients")
-    ]
-    staff = set()
-    for table in ("appointments", "treatment_plans"):
-        try:
-            staff |= {r[0] for r in con.execute(f"SELECT DISTINCT staff_name FROM {table} WHERE staff_name != ''")}
-        except Exception:  # noqa: BLE001  表の無い版でも動く
-            pass
+    try:
+        patients = [
+            Patient(name=r["name"], kana=r["name_kana"], chart_no=r["chart_no"], birth_date=r["birth_date"])
+            for r in con.execute("SELECT name, name_kana, chart_no, birth_date FROM patients")
+        ]
+        staff = set()
+        for table in ("appointments", "treatment_plans"):
+            # スタッフ名の列がない版の表は、読むものが無いだけ。列があるのに読めないときは、下の例外で止める
+            if any(c[1] == "staff_name" for c in con.execute(f"PRAGMA table_info({table})")):
+                staff |= {r[0] for r in con.execute(f"SELECT DISTINCT staff_name FROM {table} WHERE staff_name != ''")}
+    except Exception:  # noqa: BLE001  読めなかった理由は記録に残し、送らずに止める
+        logging.getLogger("chairside.ai").exception("名前の一覧を読めませんでした")
+        raise NameListUnreadable() from None
     return Sensitive(patients=patients, staff=sorted(staff), clinics=list(clinics or []))

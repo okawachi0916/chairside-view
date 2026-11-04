@@ -108,8 +108,7 @@ def test_lines_without_real_quote_are_dropped():
     assert [r["text"] for r in items["done"]] == ["根管充填。"]
 
 
-@pytest.mark.parametrize("raw", ["", "文章です", "[]", '{"done":[]}', '{"done":[],"explained":[],"next_plan":[],'
-                                 '"future_plan":[],"future_policy":[],"extra":[]}',
+@pytest.mark.parametrize("raw", ["", "文章です", "[]", '{"done":[]}',
                                  '{"done":"x","explained":[],"next_plan":[],"future_plan":[],"future_policy":[]}',
                                  '{"done":[{"text":"a"}],"explained":[],"next_plan":[],"future_plan":[],"future_policy":[]}'])
 def test_wrong_shape_is_rejected(raw):

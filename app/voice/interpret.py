@@ -66,6 +66,14 @@ def expand(word: str) -> list:
     return ["".join(c) for c in itertools.product(*choices)]
 
 
+def example(word: str) -> str:
+    """一覧に出す言い方を1つ作る。(あ|い|) は、空でない最初の選び方にする。{n1} などの欄がある言葉は、そのまま返す。"""
+    parts = re.split(_PART, word)
+    return "".join(
+        next((c for c in p[1:-1].split("|") if c), "") if p.startswith("(") else p for p in parts
+    )
+
+
 @functools.lru_cache(maxsize=None)
 def _pattern(word: str) -> re.Pattern:
     """言葉の書き方: {n1} は数字の欄、(あ|い|) はどれか1つ（空も可）。"""

@@ -186,9 +186,6 @@
   }
 
   // ---- 声と文字の言葉 ----
-  function norm(text) {       // 句読点・敬語（してください・お願いします）を落とした言葉
-    return (text || "").normalize("NFKC").replace(/[\s。、，．,.！!？?「」『』]/g, "").replace(/(してください|ください|下さい|お願いします|お願い致します|お願い)$/, function (m) { return m === "してください" ? "して" : ""; });
-  }
   var HINT = "ボタン2で番号を出して選べます";
 
   // ---- 番号の札（ほかの画面と同じ仕組み。numtags.js）----
@@ -250,23 +247,24 @@
   }
 
   function handle(text, shown) {
-    var n = norm(text);
     body.dataset.heard = text;
-    if (/^(カルテに記録(する|して)|確定(する|して))$/.test(n)) { armed = Date.now(); say("もう一度「記録」と言ってください"); return "armed"; }
-    if (/^(記録|確定)$/.test(n)) {
-      if (armed && Date.now() - armed < 20000) { armed = 0; doConfirm(); return "confirm"; }
-      say("先に「カルテに記録する」と言ってください");
-      return "need-first";
-    }
-    armed = 0;
-    if (/^(あとで|後で)直(す|して)$/.test(n)) { later(); return "later"; }
-    if (/^戻(して|って|る|す)$/.test(n)) { return leave(); }
-    // 番号だけの言葉は、ほかの画面と同じ表（/voice/interpret）で読む
-    return fetch("/voice/interpret", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: text, screen: "unit" }) })
+    // 言葉の読み取りは、ほかの画面と同じ表（config/commands.json）だけ。この画面の言葉は screen=draft の行
+    return fetch("/voice/interpret", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: text, screen: "draft" }) })
       .then(function (r) { return r.json(); })
       .then(function (res) {
+        var act = res.action;
+        if (act === "draft-arm") { armed = Date.now(); say("もう一度「記録」と言ってください"); return "armed"; }
+        if (act === "draft-confirm") {
+          if (armed && Date.now() - armed < 20000) { armed = 0; doConfirm(); return "confirm"; }
+          armed = 0;
+          say("先に「カルテに記録する」と言ってください");
+          return "need-first";
+        }
+        armed = 0;
+        if (act === "draft-later") { later(); return "later"; }
+        if (act === "draft-back") { return leave(); }
         var nums = res.numbers || (res.arg ? [res.arg] : []);
-        if (res.action === "part-number" && nums.length === 1) return callNumber(nums[0], shown, text);
+        if (act === "part-number" && nums.length === 1) return callNumber(nums[0], shown, text);
         say("「" + text + "」は使えません。" + HINT);
         return "ignored";
       })
@@ -275,10 +273,11 @@
   window.cvNumbers = function (on) { if (on) showNumbers(); else hideNumbers(); return document.querySelectorAll(".num-badge").length; };
   window.cvTyped = function (text) {
     var shown = takeNumbers();
-    if (confirmed) {      // 記録済みでも「戻して」は戻る
-      var n = norm(text);
-      if (/^戻(して|って|る|す)$/.test(n)) { goBack(); return "back"; }
-      return "ignored";
+    if (confirmed) {      // 記録済みでも「戻して」は戻る（言葉の読み取りは同じ表）
+      return fetch("/voice/interpret", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: text, screen: "draft" }) })
+        .then(function (r) { return r.json(); })
+        .then(function (res) { if (res.action === "draft-back") { goBack(); return "back"; } return "ignored"; })
+        .catch(function () { return "ignored"; });
     }
     return handle(text, shown);
   };

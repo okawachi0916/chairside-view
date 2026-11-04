@@ -38,7 +38,7 @@ def test_every_row_gives_its_result():
         for word in expand(r["言葉"]):
             word = _fill(word)
             for w in {word, word[:-2] + "する" if word.endswith("して") else word}:
-                res = interpret(w)
+                res = interpret(w, r["使える画面"][0])  # 行ごとに、その行の使える画面で試す（下書きの画面の行は draft）
                 assert res["kind"] == OP, w
                 if r["状態"] == "使える":
                     assert res["action"] == r["結果"]["action"], w
@@ -176,3 +176,27 @@ def test_reception_has_no_voice(server, browser):  # noqa: F811
     time.sleep(0.5)
     assert pg.evaluate("typeof window.cvTyped") == "undefined"
     assert pg.locator("#typed-box, #heard, #say-list-btn").count() == 0
+
+
+def test_draft_screen_words_come_from_the_table_only():
+    """G21k-6: 下書きの画面の言葉は commands.json の draft の行だけ。unit では動かない。"""
+    for w, act in [("カルテに記録する", "draft-arm"), ("確定して", "draft-arm"), ("記録", "draft-confirm"), ("確定", "draft-confirm"),
+                   ("後で直して", "draft-later"), ("あとで直す", "draft-later"), ("戻って", "draft-back"), ("戻して", "draft-back")]:
+        assert interpret(w, "draft")["action"] == act, w
+    assert interpret("カルテに記録する", "unit")["action"] is None
+    assert interpret("3番", "draft")["action"] == "part-number"
+    js = (__import__("pathlib").Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "draft.js").read_text(encoding="utf-8")
+    assert "カルテに記録(する|して)" not in js and "(あとで|後で)直" not in js  # 自分専用の言葉の書き方を持たない
+
+
+def test_voice_commands_list_has_no_duplicate_rows_and_shows_each_command_once():
+    import json
+    from pathlib import Path
+    rows = json.loads((Path(__file__).resolve().parents[1] / "config" / "commands.json").read_text(encoding="utf-8"))
+    seen = {}
+    for r in rows:
+        for s in r["使える画面"]:
+            for w in expand(r["言葉"]):
+                key = (s, w)
+                assert key not in seen or seen[key] == r["結果"], f"同じ言葉が2行にある: {w}"
+                seen.setdefault(key, r["結果"])

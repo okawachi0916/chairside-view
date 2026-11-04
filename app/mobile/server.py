@@ -8,7 +8,7 @@ import sqlite3
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 
-from app import versioning
+from app import errlog, versioning
 from app.db import TODAY, data_dir
 from app.mobile import links
 from app.views import photos as PH
@@ -55,18 +55,27 @@ def _is_image(raw: bytes) -> bool:
     return raw.startswith(MAGIC) or (raw[:4] == b"RIFF" and raw[8:12] == b"WEBP")
 
 
+class NotAnImage(Exception):
+    """送られたものが画像として読めない。保存の失敗とは分ける。"""
+
+
 def _store(raw: bytes, patient_id: int) -> str:
     """画像だと確かめて、向きを直し、撮影場所などの付属の情報を捨てて JPEG で保存する。ファイル名を返す。"""
     from PIL import Image, ImageOps
 
     cfg = links.config()
-    img = Image.open(io.BytesIO(raw))
-    if img.width * img.height > cfg["max_pixels"]:
-        raise ValueError("画像が大きすぎます")
-    img.load()
-    img = ImageOps.exif_transpose(img)
-    if img.mode not in ("RGB", "L"):
-        img = img.convert("RGB")
+    try:
+        img = Image.open(io.BytesIO(raw))
+        if img.width * img.height > cfg["max_pixels"]:
+            raise NotAnImage("画像が大きすぎます")
+        img.load()
+        img = ImageOps.exif_transpose(img)
+        if img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
+    except NotAnImage:
+        raise
+    except Exception as e:  # noqa: BLE001  開けない・読めない = 画像ではない
+        raise NotAnImage(str(e)) from None
     d = data_dir() / "photos"
     d.mkdir(parents=True, exist_ok=True)
     name = f"{patient_id}_{secrets.token_hex(8)}.jpg"
@@ -259,8 +268,11 @@ async def upload(token: str, request: Request):
             return _json({"error": "この画面で入れられる枚数は上限です。QRをもう一度出してください"}, 429)
         try:
             name = _store(raw, row["patient_id"])
-        except Exception:
+        except NotAnImage:
             return _json({"error": "写真（画像）だけ送れます"}, 415)
+        except Exception as e:  # noqa: BLE001  保存できない（ディスクがいっぱい・書き込めない など）。種類の違いとは別に返し、記録に残す
+            errlog.record("スマホの写真", "写真を保存できませんでした", e)
+            return _json({"error": "写真を保存できませんでした。もう一度送ってください"}, 500)
         for _ in range(5):
             try:
                 con.execute("BEGIN IMMEDIATE")

@@ -11,7 +11,7 @@ from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
 from app.ai.gateway import sensitive_from_db
-from app.ai.redact import RedactionFailed, Sensitive, Table
+from app.ai.redact import NameListUnreadable, RedactionFailed, Sensitive, Table
 from app.db import connect, data_dir
 
 router = APIRouter()
@@ -64,7 +64,7 @@ def sent_page(n: int = MAX_SHOWN):
             sens = sensitive_from_db(con)
         finally:
             con.close()
-    except sqlite3.Error:  # 記録の入れ物がまだ無くても、ログは見られる（ログは伏字のまま）
+    except (sqlite3.Error, NameListUnreadable):  # 記録の入れ物が無い・名前の一覧が読めないときも、ログは見られる（ログは伏字のまま。表示のときの伏字し直しだけ効かない）
         sens = Sensitive(patients=[], staff=[], clinics=[])
     table = Table(sens)
     entries = read_entries(max(1, min(n, 1000)))
