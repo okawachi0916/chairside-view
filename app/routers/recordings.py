@@ -32,6 +32,7 @@ def _run(fn):
 
 class StartBody(BaseModel):
     appt: int | None = None
+    role: str = ""
 
 
 class TransferBody(BaseModel):
@@ -45,7 +46,7 @@ class PasteBody(BaseModel):
 
 @router.post("/rec/start")
 def rec_start(body: StartBody):
-    return _run(lambda con: recpipe.start(con, body.appt))
+    return _run(lambda con: recpipe.start(con, body.appt, body.role))
 
 
 @router.post("/rec/{rec_id}/audio")
@@ -200,6 +201,8 @@ def _draft_html(d, p, v, rec, fix, back="/"):
     audio = ""
     if fix and rec and rec["audio_file"] and not done:
         audio = f"<audio controls src='/rec/{rec['id']}/audio' data-part='fix-audio'></audio>"
+    if d["combined"]:
+        fix = False  # まとめた要約は、区切りごとの文字から作る。ここでは文字を直して整理し直さない
     if fix and not done:
         left = (f"{audio}<textarea id='fix-text' class='fix-text'>{h(d['transcript'])}</textarea>"
                 "<button type='button' id='fix-reorg'>この文字で整理し直す</button>")

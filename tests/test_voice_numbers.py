@@ -97,6 +97,10 @@ def open_unit(browser, server, path=DOC):  # noqa: F811
     return pg
 
 
+def overlap(a, b):
+    return a["x"] < b["x"] + b["width"] and a["x"] + a["width"] > b["x"] and a["y"] < b["y"] + b["height"] and a["y"] + a["height"] > b["y"]
+
+
 def say(pg, word):
     pg.evaluate("w => window.cvTyped(w)", word)
 
@@ -126,11 +130,32 @@ def test_badges_doctor_over_fullscreen_buttons_and_big(server, browser):  # noqa
         sel = ("#say-list-btn" if key == "say-list" else '[data-action="change-role"]' if key == "change-role"
                else '[data-action="phone"]' if key == "phone" else f'[data-part="{key}"] [data-action="fullscreen"]')
         btn = pg.locator(sel).bounding_box()
-        assert abs((b["x"] + b["width"] / 2) - (btn["x"] + btn["width"] / 2)) <= 2, key
-        assert abs((b["y"] + b["height"] / 2) - (btn["y"] + btn["height"] / 2)) <= 2, key
+        # G14j: 札はボタンに重ならず、少し上（上の端からはみ出すときだけ少し下）に出る
+        assert not overlap(b, btn), key
+        above = b["y"] + b["height"] <= btn["y"]
+        if above:
+            assert btn["y"] - (b["y"] + b["height"]) <= 40, key
+        else:
+            assert 0 <= b["y"] - (btn["y"] + btn["height"]) <= 40, key  # 上に置けない（端・ほかのボタン）ときだけ下
+        assert b["y"] >= 0 and b["x"] >= 0, key
         assert b["width"] >= 70 and b["height"] >= 70, key
     size = pg.locator(".num-badge").first.evaluate("e => parseFloat(getComputedStyle(e).fontSize)")
     assert size >= 48
+    # 札どうし、札とほかのボタンも重ならない
+    boxes = [pg.locator(f'.num-badge[data-n="{n}"]').bounding_box() for n, _ in badges(pg)]
+    for i, a in enumerate(boxes):
+        for c in boxes[i + 1:]:
+            assert not overlap(a, c)
+    for sel in ['.topbar button', '[data-action="fullscreen"]', '[data-action="phone"]', '[data-action="change-role"]']:
+        for k in range(pg.locator(sel).count()):
+            e = pg.locator(sel).nth(k)
+            if not e.is_visible():
+                continue
+            bx = e.bounding_box()
+            assert not any(overlap(a, bx) for a in boxes), sel
+    # ボタンは明るいまま: 暗い幕にボタンの形の穴が開いている
+    clip = pg.locator("#num-dim").evaluate("e => e.style.clipPath")
+    assert "evenodd" in clip and clip.count("Z") == len(boxes) + 1
     pg.evaluate("window.cvNumbers(false)")
     assert badges(pg) == [] and pg.locator("#num-dim").count() == 0
 
@@ -552,8 +577,7 @@ def test_badge_9_sits_on_change_role_and_none_on_change_patient(server, browser)
     b = pg.locator('.num-badge[data-n="9"]')
     assert b.inner_text() == "9番"
     bb, btn = b.bounding_box(), pg.locator('[data-action="change-role"]').bounding_box()
-    assert abs((bb["x"] + bb["width"] / 2) - (btn["x"] + btn["width"] / 2)) <= 2
-    assert abs((bb["y"] + bb["height"] / 2) - (btn["y"] + btn["height"] / 2)) <= 2
+    assert not overlap(bb, btn) and abs(bb["x"] - btn["x"]) <= 200 and abs(bb["y"] - btn["y"]) <= 120  # G14j: ボタンのそばで、重ならない
     assert not any(k == "change-patient" for _, k in badges(pg))
     pg.close()
 
@@ -642,8 +666,7 @@ def test_badge_10_on_phone_button_bright_and_not_overlapping(server, browser):  
     b = pg.locator('.num-badge[data-n="10"]')
     assert b.inner_text() == "10番"
     bb, btn = b.bounding_box(), pg.locator('[data-action="phone"]').bounding_box()
-    assert abs((bb["x"] + bb["width"] / 2) - (btn["x"] + btn["width"] / 2)) <= 2
-    assert abs((bb["y"] + bb["height"] / 2) - (btn["y"] + btn["height"] / 2)) <= 2
+    assert not overlap(bb, btn) and abs(bb["x"] - btn["x"]) <= 200 and abs(bb["y"] - btn["y"]) <= 120  # G14j: ボタンのそばで、重ならない
     for n in range(1, 10):  # ほかの丸と重ならない
         o = pg.locator(f'.num-badge[data-n="{n}"]')
         if not o.count():

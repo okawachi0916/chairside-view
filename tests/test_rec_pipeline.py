@@ -83,8 +83,8 @@ def record(env, appt=None, audio=b"RIFFfake-webm"):
 
 # ---- 5つに分ける ----
 
-def test_states_are_the_eight():
-    assert recpipe.STATES == ["録音中", "転送待ち", "文字起こし中", "整理中", "失敗", "下書き", "確定", "後で直す"]
+def test_states_are_the_ten():
+    assert recpipe.STATES == ["録音中", "転送待ち", "文字起こし中", "整理中", "失敗", "下書き", "確定", "後で直す", "文字起こし済み", "消した"]
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda c: f"case{c['id']}")

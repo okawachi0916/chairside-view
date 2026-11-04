@@ -233,10 +233,11 @@ TABLES = {
             ("items", "TEXT", "'{}'", True),  # 5つの項目と抜き出し (JSON)
             ("fixed_transcript", "TEXT", "''", True),  # 聞き違いを直した文字。5つに分けるのはこちら（空なら直していない）
             ("fixes", "TEXT", "'[]'", True),  # 直した聞き違い [{"from","to","by"}]。画面で「元→直し」を見せる
+            ("combined", "INTEGER", "0", True),  # 1=診療回の区切りを全部まとめた要約（recording_id は最後の区切り）
         ],
         "extra": [_PATIENT_FK, _VISIT_FK],
     },
-    # 録音。患者様なしの録音は patient_id / visit_id が空。状態は日本語の8つ。
+    # 録音（診療回の「区切り」）。患者様なしの録音は patient_id / visit_id が空。状態は日本語の10個。
     "recordings": {
         "cols": [
             ("rec_no", "INTEGER", "0", True),  # 録音の番号 (開いた順)
@@ -252,6 +253,9 @@ TABLES = {
             ("draft_id", "INTEGER", None, False),
             ("updated_at", "TEXT", "''", True),
             ("fix_off", "INTEGER", "0", True),  # 1=人が直した文字なので、聞き違いの自動の直しをしない
+            ("deleted_at", "TEXT", None, False),  # 「この区切りを消す」を押した時刻。数秒だけ元に戻せる。そのあと音声と文字を消す
+            ("prev_state", "TEXT", "''", True),  # 消す前の状態（元に戻すとき）
+            ("role", "TEXT", "''", True),  # 録音したときの役割（doctor / hygienist）。空なら診療回の担当
         ],
         "extra": [_PATIENT_FK, _VISIT_FK],
     },

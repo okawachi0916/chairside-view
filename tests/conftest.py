@@ -16,3 +16,5 @@ def pytest_configure(config):
     os.environ["CV_MOBILE_PORT"] = "8861"
     # QR のアドレスは、試験では public_url.txt を読まず院内のアドレスにする（試験用のファイルは試験が指定する）
     os.environ.setdefault("CV_PUBLIC_URL_FILE", str(Path(tempfile.gettempdir()) / "cv_no_public_url.txt"))
+    # 既存の試験は「止めたら要約まで」を前提にしている。G19b の新しい試験だけ、既定（要約は自動で作らない）に戻して調べる
+    os.environ.setdefault("CHAIRSIDE_AUTO_SUMMARY", "1")
