@@ -410,9 +410,10 @@ SCREENS = ["important", "intraoral-photos", "spoken-summary", "answer", "say-lis
 def test_fullscreen_top_band_dark_with_examples_that_work(server, browser, name):  # noqa: F811
     pg = open_unit(browser, server)
     open_screen(pg, name)
-    assert pg.evaluate("window.cvNumbers(true)") == 0  # 全画面の中に丸の番号は付けない
+    # 全画面の中に丸の番号は付けない。ただし話した内容の整理は、見えているボタンに番号を付ける（G14l）
+    assert pg.evaluate("window.cvNumbers(true)") == (1 if name == "spoken-summary" else 0)
     band = pg.locator("#num-band")
-    assert band.count() == 1 and pg.locator("#num-dim").count() == 0  # 全体は暗くしない
+    assert band.count() == 1 and pg.locator("#num-dim").count() == (1 if name == "spoken-summary" else 0)  # 全体は暗くしない
     top = pg.locator(".topbar").bounding_box()
     b = band.bounding_box()
     assert b["y"] <= 1 and abs(b["height"] - top["height"]) <= 6 and b["width"] >= 1900  # 上の帯だけ

@@ -115,8 +115,9 @@ def unit_data(appt, role):
                        or _all(c, base + "ORDER BY d.id", pid, TODAY, role))
         d["summary"] = [x for dr in d["drafts"] for x in dr["body"].split("\n") if x]
         d["transcript"] = "\n".join(dr["transcript"] for dr in d["drafts"] if dr["transcript"])
-        vrow = c.execute("SELECT id FROM visits WHERE appointment_id = ?", (appt["id"],)).fetchone()
+        vrow = c.execute("SELECT id, visit_date FROM visits WHERE appointment_id = ?", (appt["id"],)).fetchone()
         d["segments"] = segview.list_for_visit(c, vrow["id"] if vrow else None)  # 録音の区切り（録音した順）
+        d["seg_today"] = vrow["visit_date"] if vrow else appt["appt_date"]
         d["combined_draft"] = segview.combined_draft(c, vrow["id"] if vrow else None, role)
         d["photo_rows"] = _all(c, "SELECT number, taken_on, file FROM photos WHERE patient_id = ? ORDER BY number", pid)
         d["interval"] = c.execute("SELECT months, last_date FROM maintenance_intervals WHERE patient_id = ?", (pid,)).fetchone()

@@ -40,8 +40,14 @@ def list_for_visit(con, visit_id):
         return []
     recpipe.purge_deleted(con)
     out = []
-    for r in con.execute("SELECT * FROM recordings WHERE visit_id = ? AND patient_id IS NOT NULL ORDER BY rec_no, id",
-                         (visit_id,)):
+    cur = con.execute("SELECT patient_id, visit_date, role FROM visits WHERE id = ?", (visit_id,)).fetchone()
+    if not cur:
+        return []
+    # この診療回の区切りと、同じ患者様の前の診療回（日付が前で、同じ担当の回）の区切り。日付はどちらも診療回の日付
+    for r in con.execute(
+            "SELECT r.*, v.visit_date AS vdate FROM recordings r JOIN visits v ON v.id = r.visit_id "
+            "WHERE r.patient_id = ? AND r.patient_id IS NOT NULL AND (r.visit_id = ? OR (v.visit_date < ? AND v.role = ?)) "
+            "ORDER BY v.visit_date, r.rec_no, r.id", (cur["patient_id"], visit_id, cur["visit_date"], cur["role"])):
         deleted = r["state"] == recpipe.DELETED
         if deleted and undo_left(r["deleted_at"]) <= 0:
             continue
@@ -54,7 +60,7 @@ def list_for_visit(con, visit_id):
             "id": r["id"], "rec_no": r["rec_no"], "time": _hm(r["started_at"]), "state": r["state"],
             "label": LABEL.get(r["state"], r["state"]), "text": r["transcript"], "lines": lines,
             "error": r["error"], "draft_id": r["draft_id"], "deleted": deleted,
-            "date": recpipe.date_of(r), "role": role_of_row(con, r), "can_delete": r["state"] != recpipe.CONFIRMED,
+            "date": r["vdate"], "current": r["visit_id"] == visit_id, "role": role_of_row(con, r), "can_delete": r["state"] != recpipe.CONFIRMED,
             "undo_left": undo_left(r["deleted_at"]) if deleted else 0,
         })
     return out
@@ -65,14 +71,13 @@ def role_of_row(con, r):
 
 
 def combined_draft(con, visit_id, role=None):
-    """この診療回の、今日の（role があればその役割の）まとめた要約（確定前）。無ければ None。"""
+    """この診療回の（role があればその役割の）まとめた要約（確定前）。無ければ None。"""
     if not visit_id:
         return None
-    today = recpipe.today_str()
     best = None
     for r in con.execute("SELECT * FROM recordings WHERE visit_id = ? AND state = ? AND draft_id IS NOT NULL",
                          (visit_id, recpipe.DRAFT)):
-        if recpipe.date_of(r) != today or (role and recpipe.role_of(con, r) != role):
+        if role and recpipe.role_of(con, r) != role:
             continue
         d = con.execute("SELECT id FROM drafts WHERE id = ? AND combined = 1 AND status = 'draft'",
                         (r["draft_id"],)).fetchone()
@@ -83,7 +88,6 @@ def combined_draft(con, visit_id, role=None):
 
 def groups(segments, cur_role, today=None):
     """日付 × 役割の組に分ける。新しい日付が上。同じ日では今の役割が上。戻り値: [{date, role, is_today, items}]"""
-    today = today or recpipe.today_str()
     out = {}
     for x in segments:
         out.setdefault((x["date"], x["role"]), []).append(x)
@@ -92,7 +96,7 @@ def groups(segments, cur_role, today=None):
 
 
 def date_label(date, today=None):
-    today = today or recpipe.today_str()
+    """today は、いま開いている診療回の日付（見本では 2026-11-06）。"""
     try:
         y, m, d = (int(x) for x in date.split("-"))
         text = f"{m}月{d}日"

@@ -419,7 +419,7 @@ def segments_of_visit(con, visit_id: int):
 
 
 def combine(con, appt_id: int, role: str = "") -> dict:
-    """その診療回の、今日の・今の役割の区切りだけを、録音した順につないで1つの要約にする。
+    """その診療回の、今の役割の区切りだけを、録音した順につないで1つの要約にする。
     前の日の区切り・もう一方の役割の区切りは入れない。まとめる区切りの前の要約は置き換える。"""
     v = con.execute("SELECT v.id FROM visits v WHERE v.appointment_id = ?", (appt_id,)).fetchone()
     if not v:
@@ -428,8 +428,7 @@ def combine(con, appt_id: int, role: str = "") -> dict:
     if role not in ROLES:  # 画面が役割を渡さないときは、診療回の担当
         vr = con.execute("SELECT role FROM visits WHERE id = ?", (v["id"],)).fetchone()
         role = vr["role"] if vr and vr["role"] in ROLES else "doctor"
-    today = today_str()
-    segs = [x for x in segs if date_of(x) == today and role_of(con, x) == role]
+    segs = [x for x in segs if role_of(con, x) == role]   # segments_of_visit は、この診療回の区切りだけ（日付は診療回の日付）
     if any(x["state"] in WORKING or x["state"] == RECORDING for x in segs):
         raise RecError("録音か文字起こしの途中の区切りがあります。終わってからお試しください", 409)
     use = [x for x in segs if x["state"] in (SEGMENT, DRAFT, LATER, FAILED) and x["transcript"]]
@@ -494,6 +493,9 @@ def _combine_job(use, marks):
             joined = "\n".join(x["transcript"] for x in use)
             for d in {x["draft_id"] for x in use if x["draft_id"]}:  # 前の区切りごとの要約・まとめの要約は置き換える（確定済みは触らない）
                 con.execute("DELETE FROM drafts WHERE id = ? AND status = 'draft'", (d,))
+                # 古い版が前の分まで1つにまとめていたとき、今回入らなかった区切りは「文字起こし済み」に戻す（消えた要約を指し続けない）
+                con.execute("UPDATE recordings SET state = ?, draft_id = NULL WHERE draft_id = ? AND state = ? AND id NOT IN (%s)"
+                            % q, [SEGMENT, d, DRAFT, *ids])
             c2 = con.execute(
                 "INSERT INTO drafts (patient_id, visit_id, kind, body, transcript, status, created_at, "
                 "recording_id, items, fixed_transcript, fixes, combined) VALUES (?, ?, 'spoken_summary', ?, ?, 'draft', ?, ?, ?, ?, ?, 1)",

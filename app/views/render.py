@@ -103,11 +103,11 @@ def _seg_rows(d):
     """全画面の右の列。区切りを録音した順に。区切りごとに要約と消すのボタン。"""
     appt = d["appt"]["id"]
     out = []
-    for g in segview.groups(d["segments"], d["role"]):
+    for g in segview.groups(d["segments"], d["role"], d["seg_today"]):
         who = segview.ROLE_NAME[g["role"]]
         out.append(f'<section class="seg-group" data-date="{h(g["date"])}" data-role="{g["role"]}"'
                    f'{" data-today=1" if g["is_today"] else ""}>'
-                   f'<h4 class="seg-day">{h(segview.date_label(g["date"]))} {who}</h4>{_seg_group(g)}</section>')
+                   f'<h4 class="seg-day">{h(segview.date_label(g["date"], d["seg_today"]))} {who}</h4>{_seg_group(g)}</section>')
     return "".join(out), appt
 
 
@@ -167,7 +167,7 @@ def fullscreen_templates(d):
     talk = h(d["transcript"])
     seg_html, appt = _seg_rows(d)
     live = [x for x in d["segments"] if not x["deleted"]]
-    mine = [x for x in live if x["role"] == d["role"] and x["date"] == segview.recpipe.today_str()]   # まとめるのは今日の・今の役割の分だけ
+    mine = [x for x in live if x["role"] == d["role"] and x["current"]]   # まとめるのは、この診療回の・今の役割の分だけ
     can_combine = any(x["state"] in ("文字起こし済み", "下書き", "後で直す", "失敗") and x["text"] for x in mine)
     combine = (f'<button type="button" class="seg-combine" data-seg="combine" data-appt="{appt}" data-role="{d["role"]}">'
                f'今日の分をまとめて要約</button>' if can_combine else "")
