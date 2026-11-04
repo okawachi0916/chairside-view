@@ -104,7 +104,7 @@ def photos(n, cols_class, part="photo-list"):
 
 def intraoral(cols, cols_class, n=12):
     return card(
-        "intraoral-photos", "口腔内写真", photos(n, cols_class), cols, actions=PHONE + FULL
+        "intraoral-photos", "写真", photos(n, cols_class), cols, actions=PHONE + FULL
     )
 
 

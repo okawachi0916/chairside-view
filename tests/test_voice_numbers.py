@@ -9,7 +9,7 @@ H_DOC = [r for r in D.today_list() if r["patient_id"] == 1][0]["id"]
 DOC = f"/unit?appt={H_DOC}&role=doctor&typed=1&hide=1"
 HYG = f"/unit?appt={H_DOC}&role=hygienist&typed=1&hide=1"
 
-PARTS = {"重要事項": "important", "口腔内写真": "intraoral-photos", "話した内容": "spoken-summary",
+PARTS = {"重要事項": "important", "口腔内写真": "intraoral-photos", "写真": "intraoral-photos", "話した内容": "spoken-summary",
          "全身既往": "medical-history", "今日の処置": "today-treatment", "治療歴": "treatment-history",
          "歯周基本検査": "perio-exam"}
 BACK = ["もとに戻す", "元に戻す", "もとに戻して", "元に戻して", "戻す", "戻して", "閉じて"]

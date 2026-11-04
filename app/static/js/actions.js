@@ -54,7 +54,7 @@
     if (window.cv && window.cv.restored) window.cv.restored();
   }
 
-  // ---- 全画面 (重要事項・口腔内写真・話した内容の整理) ----
+  // ---- 全画面 (重要事項・写真・話した内容の整理) ----
   function panel() { return root().querySelector(".fs-panel"); }
   function scrollers(p) { return p.querySelectorAll(".fs-scroll"); }
 
