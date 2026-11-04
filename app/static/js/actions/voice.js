@@ -270,18 +270,46 @@
     });
   }
   // 暗い幕。ボタンの所だけ穴を開けて、ボタンは明るいまま見せる
-  function dimWithHoles(items, z) {
-    var dim = document.createElement("div");
-    dim.id = "num-dim";
+  function holePath(items) {
     var W = window.innerWidth, H = window.innerHeight;
     var d = "M0 0H" + W + "V" + H + "H0Z";
     items.forEach(function (x) {
       var r = x.el.getBoundingClientRect();
       d += "M" + Math.round(r.left) + " " + Math.round(r.top) + "h" + Math.round(r.width) + "v" + Math.round(r.height) + "h-" + Math.round(r.width) + "Z";
     });
-    dim.style.clipPath = 'path(evenodd, "' + d + '")';
+    return 'path(evenodd, "' + d + '")';
+  }
+  function dimWithHoles(items, z) {
+    var dim = document.createElement("div");
+    dim.id = "num-dim";
+    dim.style.clipPath = holePath(items);
     if (z) dim.style.zIndex = z;
     document.body.appendChild(dim);
+  }
+  // ボタンが動いたら（上の段の印の出入り・窓の大きさ・全画面の出入り）、穴と札を今の位置に合わせ直す
+  var lit = null, litSig = "", litRaf = 0;
+  function sigOf(items) {
+    return window.innerWidth + "x" + window.innerHeight + ":" + items.map(function (x) {
+      var r = x.el.getBoundingClientRect();
+      return [r.left, r.top, r.width, r.height].map(Math.round).join(",");
+    }).join(";");
+  }
+  function relayout() {
+    if (!lit) return;
+    var dim = document.getElementById("num-dim");
+    if (dim) dim.style.clipPath = holePath(lit);
+    placeBadges(lit);
+    litSig = sigOf(lit);
+  }
+  function watchLayout() {
+    cancelAnimationFrame(litRaf);
+    if (!lit) return;
+    var tick = function () {
+      if (!lit) return;
+      if (sigOf(lit) !== litSig) relayout();
+      litRaf = requestAnimationFrame(tick);
+    };
+    litRaf = requestAnimationFrame(tick);
   }
   function addBadges(list, z) {
     var items = list.map(function (x) {
@@ -297,6 +325,9 @@
       return { el: x.el, badge: b };
     });
     placeBadges(items);
+    lit = items;
+    litSig = sigOf(items);
+    watchLayout();
   }
   function showNumbers() {
     hideNumbers();
@@ -338,6 +369,8 @@
     document.body.dataset.guide = "normal";
   }
   function hideNumbers() {
+    lit = null;
+    cancelAnimationFrame(litRaf);
     document.querySelectorAll("#num-dim, #num-band, #num-questions, .num-badge").forEach(function (e) { e.remove(); });
     delete document.body.dataset.numbers;
     delete document.body.dataset.guide;
