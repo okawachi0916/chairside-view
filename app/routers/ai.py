@@ -25,10 +25,10 @@ class Ask(BaseModel):
 def ask(body: Ask):
     con = connect()
     try:
-        row = con.execute("SELECT patient_id FROM appointments WHERE id = ?", (body.appt,)).fetchone()
+        row = con.execute("SELECT patient_id, appt_date FROM appointments WHERE id = ?", (body.appt,)).fetchone()
         if not row:
             raise HTTPException(404)
-        res = answer(body.text, con, row["patient_id"], make_gateway())
+        res = answer(body.text, con, row["patient_id"], make_gateway(), visit_date=row["appt_date"])
     finally:
         con.close()
     return JSONResponse(res, headers={"Cache-Control": "no-store"})

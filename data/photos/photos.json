@@ -1,53 +1,83 @@
 {
- "note": "架空の絵。患者様の中の番号 n の写真は、この一覧の ((n-1) 番目 mod 件数) 番目を使う。画像と file を書き換えれば差し替えられる。",
+ "note": "患者様の中の番号 n の写真は、この一覧の ((n-1) 番目 mod 件数) 番目を使う。画像と file を書き換えれば差し替えられる。診察券（受付の画面）は cards の2枚。",
  "photos": [
   {
-   "file": "photo01.png",
-   "title": "仮の写真 1（上顎 咬合面）"
+   "file": "photo01.jpg",
+   "title": "口の中 正面"
   },
   {
-   "file": "photo02.png",
-   "title": "仮の写真 2（下顎 咬合面）"
+   "file": "photo02.jpg",
+   "title": "口の中 右側"
   },
   {
-   "file": "photo03.png",
-   "title": "仮の写真 3（正面）"
+   "file": "photo03.jpg",
+   "title": "口の中 左側"
   },
   {
-   "file": "photo04.png",
-   "title": "仮の写真 4（右側）"
+   "file": "photo04.jpg",
+   "title": "口の中 上の歯"
   },
   {
-   "file": "photo05.png",
-   "title": "仮の写真 5（左側）"
+   "file": "photo05.jpg",
+   "title": "口の中 下の歯"
   },
   {
-   "file": "photo06.png",
-   "title": "仮の写真 6（上顎 前歯 唇側）"
+   "file": "photo06.jpg",
+   "title": "治療の工程 治療前"
   },
   {
-   "file": "photo07.png",
-   "title": "仮の写真 7（下顎 前歯 唇側）"
+   "file": "photo07.jpg",
+   "title": "治療の工程 インレーを外した"
   },
   {
-   "file": "photo08.png",
-   "title": "仮の写真 8（右上 臼歯）"
+   "file": "photo08.jpg",
+   "title": "治療の工程 むし歯を取った"
   },
   {
-   "file": "photo09.png",
-   "title": "仮の写真 9（左上 臼歯）"
+   "file": "photo09.jpg",
+   "title": "治療の工程 治療後"
   },
   {
-   "file": "photo10.png",
-   "title": "仮の写真 10（右下 臼歯）"
+   "file": "photo10.jpg",
+   "title": "抜けた歯"
   },
   {
-   "file": "photo11.png",
-   "title": "仮の写真 11（左下 臼歯）"
+   "file": "photo11.jpg",
+   "title": "割れた義歯"
   },
   {
-   "file": "photo12.png",
-   "title": "仮の写真 12（全顎 パノラマ風）"
+   "file": "photo12.jpg",
+   "title": "ペン型カメラ 右下6番"
+  },
+  {
+   "file": "photo13.jpg",
+   "title": "ペン型カメラ 6番の遠心"
+  },
+  {
+   "file": "photo14.jpg",
+   "title": "舌"
+  },
+  {
+   "file": "photo15.jpg",
+   "title": "レントゲン"
+  },
+  {
+   "file": "photo16.jpg",
+   "title": "頬の腫れ"
+  },
+  {
+   "file": "photo17.jpg",
+   "title": "唇の腫れ"
+  }
+ ],
+ "cards": [
+  {
+   "file": "card1.jpg",
+   "title": "診察券 裏面 1"
+  },
+  {
+   "file": "card2.jpg",
+   "title": "診察券 裏面 2"
   }
  ]
 }

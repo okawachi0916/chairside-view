@@ -63,7 +63,8 @@ def found(rec, sends: int) -> dict:
             "part": rec.part, "ref": rec.ref, "sends": sends}
 
 
-def answer(text: str, con, patient_id: int, gateway: Gateway, quick: bool = True) -> dict:
+def answer(text: str, con, patient_id: int, gateway: Gateway, quick: bool = True,
+           visit_date: str | None = None) -> dict:
     """戻り値の sends は Claude へ送った回数。quick=False は、表を使わず必ず Claude に聞く（確認用）。"""
     heard = interpret(text, "unit")
     if heard["kind"] != QUESTION:
@@ -72,7 +73,7 @@ def answer(text: str, con, patient_id: int, gateway: Gateway, quick: bool = True
     if quick:
         entry = pick_entry(text)  # よく聞く質問は、記録から直接出す（Claude へ送らない）
         if entry:
-            rec = pick_record(entry, records)
+            rec = pick_record(entry, records, visit_date)
             if rec:
                 return found(rec, 0)
             # 記録が空でも、何も出ないことが無いようにする（アレルギー・薬は「なし」と書くよう促す）。

@@ -52,7 +52,7 @@ def build_records(con, patient_id: int) -> list:
         add(f"note:{r['note_date']}", f"診療メモ（{who}）", "past-notes", [r["body"]],
             f"出どころ: {jp_date(r['note_date'])}の診療記録", r["note_date"])
 
-    for r in q("SELECT done_date, site, content FROM treatment_history WHERE patient_id=? ORDER BY done_date DESC"):
+    for r in q("SELECT done_date, site, content FROM treatment_history WHERE patient_id=? ORDER BY done_date DESC, id DESC"):
         if r["done_date"] in note_dates:
             continue
         add(f"history:{r['done_date']}", "治療歴", "treatment-history", [f"{r['site']} {r['content']}"],

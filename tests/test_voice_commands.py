@@ -65,7 +65,7 @@ def test_all_fullscreens_are_ready():
 def test_whole_sentence_only():
     assert interpret("重要事項を全画面にして")["kind"] == OP
     assert interpret("えっと重要事項を全画面にして")["action"] is None
-    assert interpret("重要事項を全画面にしてください")["action"] is None
+    assert interpret("重要事項を全画面にしてください")["action"] == "fs-open"  # G14l: 敬語でも同じ動き
     assert interpret("重要事項を")["action"] is None
 
 

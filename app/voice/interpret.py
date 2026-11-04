@@ -82,6 +82,39 @@ def _pattern(word: str) -> re.Pattern:
     return re.compile(rx)
 
 
+# 敬語・お願いの言い方。表の言葉は「して」「戻して」のような普通の言い方で書き、聞き取った言葉からていねいな部分を外して照合する
+_LEAD = re.compile(r"^(?:すみません|すいません|恐れ入りますが|申し訳ありませんが|ちょっと|少し|それでは|では|じゃあ|じゃ)+")
+_ASK = r"(?:お願い(?:します|いたします|致します|できますか|できますでしょうか|できませんか)|おねがい(?:します|いたします))"
+_TAIL_ASK = re.compile(r"(?:を|で|も)?" + _ASK + r"$")
+_TAIL_TE = re.compile(
+    r"(て|で)(?:ください(?:ませ|ますか|ませんか|ますでしょうか)?|下さい(?:ませ|ますか|ませんか)?|もらえ(?:ます|ません)?(?:か|でしょうか)?|もらえる|いただけ(?:ます|ません)?(?:か|でしょうか)?"
+    r"|いただけると(?:助かります|嬉しいです|ありがたいです)|くれ(?:ます|ません)?か|ほしいです|欲しいです|ほしい|ちょうだい|くださると(?:助かります|嬉しいです))$")
+
+
+def _polite_variants(s: str) -> list:
+    """ていねいな言い方を普通の言い方にした候補（元の言葉は含めない）。"""
+    out = []
+
+    def add(v):
+        if v and v != s and v not in out:
+            out.append(v)
+
+    base = _LEAD.sub("", s)
+    add(base)
+    for b in {s, base}:
+        t = _TAIL_ASK.sub("", b)
+        if t != b:
+            add(t)
+            add(t + "して")  # 「拡大お願いします」→「拡大して」
+        t = _TAIL_TE.sub(lambda m: m.group(1), b)
+        if t != b:
+            add(t)
+        t2 = _TAIL_ASK.sub("", t)
+        if t2 != t:
+            add(t2)
+    return out
+
+
 def _failed(raw: str, s: str) -> bool:
     if len(s) < 2:
         return True
@@ -109,11 +142,12 @@ def interpret(text: str, screen: str = "unit") -> dict:
     if not _BARE_NUMBER.fullmatch(s) and _failed(raw, s):
         out["kind"] = FAILED
         return out
-    s2 = _suru(s)
+    forms = [_suru(s)] + [_suru(v) for v in _polite_variants(s)]
     for row in load_table():
         if screen not in row["使える画面"]:
             continue
-        m = _pattern(row["言葉"]).fullmatch(s2)
+        pat = _pattern(row["言葉"])
+        m = next((mm for mm in (pat.fullmatch(f) for f in forms) if mm), None)
         if not m:
             continue
         res = dict(row["結果"])
@@ -129,6 +163,6 @@ def interpret(text: str, screen: str = "unit") -> dict:
             out["message"] = res.get("message", "まだ開けません")
         out["word"] = row["言葉"]
         return out
-    if _is_question(raw, s):
+    if _is_question(raw, s) or any(_is_question(raw, v) for v in _polite_variants(s)):
         out.update(kind=QUESTION, message=MSG_QUESTION)
     return out
