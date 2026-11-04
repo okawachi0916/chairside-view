@@ -216,7 +216,8 @@ def _draft_html(d, p, v, rec, fix, back="/"):
         f"</head><body class='rec-page' data-page='draft' data-draft-id='{d['id']}' data-rec-id='{rec_id}' "
         f"data-status='{d['status']}' data-rec-state='{h(state)}' data-fix='{1 if fix else 0}' data-back='{h(back, quote=True)}'>"
         f"<header class='rec-head'><a id='btn-back' class='back' href='{h(back, quote=True)}'>戻る</a>"
-        f"<span>{h(p['name'])} 様 No. {h(p['chart_no'])}　診療日 {h(v['visit_date'])}</span></header>"
+        f"<span>{h(p['name'])} 様 No. {h(p['chart_no'])}　診療日 {h(v['visit_date'])}</span>"
+        + ("" if done else "<button type='button' id='btn-say' class='say-btn'>言える言葉</button>") + "</header>"
         f"<div class='draft-bar'><span class='draft-mark' data-part='draft-mark'>{mark}</span>{bar}"
         "<span id='msg' class='err' role='status'></span></div>"
         f"<div class='draft-cols'><div class='draft-left' data-part='draft-transcript'><h3>話したままの文字</h3>{left}"
@@ -227,7 +228,7 @@ def _draft_html(d, p, v, rec, fix, back="/"):
         "<table class='rtab plan-table'><thead><tr><th>今の計画</th><th>新しい計画</th><th>操作</th></tr></thead>"
         "<tbody id='plan-rows'></tbody></table></section>"
         "<script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script>"
-        "<script src='/static/js/draft.js'></script><script src='/static/js/actions/look.js'></script></body></html>"
+        "<script src='/static/js/numtags.js'></script><script src='/static/js/draft.js'></script><script src='/static/js/actions/look.js'></script></body></html>"
     )
 
 

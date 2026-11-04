@@ -263,6 +263,10 @@ def build() -> dict:
             for _ in range(count):
                 n += 1
                 r.add("photos", patient_id=pid, number=n, taken_on=d, kind="intraoral", file="")
+    # 見本 花子様は撮った写真 17 枚（G18）。13番からは最後の撮影日へ足す。行の id は他の患者様の後ろに付ける（既にある DB の行とぶつけない）
+    for n in range(13, 18):
+        r.add("photos", patient_id=H, number=n, taken_on="2026-08-07", kind="intraoral", file="")
+
 
     # ---- 歯の状態 ----
     wisdom = [18, 28, 38, 48]

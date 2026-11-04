@@ -52,13 +52,18 @@ def close(pg):
 def test_voice_open_equals_mouse_open(server, browser, part):  # noqa: F811
     pg = open_unit(browser, server)
     mouse_open(pg, part)
+    pg.wait_for_function("Array.from(document.querySelectorAll('.fs-panel img')).every(i => i.complete)")
     m = panel_state(pg)
     shot_m = pg.locator(".fs-panel").screenshot()
     close(pg)
     pg.evaluate("w => window.cvTyped(w)", WORDS[part])
     pg.wait_for_selector(".fs-panel")
-    pg.wait_for_timeout(300)
+    pg.wait_for_function("Array.from(document.querySelectorAll('.fs-panel img')).every(i => i.complete)")
     assert panel_state(pg) == m
+    for _ in range(10):  # 写真の読み込みと表示の切り替えが終わるのを待ってから比べる（全件の途中は遅くなる）
+        pg.wait_for_timeout(300)
+        if pg.locator(".fs-panel").screenshot() == shot_m:
+            break
     assert pg.locator(".fs-panel").screenshot() == shot_m, "声で開いた画面とマウスで開いた画面の見た目がちがう"
     pg.close()
 

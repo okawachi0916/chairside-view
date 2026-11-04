@@ -79,6 +79,8 @@ table.rtab .st-転送待ち { color: var(--c-warn); font-weight: var(--fw-bold);
 
 .rec-head a.back { font-size: var(--fs-3); font-weight: var(--fw-bold); padding: var(--sp-1) var(--sp-4); border: 2px solid var(--c-surface);
   border-radius: var(--r-s); text-decoration: none; }
+.rec-head .say-btn { margin-left: auto; font: inherit; font-size: var(--fs-2); color: var(--c-surface); background: transparent;
+  border: 1px solid var(--c-surface); border-radius: var(--r-s); padding: var(--sp-1) var(--sp-4); cursor: pointer; }
 .fx-title { margin-top: var(--sp-5); }
 .fixes { margin: 0; padding-left: var(--sp-6); }
 .fixes li { font-size: var(--fs-3); line-height: var(--lh-table); }

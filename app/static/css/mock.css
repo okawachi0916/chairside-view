@@ -342,6 +342,9 @@ table.t td.n, table.t th.n { text-align: center; }
   line-height: var(--lh-table);
   padding: var(--sp-3);
 }
+.card-back { flex-direction: column; gap: var(--sp-3); min-height: 0; }
+.card-imgs { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--sp-3); width: 100%; }
+.card-imgs img { flex: 1; min-width: 0; min-height: 0; width: 100%; object-fit: contain; border-radius: var(--r-s); }
 .body.reception table.t td, .body.reception table.t th { padding: var(--sp-2); }
 .body.reception table.t td { font-size: var(--fs-3); }
 

@@ -320,7 +320,7 @@ def test_voice_confirm_needs_second_word(server, browser):  # noqa: F811
     pg.evaluate("window.cvTyped('確定')")  # いきなり「確定」では記録しない
     assert pg.evaluate("document.body.dataset.status") == "draft"
     pg.evaluate("window.cvTyped('確定する')")
-    assert "もう一度「確定」" in pg.inner_text("#msg")
+    assert "もう一度「記録」" in pg.inner_text("#msg")
     assert pg.evaluate("document.body.dataset.status") == "draft"  # まだ入らない
     assert db_one("SELECT status FROM drafts WHERE id = ?", s["draft_id"])[0] == "draft"
     pg.evaluate("window.cvTyped('確定')")

@@ -34,16 +34,16 @@ def heard(pg):
     return pg.inner_text("#heard")
 
 
-def test_twelve_fake_photos_listed_and_served(server):  # noqa: F811
+def test_photos_listed_and_served(server):  # noqa: F811
     listing = json.loads((ROOT / "data" / "photos" / "photos.json").read_text(encoding="utf-8"))["photos"]
-    assert len(listing) == 12
+    assert len(listing) == 17
     for x in listing:
         assert (ROOT / "data" / "photos" / x["file"]).is_file()
         with urllib.request.urlopen(f"http://127.0.0.1:{server}/photo-files/{x['file']}") as r:
             assert r.status == 200 and r.headers["Content-Type"].startswith("image/")
     assert P.url_for(1) == "/photo-files/" + listing[0]["file"]
-    assert P.url_for(13) == P.url_for(1)
-    for bad in ("nothing.png", "..%2Fphotos.json"):
+    assert P.url_for(18) == P.url_for(1)
+    for bad in ("nothing.jpg", "..%2Fphotos.json"):
         try:
             urllib.request.urlopen(f"http://127.0.0.1:{server}/photo-files/{bad}")
             raise AssertionError("開けてはいけない")
@@ -58,7 +58,7 @@ def test_normal_screen_grouped_by_day_newest_first(server, browser):  # noqa: F8
     dates = groups.locator(".pg-date").all_inner_texts()
     assert dates == ["2026年8月7日", "2026年2月6日", "2025年11月25日"]
     first = pg.locator('[data-part="intraoral-photos"] .pg').first.locator(".ph .no").all_inner_texts()
-    assert first == ["9", "10", "11", "12"]
+    assert first == [str(i) for i in range(9, 18)]  # 13番からは最後の日に足した（G18）
     lst = pg.locator('[data-part="photo-list"]')
     assert lst.evaluate("e => e.scrollHeight > e.clientHeight + 1")  # 古い日はスクロールで遡る
     lst.evaluate("e => { e.scrollTop = e.scrollHeight }")
@@ -103,7 +103,7 @@ def test_enlarge_words(server, browser):  # noqa: F811
 def test_back_to_list_and_pages(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     pg.set_viewport_size({"width": 1200, "height": 470})  # 一覧が1画面に入らない大きさ
-    say(pg, "12番を拡大して")  # 一覧の先頭（新しい順）。開いたとき一覧は一番上にある
+    say(pg, "17番を拡大して")  # 一覧の先頭（新しい順）。開いたとき一覧は一番上にある
     pg.wait_for_selector('[data-fs-panel="intraoral-photos"]')
     lst = pg.locator(".fs-list")
     assert lst.evaluate("e => e.scrollHeight > e.clientHeight + 1")
