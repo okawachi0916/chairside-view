@@ -60,7 +60,8 @@
         "先回"
       ],
       "target": {
-        "part": "past-notes"
+        "part": "past-notes",
+        "before_visit": true
       },
       "empty": "前回の診療の記録がありません。"
     },

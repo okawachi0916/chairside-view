@@ -51,11 +51,14 @@ def pick_entry(text: str, table: dict | None = None):
     return entry if rest == "" else None
 
 
-def pick_record(entry: dict, records):
-    """項目の指定に合う記録のうち先頭を返す。無ければ None（Claude へ回す）。"""
+def pick_record(entry: dict, records, visit_date: str | None = None):
+    """項目の指定に合う記録のうち先頭を返す。無ければ None（Claude へ回す）。
+    before_visit の項目（前回）は、開いている診療回の日付より前の記録だけから選ぶ（records は診療日の新しい順）。"""
     target = entry.get("target", {})
     for r in records:
         if r.part != target.get("part"):
+            continue
+        if target.get("before_visit") and visit_date and r.when and r.when >= visit_date:
             continue
         words = target.get("contains") or []
         if words and not any(w in "".join(r.lines) for w in words):
