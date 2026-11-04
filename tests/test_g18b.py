@@ -11,11 +11,11 @@ from tests.test_g18 import APPT, UNIT
 
 PHOTOS = ROOT / "data" / "photos"
 MODEL = {  # 模型の写真（G18b で入れ替えた5枚）
-    "photo01.jpg": "a28c4f4e43bf04ac9c36cc7a85bb75af27c538531a99962016ba4c2f434502aa",
-    "photo02.jpg": "e7e3edb6462ca2ba25120085f43c60613b0b536ca139383a6a3d944f6164371c",
-    "photo03.jpg": "e9eca1bfef309f7d33ae45fe430400185de8f27ccaf4b72aeb0762761e212d6c",
-    "photo04.jpg": "3dfda9e5cf6357b3f86c842f7b983009d4c7b024cfc052c6833afe0713866350",
-    "photo05.jpg": "818f96dcee59586a89e7c63997f103d53b88658e3dfa6010341c7ce47c582bd3",
+    "photo01.jpg": "12fa1fc26da4ad9105b5d4a38d7b451d5404f9dee7d335df8b1948f81e340f30",
+    "photo02.jpg": "179ad6175c43fc5d40e03ff8cd081149085c2cd2823bcd48eaa0bbae8d1e9744",
+    "photo03.jpg": "a54254e9fb5978e738abb9bb1e15f6a3ee3451891812a3a286f544e9d4890fc1",
+    "photo04.jpg": "02f8fc02beca8bf87618c2a451123625c3bf13d0819e03c8ca87cfd4c7af1521",
+    "photo05.jpg": "1c61de65a666edf8a1160c0a05c9c1736ed459cbc7a30ac02e2b183558d6dd25",
 }
 
 
