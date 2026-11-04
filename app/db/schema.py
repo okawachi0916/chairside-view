@@ -133,7 +133,11 @@ TABLES = {
         "cols": [
             ("patient_id", "INTEGER", None, True),
             ("tooth", "INTEGER", None, True),  # FDI の歯番 (11〜48)
-            ("status", "TEXT", None, True),
+            ("status", "TEXT", None, True),  # 今までの1つの状態の文字（欠損の見分けにも使う）
+            # G07f: 歯冠（健全/カリエス/CR/インレー/充填/クラウン/ブリッジ支台/残根/欠損。+ でつなげる）と
+            # 根（生活/失活/根治中/根充後）。空なら status を読み替える（app/mockview/tooth_chart.py の parts）
+            ("crown", "TEXT", None, False),
+            ("root", "TEXT", None, False),
         ],
         "extra": [_PATIENT_FK, "UNIQUE (patient_id, tooth)"],
     },

@@ -1,4 +1,4 @@
-// 口腔内写真の欄の「スマホ」ボタン。QR を出し、残り時間を数え、スマホから入った写真を画面に取り込む。
+// 写真の欄の「スマホ」ボタン。QR を出し、残り時間を数え、スマホから入った写真を画面に取り込む。
 (function () {
   var style = document.createElement("style");
   style.textContent =

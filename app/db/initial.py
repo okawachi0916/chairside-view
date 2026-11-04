@@ -282,20 +282,29 @@ def build() -> dict:
     wisdom = [18, 28, 38, 48]
     missing = {H: wisdom + [14, 35], I: wisdom, M: wisdom,
                T: wisdom + [15, 16, 25, 26, 35, 36, 45, 46],  # ブリッジで補う
-               K: [t for t in ALL_TEETH if t not in (13, 23, 33, 43)]}  # 義歯で補う
+               K: [t for t in ALL_TEETH if t not in (13, 23, 25, 33, 43)]}  # 義歯で補う
+    # G07f: 1本を歯冠と根の2つで持つ。status は今までの1つの状態の文字（欠損の見分けなどに使う）
+    def tooth(pid, t, status, crown, root):
+        r.add("tooth_status", patient_id=pid, tooth=t, status=status, crown=crown, root=root)
+
     for pid, items in {
-        H: [(46, "RCT中"), (37, "CR"), (26, "クラウン"), (47, "CR"), (15, "C2")],
-        I: [(16, "CR"), (26, "CR"), (46, "クラウン")],
-        T: [(14, "ブリッジ支台"), (17, "ブリッジ支台"), (34, "ブリッジ支台"), (37, "ブリッジ支台"),
-            (44, "ブリッジ支台"), (47, "ブリッジ支台")],
-        K: [(13, "残根"), (23, "残根"), (33, "残根"), (43, "残根")],
-        M: [(16, "C2"), (35, "CR")],
+        H: [(46, "RCT中", "健全", "根治中"), (37, "CR", "CR", "生活"), (26, "クラウン", "クラウン", "根充後"),
+            (47, "CR", "CR", "生活"), (15, "C2", "カリエス", "生活")],
+        I: [(16, "CR", "CR", "生活"), (26, "CR", "CR", "生活"), (46, "クラウン", "クラウン", "根充後")],
+        T: [(14, "ブリッジ支台", "ブリッジ支台", "生活"), (17, "ブリッジ支台", "ブリッジ支台", "根充後"),
+            (34, "ブリッジ支台", "ブリッジ支台", "生活"), (37, "ブリッジ支台", "ブリッジ支台", "根充後"),
+            (44, "ブリッジ支台", "ブリッジ支台", "生活"), (47, "ブリッジ支台", "ブリッジ支台", "根充後")],
+        K: [(13, "残根", "残根", "失活"), (23, "残根", "残根", "根充後"), (33, "残根", "残根", "失活"),
+            (43, "残根", "残根", "失活")],
+        M: [(16, "C2", "カリエス", "生活"), (35, "CR", "CR", "生活")],
     }.items():
-        for t, s in items:
-            r.add("tooth_status", patient_id=pid, tooth=t, status=s)
+        for t, st, crown, root in items:
+            tooth(pid, t, st, crown, root)
     for pid, ts in missing.items():
         for t in ts:
-            r.add("tooth_status", patient_id=pid, tooth=t, status="欠損")
+            tooth(pid, t, "欠損", "欠損", "")
+    # 和子様の左上5番: インレーが取れて、下がむし歯（行の id は最後に付け、既にある DB の行とぶつけない）
+    tooth(K, 25, "インレー+カリエス", "インレー+カリエス", "生活")
 
     r.add("mucosal_conditions", patient_id=H, site="舌左縁", name="白板症")
     r.add("mucosal_conditions", patient_id=K, site="上顎前庭", name="義歯性口内炎")

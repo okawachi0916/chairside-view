@@ -1,4 +1,4 @@
-"""G14: 口腔内写真を番号で呼ぶ。文字の口（cvTyped）から言葉を全部試す。"""
+"""G14: 写真を番号で呼ぶ。文字の口（cvTyped）から言葉を全部試す。"""
 import json
 import urllib.error
 import urllib.request
