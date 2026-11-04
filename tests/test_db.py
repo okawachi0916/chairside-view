@@ -105,7 +105,7 @@ def test_hanako_matches_mock(seeded):
     q = lambda s, *a: con.execute(s, a).fetchall()
     assert len(q("SELECT 1 FROM clinical_notes WHERE patient_id=1")) == 8
     assert len(q("SELECT 1 FROM treatment_history WHERE patient_id=1")) == 22  # 画面は新しい10行、全画面は遡って全部
-    assert len(q("SELECT 1 FROM photos WHERE patient_id=1")) == 12
+    assert len(q("SELECT 1 FROM photos WHERE patient_id=1")) == 17
     assert len(q("SELECT 1 FROM care_purchases WHERE patient_id=1")) == 5
     assert len(q("SELECT 1 FROM goods_purchases WHERE patient_id=1")) == 5
     assert len(q("SELECT 1 FROM prescriptions WHERE patient_id=1")) == 3
@@ -193,7 +193,7 @@ def test_update_db_old_database(seeded):
     run("update_db.py", seeded)
     con = con_of(seeded)
     assert con.execute("SELECT COUNT(*) FROM clinical_notes WHERE body='残る'").fetchone()[0] == 1
-    assert con.execute("SELECT COUNT(*) FROM photos WHERE patient_id=1").fetchone()[0] == 12
+    assert con.execute("SELECT COUNT(*) FROM photos WHERE patient_id=1").fetchone()[0] == 17
     assert con.execute("SELECT COUNT(*) FROM important_notes WHERE patient_id=3").fetchone()[0] == 2
     assert con.execute("SELECT name_kana FROM patients WHERE id=1").fetchone()[0] == "ミホン ハナコ"
     assert con.execute("SELECT kind FROM photos WHERE id=1").fetchone()[0] == "intraoral"

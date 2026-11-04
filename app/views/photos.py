@@ -18,6 +18,18 @@ def listing() -> list:
         return []
 
 
+def cards() -> list:
+    """診察券（受付の画面）の画像。裏面の2枚。"""
+    try:
+        return json.loads((photo_dir() / "photos.json").read_text(encoding="utf-8")).get("cards", [])
+    except Exception:
+        return []
+
+
+def card_urls() -> list:
+    return ["/photo-files/" + x["file"] for x in cards()]
+
+
 def url_for(number: int, file: str = "") -> str:
     """スマホから入れた写真（file がある）はその画像、無ければ仮の写真。"""
     if file:

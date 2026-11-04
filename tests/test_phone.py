@@ -265,7 +265,7 @@ def test_count_limit_per_link(mobile):
 def test_mobile_port_serves_nothing_but_m(mobile, server):  # noqa: F811
     t = link()
     for path in ["/", "/unit", f"/unit?appt={APPT}&role=doctor", f"/api/view/unit?appt={APPT}&role=doctor", "/api/phone-photos/count?appt=1",
-                 "/photo-files/photo01.png", "/photo-up/x.jpg", "/static/css/mock.css", "/docs", "/openapi.json", "/recordings",
+                 "/photo-files/photo01.jpg", "/photo-up/x.jpg", "/static/css/mock.css", "/docs", "/openapi.json", "/recordings",
                  "/voice/commands", "/config/keys.json", "/m", "/m/", f"/m/{t}/../../unit", "/api/phone-link", "/api/recordings/pending"]:
         code = http("GET", mobile, path)[0]
         assert code in (404, 405), (path, code)

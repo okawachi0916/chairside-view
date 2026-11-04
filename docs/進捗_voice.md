@@ -1,4 +1,5 @@
 # 進捗 voice
+- G18 完了: 撮った写真17枚（花子様の1〜17番）と診察券の裏面2枚（受付の画面）。位置情報なし、長い辺1600px以内。取り込みは scripts/import_photos.py。写真が増えたら photos_in に置いて動かす。
 - 動く版: G14l 完了。話した内容の整理にもボタン2の番号（もとに戻すは最後）。声の言葉は敬語でも動く（interpret.py で外して照合）。写真の画面は番号だけで拡大。
 - G14k: 番号を出している間はボタンの位置を追い、穴と札を合わせ直す。
 - G14j: 番号の札はボタンの少し上（はみ出すときだけ下）、暗い幕はボタンの形に穴で明るいまま。QR の画面の「閉じる」にも 1番。
@@ -15,6 +16,6 @@
 - ボタン1+2: config/keys.json の combo_ms（300）。voice_keys.js の onCombo → 操作 combo-back → 「戻して」。ログは data/runtime/logs/voice_timing.log（「ボタン同時押し」）と /voice/combo。
 - 時間のログ data/runtime/logs/voice_timing.log（録音の開始も記録）。マイクは先に開いて60秒持つ。
 - /、/recordings で【REC】→ /app の中に同じ画面を開いて録音を始める。
-- 写真: 架空の絵12枚。G08: /voice-test、large-v3。HTTPS の用意は院長側。
+- 写真: 撮った写真17枚（G18）。G08: /voice-test、large-v3。HTTPS の用意は院長側。
 - 残り: 実物のボタンが2つの信号をほぼ同時に送れるかは院長が試す（ログで確かめる）。
 - 次のゴール: 指示待ち

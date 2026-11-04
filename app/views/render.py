@@ -468,7 +468,9 @@ def _back(d):
         txt = f"次回のご予約 {dt.month}月{dt.day}日({D.WEEK[dt.weekday()]}) {b['start_time']}"
     else:
         txt = "次回のご予約 ―"
-    return card("", "診察券 裏面", f'<div class="card-back">{txt}</div>', 2)
+    imgs = "".join(f'<img src="{u}" alt="診察券 裏面">' for u in PH.card_urls())
+    pics = f'<div class="card-imgs">{imgs}</div>' if imgs else ""
+    return card("", "診察券 裏面", f'<div class="card-back">{pics}<div class="card-next">{txt}</div></div>', 2)
 
 
 def reception_page(d):
