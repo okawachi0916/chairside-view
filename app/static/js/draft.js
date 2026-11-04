@@ -1,6 +1,7 @@
 // 下書きの画面。5つの項目をキーボードで直し（直した所はその場で自動で保存する）、「カルテに記録する」か「あとで直す」で、来た画面へ戻る。
 // 記録するまで診療メモにも治療計画にも入らない。
-// 声（ボタン2）か文字（window.cvTyped）で「確定する」と言ったあと、もう一度「確定」と言うと記録する。「戻して」は戻る。
+// 声（ボタン2）か文字（window.cvTyped）で「カルテに記録する」（または「確定する」）と言ったあと、もう一度「記録」（または「確定」）と言うと記録する。
+// ボタン2を押すと番号の札が出て、番号で押せる（マウスと同じ動き）。「戻して」は戻る。
 (function () {
   var body = document.body;
   var draftId = body.dataset.draftId;
@@ -183,28 +184,83 @@
   }
 
   // ---- 声と文字の言葉 ----
-  function handle(text) {
-    var n = (text || "").replace(/[\s。、，．,.！!？?「」]/g, "");
+  function norm(text) {       // 句読点・敬語（してください・お願いします）を落とした言葉
+    return (text || "").normalize("NFKC").replace(/[\s。、，．,.！!？?「」『』]/g, "").replace(/(してください|ください|下さい|お願いします|お願い致します|お願い)$/, function (m) { return m === "してください" ? "して" : ""; });
+  }
+  var HINT = "ボタン2で番号を出して選べます";
+
+  // ---- 番号の札（ほかの画面と同じ仕組み。numtags.js）----
+  // 番号を出すもの: カルテに記録する、あとで直す、各行の消す（上から）、計画の「削除する」、整理し直す、戻る（最後）
+  var targets = {};           // 印 → 要素。番号を言われたら、マウスで押したのと同じ click を送る
+  function numberList() {
+    var NT = window.CVNumTags, out = [], hidden = 0;
+    targets = {};
+    function add(key, el) {
+      if (!el || el.disabled) return;
+      if (!NT.inView(el)) { hidden++; return; }
+      out.push({ n: out.length + 1, key: key, el: el });
+      targets[key] = el;
+    }
+    add("confirm", document.getElementById("btn-confirm"));
+    add("later", document.getElementById("btn-later"));
+    Array.prototype.forEach.call(document.querySelectorAll(".draft-sec li.row .del"), function (el, i) { add("del:" + (i + 1), el); });
+    Array.prototype.forEach.call(document.querySelectorAll("#plan-rows input[data-key^='d']"), function (c, i) { add("plan:" + (i + 1), c.closest("label")); });
+    add("reorg", document.getElementById("fix-reorg"));
+    add("back", document.getElementById("btn-back"));
+    body.dataset.numHidden = hidden;
+    return out;
+  }
+  function showNumbers() {
+    window.CVNumTags.clear();
+    var list = numberList();
+    if (!list.length) return;
+    window.CVNumTags.dimWithHoles(list);
+    window.CVNumTags.addBadges(list);
+    body.dataset.numbers = "1";
+  }
+  function hideNumbers() { window.CVNumTags.clear(); delete body.dataset.numbers; }
+  function takeNumbers() { var m = window.CVNumTags.take(); delete body.dataset.numbers; return m; }
+  function callNumber(n, shown, text) {
+    var key = shown && shown[n], el = key && targets[key];
+    if (!shown) { say("「" + text + "」 番号は出ていません。" + HINT); return "no-numbers"; }
+    if (!el || !el.isConnected) { say("「" + text + "」 その番号はありません"); return "no-number"; }
+    say("「" + text + "」");
+    el.click();                // マウスで押したのと同じ動き
+    return "number:" + key;
+  }
+
+  function handle(text, shown) {
+    var n = norm(text);
     body.dataset.heard = text;
-    if (n === "確定する") { armed = Date.now(); say("もう一度「確定」と言ってください"); return "armed"; }
-    if (n === "確定") {
+    if (/^(カルテに記録(する|して)|確定(する|して))$/.test(n)) { armed = Date.now(); say("もう一度「記録」と言ってください"); return "armed"; }
+    if (/^(記録|確定)$/.test(n)) {
       if (armed && Date.now() - armed < 20000) { armed = 0; doConfirm(); return "confirm"; }
-      say("先に「確定する」と言ってください");
+      say("先に「カルテに記録する」と言ってください");
       return "need-first";
     }
     armed = 0;
-    if (n === "後で直す" || n === "あとで直す") { later(); return "later"; }
-    if (n === "戻して" || n === "戻る") { return leave(); }
-    say("「" + text + "」は使えません");
-    return "ignored";
+    if (/^(あとで|後で)直(す|して)$/.test(n)) { later(); return "later"; }
+    if (/^戻(して|って|る|す)$/.test(n)) { return leave(); }
+    // 番号だけの言葉は、ほかの画面と同じ表（/voice/interpret）で読む
+    return fetch("/voice/interpret", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: text, screen: "unit" }) })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        var nums = res.numbers || (res.arg ? [res.arg] : []);
+        if (res.action === "part-number" && nums.length === 1) return callNumber(nums[0], shown, text);
+        say("「" + text + "」は使えません。" + HINT);
+        return "ignored";
+      })
+      .catch(function () { say("「" + text + "」は使えません。" + HINT); return "ignored"; });
   }
+  window.cvNumbers = function (on) { if (on) showNumbers(); else hideNumbers(); return document.querySelectorAll(".num-badge").length; };
   window.cvTyped = function (text) {
+    var shown = takeNumbers();
     if (confirmed) {      // 記録済みでも「戻して」は戻る
-      var n = (text || "").replace(/[\s。、，．,.！!？?「」]/g, "");
-      if (n === "戻して" || n === "戻る") { goBack(); return "back"; }
+      var n = norm(text);
+      if (/^戻(して|って|る|す)$/.test(n)) { goBack(); return "back"; }
       return "ignored";
     }
-    return handle(text);
+    return handle(text, shown);
   };
 
   var rec = null; // 声の録音
@@ -219,16 +275,18 @@
       recorder.onstop = function () {
         stream.getTracks().forEach(function (t) { t.stop(); });
         rec = null;
+        var shown = takeNumbers();       // 聞き取りが終わったら札を消す。この言葉は、いま出ていた番号で受ける
         say("聞き取り中…");
         fetch("/voice/transcribe", { method: "POST", body: new Blob(chunks, { type: "audio/webm" }) })
-          .then(function (r) { return r.json(); }).then(function (r) { holdRec(false); handle(r.text || ""); })
+          .then(function (r) { return r.json(); }).then(function (r) { holdRec(false); handle(r.text || "", shown); })
           .catch(function () { holdRec(false); say("声を聞き取れませんでした"); });
       };
       rec = { recorder: recorder, timer: setTimeout(voice, 6000) };
       recorder.start();
       holdRec(true);
+      showNumbers();
       say("聞いています…");
-    }).catch(function () { say("マイクを使えません"); });
+    }).catch(function () { hideNumbers(); say("マイクを使えません"); });
   }
   window.CVKeyHooks = { 2: voice };
   window.CVActive = { 2: function () { return !!rec; } };
