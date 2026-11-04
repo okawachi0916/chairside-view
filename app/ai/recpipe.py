@@ -80,7 +80,8 @@ ROLES = ("doctor", "hygienist")
 
 def today_str() -> str:
     """区切りの「今日」。録音の時刻と同じ、パソコンの日付。"""
-    return datetime.now().date().isoformat()
+    from app.today import today
+    return today()
 
 
 def role_of(con, rec) -> str:

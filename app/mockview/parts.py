@@ -20,7 +20,9 @@ PATIENT = (
     '<span class="pinfo">58歳</span> <span class="pinfo">女性</span> '
     '<span class="pinfo">No. 0123</span>'
 )
-DATE = "2026年11月6日 金曜日"
+from app.today import ja_date as _ja, today as _today  # noqa: E402
+
+DATE = _ja(_today(), week=True)
 
 
 def page(role, title, topbar, bands, body):

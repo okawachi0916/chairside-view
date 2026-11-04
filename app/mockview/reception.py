@@ -1,4 +1,5 @@
-from app.mockview.parts import FULL, band, card, important, page, topbar
+from app.today import short_date, today
+from app.mockview.parts import DATE, FULL, band, card, important, page, topbar
 from app.mockview.reception_parts import heat_card, next_card, reserve_card
 
 RECENT = [
@@ -29,7 +30,7 @@ RX = [
 
 def _reserve():
     return reserve_card(
-        "2026年11月6日 金曜日", "14:30〜16:00（1時間30分）", [(d, p) for d, p in RECENT]
+        DATE, "14:30〜16:00（1時間30分）", [(d, p) for d, p in RECENT]
     )
 
 
@@ -78,7 +79,7 @@ def _rx():
 
 
 def _back():
-    inner = '<div class="card-back">次回のご予約 11月6日(金) 14:30</div>'
+    inner = f'<div class="card-back">次回のご予約 {short_date(today())} 14:30</div>'
     return card("", "診察券 裏面", inner, 2)
 
 

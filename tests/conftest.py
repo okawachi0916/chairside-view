@@ -5,6 +5,8 @@ from pathlib import Path
 
 
 def pytest_configure(config):
+    # 見本の「今日」は試験では 2026-11-06 に止める（既存の試験の日付を保つ）。日付をずらす試験は自分で CV_TODAY を指す
+    os.environ.setdefault("CV_TODAY", "2026-11-06")
     config.addinivalue_line("markers", "gpu: GPU を使う試験（merge_lane.py は動かさない。声の窓だけが動かす）")
     # 普段の試験は本物の Claude を呼ばない。サーバーが起動時に引き継ぐ環境変数で、偽物の口に固定する。
     # 偽物の答えは、このファイルを書き換えて変える（既定は「分からない」）。
