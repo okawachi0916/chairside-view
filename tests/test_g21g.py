@@ -87,3 +87,19 @@ def test_reset_script_backs_up_then_restores(tmp_path):
     now = sqlite3.connect(data / "app.db")
     assert now.execute("SELECT COUNT(*) FROM clinical_notes WHERE body='試しの記録'").fetchone()[0] == 0
     now.close()
+
+
+def test_bat_file_bytes_are_plain_and_crlf():
+    """G21h: bat は英数字と記号だけ（日本語の行を入れない）、改行は CRLF、reset_for_shoot.py の名前が化けていない。"""
+    b = (ROOT / "scripts" / "撮影の前に戻す.bat").read_bytes()
+    BS = chr(92)
+    want = "scripts" + BS + "reset_for_shoot.py"
+    assert want.encode() in b
+    assert b.isascii()
+    assert b.count(b"\r\n") == b.count(b"\n") == b.count(b"\r") and b.endswith(b"\r\n")
+    assert all(0x20 <= c < 0x7f or c in (0x0d, 0x0a) for c in b)
+    lines = b.decode("ascii").split("\r\n")[:-1]
+    assert lines[0] == "@echo off" and lines[-1] == "pause"
+    script = [x for x in lines if "reset_for_shoot.py" in x]
+    assert len(script) == 1 and script[0].endswith(want)
+    assert (ROOT / "scripts" / "reset_for_shoot.py").exists()
