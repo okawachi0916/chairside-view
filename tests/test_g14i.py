@@ -188,3 +188,72 @@ def test_qr_button2_double_press_shows_numbers_and_again_hides(server, mobile): 
         pg.wait_for_function("!document.querySelector('.num-badge')", timeout=5000)
         assert modal(pg) == 1
         b.close()
+
+
+# ---------- G14k: ボタンが動いたら、明るい穴と札も合わせ直す ----------
+def holes(pg):
+    import re
+    clip = pg.locator("#num-dim").evaluate("e => e.style.clipPath")
+    return [tuple(int(v) for v in m) for m in re.findall(r"M\s*(-?\d+)\s+(-?\d+)\s*h\s*(\d+)\s*v\s*(\d+)", clip)]
+
+
+def targets(pg):
+    return pg.evaluate("""() => Array.from(document.querySelectorAll('.num-badge')).map(b => {
+        const k = b.dataset.key;
+        const el = k === 'say-list' ? document.getElementById('say-list-btn') : k === 'change-role' ? document.querySelector('[data-action=change-role]')
+          : k === 'phone' ? document.querySelector('[data-action=phone]') : document.querySelector('[data-part="' + k + '"] [data-action=fullscreen]');
+        const r = el.getBoundingClientRect();
+        const q = b.getBoundingClientRect();
+        return {key: k, r: [r.left, r.top, r.width, r.height].map(Math.round), badge: [q.left, q.top, q.right, q.bottom]};
+    })""")
+
+
+def assert_lit(pg):
+    t = targets(pg)
+    h = holes(pg)
+    assert len(h) == len(t) and len(t) >= 8
+    for x in t:
+        assert any(all(abs(p - q) <= 1 for p, q in zip(hh, x["r"])) for hh in h), x["key"]  # 穴はボタンと同じ場所
+        bl, bt, br, bb = x["badge"]
+        l, tp, w, hgt = x["r"]
+        assert not (bl < l + w and br > l and bt < tp + hgt and bb > tp), x["key"]  # 札はボタンに重ならない
+
+
+def test_holes_follow_buttons_when_topbar_moves(mic_pg):
+    ctx, port = mic_pg
+    pg = ctx.new_page()
+    pg.goto(f"http://127.0.0.1:{port}{UNIT}")
+    pg.wait_for_selector('[data-part="important"]')
+    pg.wait_for_function("!!(window.cvNumbers && document.body.dataset.numbersReady)")
+    pg.wait_for_timeout(500)
+    pg.evaluate("window.cvNumbers(true)")
+    assert_lit(pg)
+    # 上の段の印が出入りして、ボタンの位置が動いた
+    pg.evaluate("""() => { const m = document.querySelector('.topbar .mic'); m.style.minWidth = '160px'; m.style.marginRight = '40px'; }""")
+    pg.wait_for_timeout(300)
+    assert_lit(pg)
+    pg.evaluate("document.querySelector('.topbar .mic').style.display = 'none'")
+    pg.wait_for_timeout(300)
+    assert_lit(pg)
+    pg.set_viewport_size({"width": 1500, "height": 900})  # 窓の大きさ
+    pg.wait_for_timeout(300)
+    assert_lit(pg)
+    pg.close()
+
+
+def test_holes_match_buttons_while_listening(mic_pg):
+    ctx, port = mic_pg
+    pg = ctx.new_page()
+    pg.goto(f"http://127.0.0.1:{port}{UNIT}")
+    pg.wait_for_selector('[data-part="important"]')
+    pg.wait_for_function("window.VoiceKeys && document.body.dataset.numbersReady")
+    pg.wait_for_timeout(500)
+    assert pg.evaluate("window.cvNumbers(true)") >= 8  # 聞いていない間
+    assert_lit(pg)
+    pg.evaluate("window.cvNumbers(false)")
+    double(pg, 2)  # 聞いている間
+    listening(pg)
+    pg.wait_for_timeout(500)
+    assert_lit(pg)
+    tap(pg, 2)
+    stopped(pg)
