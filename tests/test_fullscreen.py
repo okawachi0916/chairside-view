@@ -60,8 +60,8 @@ def test_photos_fullscreen_select(server, browser):  # noqa: F811
     pg = open_unit(browser, server, H_DOC, "doctor")
     open_fs(pg, "intraoral-photos")
     panel = pg.locator('[data-fs-panel="intraoral-photos"]')
-    assert panel.locator(".fs-item").count() == 12
-    assert "写真 12" in panel.locator(".fs-big").inner_text()  # 一番新しい写真から
+    assert panel.locator(".fs-item").count() == 17
+    assert "写真 17" in panel.locator(".fs-big").inner_text()  # 一番新しい写真から
     # 左が選んだ写真、右が一覧
     big, lst = panel.locator(".fs-big").bounding_box(), panel.locator(".fs-list").bounding_box()
     assert big["x"] < lst["x"]
