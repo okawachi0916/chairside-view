@@ -199,6 +199,31 @@
     });
     return out;
   }
+  // 話した内容の整理の全画面: 見えているボタンに、上から順に 1番、2番…（10番を超えてもよい）。「もとに戻す」は最後
+  function selOf(el) {
+    var sel = '[data-fs-panel="spoken-summary"] ';
+    if (el.dataset.action === "fs-close") return sel + '[data-action="fs-close"]';
+    sel += '[data-seg="' + el.dataset.seg + '"]';
+    ["id", "draft", "role"].forEach(function (k) { if (el.dataset[k]) sel += "[data-" + k + '="' + el.dataset[k] + '"]'; });
+    return sel;
+  }
+  function visibleInList(el) {
+    if (!inView(el)) return false;
+    var sc = el.closest(".fs-scroll");
+    if (!sc) return true;
+    var r = el.getBoundingClientRect(), c = sc.getBoundingClientRect();
+    return r.top >= c.top - 1 && r.bottom <= c.bottom + 1;
+  }
+  function segTargets() {
+    var p = document.querySelector('[data-fs-panel="spoken-summary"]'), out = [];
+    if (!p) return out;
+    var all = [].slice.call(p.querySelectorAll('[data-seg="combine"],[data-seg="open"],[data-seg="delete"],[data-action="fs-close"]'))
+      .filter(function (b) { return !b.disabled && !b.hidden && visibleInList(b); });
+    var main = all.filter(function (b) { return b.dataset.action !== "fs-close"; });
+    var close = all.filter(function (b) { return b.dataset.action === "fs-close"; });
+    main.concat(close).forEach(function (b, i) { out.push({ n: i + 1, key: "sel:" + selOf(b), el: b }); });
+    return out;
+  }
   function numberTargets() {
     if (!numCfg || window.CVActions.isHidden() || document.querySelector(".fs-panel")) return [];
     var out = [];
@@ -352,6 +377,12 @@
       if (bw.message) chip(band, bw.message, "ex-msg");
       document.body.appendChild(band);
       document.body.dataset.guide = key;
+      var st = key === "spoken-summary" ? segTargets() : [];
+      if (st.length) { // ボタンにも番号。ボタンは明るいまま、まわりを暗くする
+        dimWithHoles(st);
+        addBadges(st);
+        document.body.dataset.numbers = "1";
+      }
       return;
     }
     var list = numberTargets();
@@ -390,6 +421,13 @@
     if (!shown) { say("「" + t + "」 番号は出ていません"); return; }
     var key = shown[n];
     if (!key) { say("「" + t + "」 その番号はありません"); return; }
+    if (key.indexOf("sel:") === 0) { // 画面のボタンはマウスで押したのと同じ（消す、も同じ道）
+      var sb = document.querySelector(key.slice(4));
+      if (!sb || sb.disabled) { say("「" + t + "」 まだ押せません"); return; }
+      say("「" + t + "」");
+      sb.click();
+      return;
+    }
     if (key.indexOf("modal:") === 0) { // 箱のボタン（閉じる など）はマウスで押したのと同じ
       var mb = document.querySelector('#phone-modal [data-act="' + key.slice(6) + '"]');
       say("「" + t + "」");
@@ -416,7 +454,7 @@
     if (res.kind === "操作" && res.action) {
       if (window.CVActions.isHidden()) { say("「" + t + "」 画面を隠しています"); return res; }
       var nums = res.numbers || (res.arg ? [res.arg] : []);
-      if (res.action === "part-number" && nums.length === 1 && shown && String(shown[nums[0]] || "").indexOf("modal:") === 0) {
+      if (res.action === "part-number" && nums.length === 1 && shown && /^(modal|sel):/.test(String(shown[nums[0]] || ""))) {
         callNumber(nums[0], shown, t);
         return res;
       }
