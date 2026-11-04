@@ -6,7 +6,11 @@
     "#num-dim{position:fixed;left:0;top:0;right:0;bottom:0;z-index:30;background:rgba(0,0,0,.55);pointer-events:none}" +
     ".num-badge{position:fixed;z-index:35;height:76px;padding:0 16px;border-radius:38px;box-sizing:border-box;white-space:nowrap;" +
     "background:#ffd43b;color:#111;border:4px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.6);" +
-    "font-size:48px;font-weight:800;line-height:68px;text-align:center;pointer-events:none}";
+    "font-size:48px;font-weight:800;line-height:68px;text-align:center;pointer-events:none}" +
+    "#num-band{position:fixed;z-index:36;left:0;top:0;right:0;box-sizing:border-box;display:flex;align-items:center;gap:20px;padding:0 24px;background:rgba(8,10,14,.94);pointer-events:none;overflow:hidden}" +
+    ".ex-chip{color:#fff;font-size:30px;font-weight:700;white-space:nowrap;border:2px solid #ffd43b;border-radius:10px;padding:2px 16px;line-height:1.3}" +
+    ".ex-msg{color:#ffd43b;font-size:28px;font-weight:700}" +
+    "#num-band[data-screen=draft] .ex-chip{font-size:20px;padding:0 10px;border-width:2px}#num-band[data-screen=draft] .ex-msg{font-size:18px}";
   document.head.appendChild(style);
 
   function inView(el) {

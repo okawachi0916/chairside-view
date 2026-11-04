@@ -19,9 +19,6 @@
     "body[data-numbers] [data-action=phone]{position:relative;z-index:31}" + // 暗い幕より前に出して、明るく見せる
     "#num-questions{position:fixed;z-index:35;left:0;right:0;bottom:36px;display:flex;justify-content:center;gap:20px;pointer-events:none}" +
     ".q-btn{background:#fff;color:#111;border:3px solid #ffd43b;border-radius:14px;padding:12px 26px;font-size:32px;font-weight:700}" +
-    "#num-band{position:fixed;z-index:36;left:0;top:0;right:0;box-sizing:border-box;display:flex;align-items:center;gap:20px;padding:0 24px;background:rgba(8,10,14,.94);pointer-events:none;overflow:hidden}" +
-    ".ex-chip{color:#fff;font-size:30px;font-weight:700;white-space:nowrap;border:2px solid #ffd43b;border-radius:10px;padding:2px 16px;line-height:1.3}" +
-    ".ex-msg{color:#ffd43b;font-size:28px;font-weight:700}" +
     ".say-list-body h3{margin:14px 0 4px;font-size:22px}.say-list-body ul{margin:0 0 6px;padding-left:28px;font-size:22px;line-height:1.5}" +
     "body[data-numbers] .ph .no{display:none}";
   document.head.appendChild(style);

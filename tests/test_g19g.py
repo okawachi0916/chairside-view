@@ -186,3 +186,69 @@ def test_old_word_confirm_still_works_alone_after_arming(server, browser):  # no
     pg.wait_for_url(home(server))
     assert db_one("SELECT status FROM drafts WHERE id = ?", s["draft_id"])[0] == "confirmed"
     pg.close()
+
+
+# ---- 追記: 下書きの画面にも「言える言葉」の黒い画面 ----
+
+def band_words(pg):
+    pg.wait_for_selector("#num-band")
+    return [t.strip("「」") for t in pg.locator("#num-band .ex-chip").all_inner_texts()]
+
+
+def test_button2_shows_dark_band_with_words(server, browser):  # noqa: F811
+    s = make_rec(server)
+    pg = open_ready(browser, server, s)
+    pg.evaluate("window.cvNumbers(true)")
+    words = band_words(pg)
+    for w in ("カルテに記録する", "記録", "あとで直す", "戻して", "戻る", "確定する", "確定"):
+        assert w in words
+    assert any(w.endswith("番") for w in words)
+    assert "2回言います" in pg.inner_text("#num-band .ex-msg")
+    # 黒い帯は、番号の札やボタンをふさがない（下に出る）
+    band = pg.locator("#num-band").bounding_box()
+    assert band["y"] < 10 and band["height"] <= 80 and band["x"] > 700  # 上の段の右側。下の表のボタンも、左の札もふさがない
+    assert pg.evaluate("getComputedStyle(document.getElementById('num-band')).backgroundColor") .startswith("rgba(8, 10, 14")
+    pg.screenshot(path=str(Path(__file__).resolve().parents[1] / "docs" / "画面" / "G19g_band.png"))
+    pg.evaluate("window.cvNumbers(false)")
+    assert pg.locator("#num-band").count() == 0
+    pg.close()
+
+
+def test_say_button_toggles_the_band(server, browser):  # noqa: F811
+    s = make_rec(server)
+    pg = open_ready(browser, server, s)
+    pg.click("#btn-say")
+    assert band_words(pg) and pg.locator(".num-badge").count() > 0
+    pg.click("#btn-say")
+    assert pg.locator("#num-band").count() == 0 and pg.locator(".num-badge").count() == 0
+    pg.close()
+
+
+def test_every_word_in_the_band_really_works(server, browser):  # noqa: F811
+    """帯に出ている言葉は、どれも「使えません」にならない。帯に無い言葉で動くものは残さない（確かめられる範囲）。"""
+    s = make_rec(server)
+    pg = open_ready(browser, server, s)
+    pg.evaluate("window.cvNumbers(true)")
+    words = band_words(pg)
+    pg.close()
+    for w in words:
+        if w in ("カルテに記録する", "確定する", "記録", "確定", "あとで直す", "戻して", "戻る") or w.endswith("番"):
+            continue
+        raise AssertionError("帯に、試験で確かめていない言葉がある: " + w)
+    for w in ("カルテに記録する", "確定する"):
+        pg = open_ready(browser, server, s)
+        assert pg.evaluate("t => window.cvTyped(t)", w) == "armed"
+        pg.close()
+    pg = open_ready(browser, server, s)
+    assert pg.evaluate("t => window.cvTyped(t)", "記録") == "need-first"  # 1回目なしでは動かない（言葉として受けている）
+    assert pg.evaluate("t => window.cvTyped(t)", "あとで直す") == "later"
+    pg.close()
+    pg = open_ready(browser, server, s)
+    for w in ("戻して", "戻る"):
+        assert pg.evaluate("t => window.cvTyped(t)", w) == "back"
+        pg.wait_for_url(home(server))
+        pg = open_ready(browser, server, s)
+    pg.evaluate("window.cvNumbers(true)")
+    assert pg.evaluate("t => window.cvTyped(t)", "1番") == "number:confirm"  # 番号は1回で押せる
+    pg.wait_for_url(home(server))
+    pg.close()

@@ -1,5 +1,6 @@
 // 下書きの画面。5つの項目をキーボードで直し（直した所はその場で自動で保存する）、「カルテに記録する」か「あとで直す」で、来た画面へ戻る。
 // 記録するまで診療メモにも治療計画にも入らない。
+// 言える言葉は黒い帯（ボタン2か「言える言葉」ボタン）に出ているものだけ。出ていない言葉で動くものは作らない。
 // 声（ボタン2）か文字（window.cvTyped）で「カルテに記録する」（または「確定する」）と言ったあと、もう一度「記録」（または「確定」）と言うと記録する。
 // ボタン2を押すと番号の札が出て、番号で押せる（マウスと同じ動き）。「戻して」は戻る。
 (function () {
@@ -162,6 +163,7 @@
       .catch(function (e) { say(e.message); });
   }
   var b;
+  if ((b = document.getElementById("btn-say"))) b.addEventListener("click", function () { if (document.body.dataset.numbers) hideNumbers(); else showNumbers(); });
   if ((b = document.getElementById("btn-confirm"))) b.addEventListener("click", doConfirm);
   if ((b = document.getElementById("btn-later"))) b.addEventListener("click", later);
   if ((b = document.getElementById("btn-back"))) b.addEventListener("click", function (e) { e.preventDefault(); leave(); });
@@ -210,16 +212,34 @@
     body.dataset.numHidden = hidden;
     return out;
   }
+  // 「言える言葉」の黒い帯（声の窓と同じ見た目。中身は config/examples.json の draft。この画面で本当に動く言葉だけ）
+  function showBand() {
+    hideBand();
+    fetch("/voice/examples", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (ex) {
+      if (!document.body.dataset.numbers || document.getElementById("num-band")) return;
+      var sc = ex.draft || { words: [] };
+      var band = document.createElement("div");
+      band.id = "num-band";
+      band.dataset.screen = "draft";
+      band.style.cssText = "left:760px;right:150px;height:76px;flex-wrap:wrap;align-content:center;padding:2px 16px;gap:2px 12px"; // 上の段の右側。ボタンと札をふさがない
+      sc.words.forEach(function (w) { var c = document.createElement("span"); c.className = "ex-chip"; c.textContent = "「" + w + "」"; band.appendChild(c); });
+      if (sc.message) { var m = document.createElement("span"); m.className = "ex-msg"; m.textContent = sc.message; band.appendChild(m); }
+      document.body.appendChild(band);
+    }).catch(function () { /* 帯が出せなくても番号は使える */ });
+  }
+  function hideBand() { var b = document.getElementById("num-band"); if (b) b.remove(); }
   function showNumbers() {
     window.CVNumTags.clear();
+    hideBand();
     var list = numberList();
     if (!list.length) return;
     window.CVNumTags.dimWithHoles(list);
     window.CVNumTags.addBadges(list);
     body.dataset.numbers = "1";
+    showBand();
   }
-  function hideNumbers() { window.CVNumTags.clear(); delete body.dataset.numbers; }
-  function takeNumbers() { var m = window.CVNumTags.take(); delete body.dataset.numbers; return m; }
+  function hideNumbers() { window.CVNumTags.clear(); hideBand(); delete body.dataset.numbers; }
+  function takeNumbers() { var m = window.CVNumTags.take(); hideBand(); delete body.dataset.numbers; return m; }
   function callNumber(n, shown, text) {
     var key = shown && shown[n], el = key && targets[key];
     if (!shown) { say("「" + text + "」 番号は出ていません。" + HINT); return "no-numbers"; }
