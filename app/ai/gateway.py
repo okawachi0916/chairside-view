@@ -5,6 +5,8 @@
 """
 import json
 import threading
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -38,6 +40,19 @@ class AnthropicMouth:
         return "".join(b.text for b in res.content if getattr(b, "type", "") == "text")
 
 
+def _run(call, timeout: float):
+    if not timeout:
+        return call()
+    ex = ThreadPoolExecutor(max_workers=1)
+    fut = ex.submit(call)
+    try:
+        return fut.result(timeout=timeout)
+    except FutureTimeout:
+        raise TimeoutError("時間切れ") from None
+    finally:
+        ex.shutdown(wait=False)
+
+
 class Gateway:
     def __init__(self, mouth=None, log_dir=None, masker=Table):
         self.mouth = mouth or AnthropicMouth()
@@ -49,18 +64,17 @@ class Gateway:
         return self._log_dir or data_dir() / "sent_log"
 
     def send(self, user: str, sensitive: Sensitive, *, system: str = "", max_tokens: int = 1024,
-             purpose: str = "") -> Reply:
+             purpose: str = "", timeout: float = 0) -> Reply:
+        """timeout は、この1回の送信に持たせる秒数（0 なら待ち続ける）。送信が増えても、1回ごとに数える。"""
         table = self._masker(sensitive)
         m_user = table.mask(user)
         m_system = table.mask(system)
         check_clean(table, m_user + "\n" + m_system)  # 残っていれば RedactionFailed。送らない
         self._log(purpose, m_system, m_user)
         try:
-            if getattr(self.mouth, "wants_purpose", False):
-                raw = self.mouth.complete(m_system, m_user, max_tokens, purpose=purpose)
-            else:
-                raw = self.mouth.complete(m_system, m_user, max_tokens)
-        except ClaudeUnavailable:
+            call = (lambda: self.mouth.complete(m_system, m_user, max_tokens, purpose=purpose))                 if getattr(self.mouth, "wants_purpose", False) else (lambda: self.mouth.complete(m_system, m_user, max_tokens))
+            raw = _run(call, timeout)
+        except (ClaudeUnavailable, TimeoutError):
             raise
         except Exception as e:  # noqa: BLE001
             raise RuntimeError(redact_key(f"Claude への送信に失敗しました（{type(e).__name__}）")) from None

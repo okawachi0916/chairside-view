@@ -234,6 +234,8 @@ TABLES = {
             ("fixed_transcript", "TEXT", "''", True),  # 聞き違いを直した文字。5つに分けるのはこちら（空なら直していない）
             ("fixes", "TEXT", "'[]'", True),  # 直した聞き違い [{"from","to","by"}]。画面で「元→直し」を見せる
             ("combined", "INTEGER", "0", True),  # 1=診療回の区切りを全部まとめた要約（recording_id は最後の区切り）
+            ("doubts", "TEXT", "'[]'", True),  # 清書で「迷う」と印を付けた言葉（画面で印を付ける）
+            ("polish_note", "TEXT", "''", True),  # 清書を使わなかった理由（空なら清書を使った）
         ],
         "extra": [_PATIENT_FK, _VISIT_FK],
     },
@@ -247,7 +249,7 @@ TABLES = {
             ("visit_id", "INTEGER", None, False),
             ("audio_file", "TEXT", "''", True),
             ("state", "TEXT", "'録音中'", True),
-            ("transcript", "TEXT", "''", True),
+            ("transcript", "TEXT", "''", True),  # 聞き取りのまま（Whisper の文字）
             ("error", "TEXT", "''", True),
             ("attempt", "INTEGER", "0", True),  # 再試行のたびに増やす。古い処理の結果は捨てる
             ("draft_id", "INTEGER", None, False),
@@ -256,6 +258,8 @@ TABLES = {
             ("deleted_at", "TEXT", None, False),  # 「この区切りを消す」を押した時刻。数秒だけ元に戻せる。そのあと音声と文字を消す
             ("prev_state", "TEXT", "''", True),  # 消す前の状態（元に戻すとき）
             ("role", "TEXT", "''", True),  # 録音したときの役割（doctor / hygienist）。空なら診療回の担当
+            ("polished", "TEXT", "''", True),  # 聞き取りのすぐ後の清書（画面に出す文）。空なら清書していない（transcript は聞き取りのまま）
+            ("polish", "TEXT", "'{}'", True),  # 清書のくわしい結果 {"fixes":[{from,to,by}], "doubts":[…], "note":"清書を使わなかった理由"}
         ],
         "extra": [_PATIENT_FK, _VISIT_FK],
     },

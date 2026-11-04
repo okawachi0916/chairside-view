@@ -297,6 +297,6 @@ def test_draft_page_has_mark_and_two_sides(env):
     r = wait_state(env, rid, ["下書き"])
     page = env["client"].get(f"/drafts/{r['draft_id']}").text
     assert "下書き まだ記録に入っていません" in page
-    for t in ("話したままの文字", "説明したこと", "次回の予定", "今後の治療計画", "今後の治療方針", "もとの話: 土台を立てます"):
+    for t in ("話した文字（清書）", "説明したこと", "次回の予定", "今後の治療計画", "今後の治療方針", "もとの話: 土台を立てます"):
         assert t in page
     assert re.search(r"\d{4}年\d{1,2}月\d{1,2}日にやったこと", page) and "今日やったこと" not in page

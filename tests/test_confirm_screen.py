@@ -8,6 +8,7 @@ import httpx
 import pytest
 
 from app.ai import memo
+from tests.polish_helper import polish_reply
 from app.db import connect, update
 from app.views import data as D
 from tests.screen_helper import browser, open_page, server  # noqa: F401
@@ -19,8 +20,11 @@ GOOD = json.dumps({**{k: [] for k in memo.KEYS},
                    "future_plan": [{"text": "右下6番は被せ物を入れる", "quote": "右下6番は被せ物を入れます"}]}, ensure_ascii=False)
 
 
-def set_fake(reply=GOOD, transcript=TALK, fix_reply="[]"):
-    FAKE.write_text(json.dumps({"reply": reply, "transcript": transcript, "fix_reply": fix_reply}), encoding="utf-8")
+def set_fake(reply=GOOD, transcript=TALK, polish_reply=None):
+    cfg = {"reply": reply, "transcript": transcript}
+    if polish_reply is not None:  # 無ければ、清書は聞き取りの文をそのまま返す
+        cfg["polish_reply"] = polish_reply
+    FAKE.write_text(json.dumps(cfg), encoding="utf-8")
 
 
 @pytest.fixture(autouse=True)
@@ -200,19 +204,27 @@ def test_back_never_leaves_the_server(server, back):  # noqa: F811
     assert r.status_code == 200 and "data-back='/'" in r.text and "example.com" not in r.text.split("<body")[1]
 
 
-def test_fixes_are_shown_as_from_to_and_original_text_is_kept(server, browser):  # noqa: F811
+def test_polished_text_is_the_body_and_original_is_kept(server, browser):  # noqa: F811
     talk = "今日は右下6番の根幹重点をしました。仮歯はTEKを入れました。"
     set_fake(reply=json.dumps({**{k: [] for k in memo.KEYS},
                                "done": [{"text": "右下6番の根管充填", "quote": "右下6番の根管充填をしました"}]}, ensure_ascii=False),
-             transcript=talk, fix_reply=json.dumps([{"from": "根幹重点", "to": "根管充填", "from_yomi": "あ", "to_yomi": "あ"}], ensure_ascii=False))
+             transcript=talk, polish_reply=polish_reply(talk, [("根幹重点", "根管充填")]))
     s = make_rec(server)
-    assert db_one("SELECT transcript FROM recordings WHERE id = ?", s["id"])[0] == talk  # 話したままの文字は残る
+    r = db_one("SELECT transcript, polished, polish FROM recordings WHERE id = ?", s["id"])
+    assert r["transcript"] == talk and "根管充填" in r["polished"]  # 聞き取りのままの文字は残る。清書は別に持つ
     d = db_one("SELECT transcript, fixed_transcript, fixes FROM drafts WHERE id = ?", s["draft_id"])
     assert d["transcript"] == talk and "根管充填" in d["fixed_transcript"] and "TeC" in d["fixed_transcript"]
     assert [(f["from"], f["to"]) for f in json.loads(d["fixes"])] == [("根幹重点", "根管充填"), ("TEK", "TeC")]
     pg, _ = open_draft(browser, server, s["draft_id"])
     ready(pg)
-    assert "根幹重点" in pg.inner_text("[data-part=draft-transcript] p")  # 話したまま
+    # 画面の本文は清書。直した言葉に下線。聞き取りのままは、押すと開く
+    body = pg.locator("[data-part=draft-polished]")
+    assert "根管充填をしました" in body.inner_text() and "根幹重点" not in body.inner_text()
+    assert body.locator("u.pf-fix").all_inner_texts() == ["根管充填", "TeC"]
+    pg.screenshot(path=str(Path(__file__).resolve().parents[1] / "docs" / "画面" / "G19k_draft.png"))
+    assert not pg.locator("[data-part=draft-raw] p").is_visible()
+    pg.click("[data-part=draft-raw] summary")
+    assert "根幹重点" in pg.inner_text("[data-part=draft-raw] p")
     fx = pg.inner_text("[data-part=draft-fixes]")
     assert "根幹重点 → 根管充填" in fx and "TEK → TeC" in fx  # 元→直し
     assert pg.locator("[data-section=done] .tx").first.input_value() == "右下6番の根管充填。"

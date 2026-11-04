@@ -18,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 
 from app.ai import fake, fixtalk, memo
+from app.ai.polish_context import context_for
 from app.ai.gateway import sensitive_from_db
 from app.ai.settings import ClaudeUnavailable, redact_key
 from app.db import connect, data_dir
@@ -301,6 +302,34 @@ def _fail(con, rec_id, attempt, state, e):
     return cur.rowcount
 
 
+def _polish(con, r, text: str) -> dict:
+    """聞き取りの文を清書する（fixtalk.polish）。この録音の患者様の今日の予定・治療計画・治療歴を手がかりに渡す。"""
+    try:
+        from app.routers import ai as ai_router  # 試験が make_gateway を差し替えられるように、使うときに読む
+
+        return fixtalk.polish(text, sensitive_from_db(con), ai_router.make_gateway(),
+                              context_for(con, r["patient_id"], r["visit_id"]), timeout=timeout_sec("ai"))
+    except Exception:  # noqa: BLE001  清書の準備の失敗でも、記録の流れは止めない
+        return {"text": text, "polished": False, "fixes": [], "doubts": [], "note": fixtalk.NOTE_FAILED}
+
+
+def _polish_json(pol: dict) -> dict:
+    return {"fixes": pol["fixes"], "doubts": pol["doubts"], "note": pol["note"]}
+
+
+def shown_text(r) -> str:
+    """画面に出す文。清書があれば清書、無ければ聞き取りのまま。"""
+    return r["polished"] or r["transcript"]
+
+
+def polish_of(r) -> dict:
+    try:
+        d = json.loads(r["polish"] or "{}")
+    except ValueError:
+        d = {}
+    return {"fixes": d.get("fixes") or [], "doubts": d.get("doubts") or [], "note": d.get("note") or ""}
+
+
 def _job(rec_id: int, attempt: int):
     con = connect()
     try:
@@ -315,10 +344,13 @@ def _job(rec_id: int, attempt: int):
             except Exception as e:  # noqa: BLE001
                 _fail(con, rec_id, attempt, TRANSCRIBING, e)
                 return
+            pol = _polish(con, r, text)   # 聞き取りのすぐ後に清書する。失敗しても聞き取りのままで先へ進む
             nxt = (ORGANIZING if _auto_summary() else SEGMENT) if r["patient_id"] else WAITING
             cur = con.execute(
-                "UPDATE recordings SET transcript = ?, state = ?, updated_at = ?, fix_off = 0 "
-                "WHERE id = ? AND attempt = ? AND state = ?", (text, nxt, now(), rec_id, attempt, TRANSCRIBING))
+                "UPDATE recordings SET transcript = ?, polished = ?, polish = ?, state = ?, updated_at = ?, fix_off = 0 "
+                "WHERE id = ? AND attempt = ? AND state = ?",
+                (text, pol["text"] if pol["polished"] else "", json.dumps(_polish_json(pol), ensure_ascii=False),
+                 nxt, now(), rec_id, attempt, TRANSCRIBING))
             con.commit()
             if cur.rowcount != 1 or nxt != ORGANIZING:
                 return
@@ -337,9 +369,10 @@ def _organize(con, rec_id, attempt, r):
     try:
         sens = sensitive_from_db(con)
         gw = ai_router.make_gateway()
-        # 聞き違いを直してから5つに分ける。人が直した文字（fix_off=1）は直さない
-        items, fixed, fixes = _with_timeout(
-            lambda: memo.make_draft(r["transcript"], sens, gw, fix=not r["fix_off"]), timeout_sec("ai"))
+        # 清書（聞き取りのすぐ後にできている）から5つに分ける。人が直した文字（fix_off=1）は聞き取りのまま
+        items = memo.organize(shown_text(r), sens, gw, timeout=timeout_sec("ai"))
+        pj = polish_of(r)
+        fixed, fixes, doubts, note = (r["polished"], pj["fixes"], pj["doubts"], pj["note"])
     except Exception as e:  # noqa: BLE001
         _fail(con, rec_id, attempt, ORGANIZING, e)
         return
@@ -353,19 +386,22 @@ def _organize(con, rec_id, attempt, r):
         if d and d["status"] == "draft":
             # 整理し直した新しい下書き。人が見てから確定する（二重に作らず、同じ下書きを新しくする）
             draft_id = d["id"]
-            con.execute("UPDATE drafts SET body = ?, transcript = ?, items = ?, fixed_transcript = ?, fixes = ? WHERE id = ?",
+            con.execute("UPDATE drafts SET body = ?, transcript = ?, items = ?, fixed_transcript = ?, fixes = ?, doubts = ?, "
+                        "polish_note = ? WHERE id = ?",
                         (memo.body_lines(items, visit_day(con, cur["visit_id"])), cur["transcript"],
                          json.dumps(items, ensure_ascii=False), fixed,
-                         json.dumps(fixes, ensure_ascii=False), draft_id))
+                         json.dumps(fixes, ensure_ascii=False), json.dumps(doubts, ensure_ascii=False), note, draft_id))
         elif d:
             draft_id = d["id"]  # 確定済みは触らない
         else:
             c2 = con.execute(
                 "INSERT INTO drafts (patient_id, visit_id, kind, body, transcript, status, created_at, "
-                "recording_id, items, fixed_transcript, fixes) VALUES (?, ?, 'spoken_summary', ?, ?, 'draft', ?, ?, ?, ?, ?)",
+                "recording_id, items, fixed_transcript, fixes, doubts, polish_note) "
+                "VALUES (?, ?, 'spoken_summary', ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?)",
                 (cur["patient_id"], cur["visit_id"], memo.body_lines(items, visit_day(con, cur["visit_id"])),
                  cur["transcript"], now(),
-                 rec_id, json.dumps(items, ensure_ascii=False), fixed, json.dumps(fixes, ensure_ascii=False)))
+                 rec_id, json.dumps(items, ensure_ascii=False), fixed, json.dumps(fixes, ensure_ascii=False),
+                 json.dumps(doubts, ensure_ascii=False), note))
             draft_id = c2.lastrowid
         con.execute("UPDATE recordings SET state = ?, draft_id = ?, updated_at = ? WHERE id = ?",
                     (DRAFT, draft_id, now(), rec_id))
@@ -387,7 +423,7 @@ def reorganize(con, rec_id: int, transcript: str) -> dict:
         raise RecError("先に患者様と診療回を選んでください", 409)
     if r["state"] not in (DRAFT, LATER, FAILED, SEGMENT):
         raise RecError(f"今の状態（{r['state']}）では整理し直せません", 409)
-    con.execute("UPDATE recordings SET transcript = ?, fix_off = 1 WHERE id = ? AND state IN (?, ?, ?, ?)",
+    con.execute("UPDATE recordings SET transcript = ?, polished = '', polish = '{}', fix_off = 1 WHERE id = ? AND state IN (?, ?, ?, ?)",
                 (transcript, rec_id, DRAFT, LATER, FAILED, SEGMENT))  # 人が直した文字は、聞き違いの自動の直しをしない
     con.commit()
     _claim_and_run(con, rec_id, [DRAFT, LATER, FAILED, SEGMENT], ORGANIZING)
@@ -462,6 +498,25 @@ def _restore_after_combine_fail(con, use, marks, why):
     con.commit()
 
 
+JOIN = chr(10)
+
+
+def _joined_polish(use):
+    """区切りの清書をつないだ結果。戻り値: (清書の全文（清書した区切りが無ければ空）, 直した一覧, 迷う言葉, 使わなかった理由）。"""
+    fixes, doubts, notes, seen = [], [], [], set()
+    for x in use:
+        pj = polish_of(x)
+        for f in pj["fixes"]:
+            if (f["from"], f["to"]) not in seen:
+                seen.add((f["from"], f["to"]))
+                fixes.append(f)
+        doubts += [d for d in pj["doubts"] if d not in doubts]
+        if pj["note"] and pj["note"] not in notes:
+            notes.append(pj["note"])
+    fixed = JOIN.join(shown_text(x) for x in use) if any(x["polished"] for x in use) else ""
+    return fixed, fixes, doubts, "。".join(notes)
+
+
 def _combine_job(use, marks):
     con = connect()
     try:
@@ -470,9 +525,9 @@ def _combine_job(use, marks):
         try:
             sens = sensitive_from_db(con)
             gw = ai_router.make_gateway()
-            texts = [x["transcript"] for x in use]
-            offs = [bool(x["fix_off"]) for x in use]
-            items, fixed, fixes = _with_timeout(lambda: memo.make_combined(texts, offs, sens, gw), timeout_sec("ai"))
+            texts = [shown_text(x) for x in use]   # 区切りごとに、聞き取りの後で清書してある。清書の文を1つにつないで要約する
+            items = memo.organize(JOIN.join(texts), sens, gw, combined=True, timeout=timeout_sec("ai"))
+            fixed, fixes, doubts, note = _joined_polish(use)
         except Exception as e:  # noqa: BLE001
             if isinstance(e, TimeoutError):
                 why = "時間切れ（もう一度お試しください）"
@@ -499,10 +554,12 @@ def _combine_job(use, marks):
                             % q, [SEGMENT, d, DRAFT, *ids])
             c2 = con.execute(
                 "INSERT INTO drafts (patient_id, visit_id, kind, body, transcript, status, created_at, "
-                "recording_id, items, fixed_transcript, fixes, combined) VALUES (?, ?, 'spoken_summary', ?, ?, 'draft', ?, ?, ?, ?, ?, 1)",
+                "recording_id, items, fixed_transcript, fixes, combined, doubts, polish_note) "
+                "VALUES (?, ?, 'spoken_summary', ?, ?, 'draft', ?, ?, ?, ?, ?, 1, ?, ?)",
                 (last["patient_id"], last["visit_id"], memo.body_lines(items, visit_day(con, last["visit_id"])),
                  joined, now(), last["id"],
-                 json.dumps(items, ensure_ascii=False), fixed, json.dumps(fixes, ensure_ascii=False)))
+                 json.dumps(items, ensure_ascii=False), fixed, json.dumps(fixes, ensure_ascii=False),
+                 json.dumps(doubts, ensure_ascii=False), note))
             con.execute(f"UPDATE recordings SET state = ?, draft_id = ?, updated_at = ? WHERE id IN ({q})",
                         [DRAFT, c2.lastrowid, now(), *ids])
             con.commit()

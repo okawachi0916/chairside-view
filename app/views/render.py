@@ -1,7 +1,7 @@
 """本番の画面の HTML を作る。見た目と data-part は見本 (app/mockview) と同じにしてある。"""
 from html import escape as h
 
-from app.ai import segview
+from app.ai import fixtalk, segview
 from app.db import TODAY
 from app.mockview.parts import FULL, MIC, PHONE, band, card
 from app.views import photos as PH
@@ -128,6 +128,9 @@ def _seg_group(g):
             btns += f'<button type="button" data-seg="open" data-draft="{x["draft_id"]}">要約を見て記録する</button>'
         if x["can_delete"] and not working and x["state"] != "録音中":   # 確定した区切りは消せないので、ボタンも出さない
             btns += f'<button type="button" class="seg-del" data-seg="delete" data-id="{x["id"]}">この区切りを消す</button>'
+        raw = (f'<details class="seg-raw"><summary>聞き取りのまま</summary><p>{h(x["raw"])}</p></details>'
+               if x["polished"] else "")
+        note = f'<p class="seg-note">{h(x["note"])}</p>' if x["note"] else ""
         lines = "".join(f"<li>{h(t)}</li>" for t in x["lines"])
         summ = f'<ul class="seg-sum">{lines}</ul>' if lines else ""
         err = f'<p class="seg-err">{h(x["error"])}</p>' if x["error"] and x["state"] in ("失敗", "文字起こし済み", "後で直す") else ""
@@ -135,7 +138,8 @@ def _seg_group(g):
             f'<div class="seg" data-seg-id="{x["id"]}" data-state="{h(x["state"])}"'
             f'{" data-working=1" if working else ""}>'
             f'<div class="seg-head"><b>区切り {i}</b> <span>{h(x["time"])} 録音</span> <em>{h(x["label"])}</em></div>'
-            f'<p class="seg-text">{h(x["text"])}</p>{summ}{err}<div class="seg-btns">{btns}</div></div>')
+            f'<p class="seg-text" data-part="seg-text">{fixtalk.marked_html(x["text"], x["fixes"], x["doubts"])}</p>{raw}{note}'
+            f'{summ}{err}<div class="seg-btns">{btns}</div></div>')
     return "".join(rows)
 
 

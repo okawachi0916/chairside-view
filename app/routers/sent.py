@@ -16,7 +16,7 @@ from app.db import connect, data_dir
 
 router = APIRouter()
 h = html.escape
-PURPOSES = {"question": "質問", "memo": "下書き（5つに分ける）", "fix": "聞き違いの直し"}
+PURPOSES = {"question": "質問", "memo": "下書き（5つに分ける）", "polish": "清書（聞き違いを直す）", "fix": "聞き違いの直し（前の版）"}
 PLACEHOLDER = re.compile(r"\[[^\[\]]+\]")  # 伏字は [患者1] のような形（app/ai/redact.py）
 MAX_SHOWN = 200
 
