@@ -151,7 +151,7 @@ def build() -> dict:
         I: [("金属アレルギー（ニッケル）", "2015年", "装飾品で皮膚炎")],
         T: [("ワルファリン服用中", "2020年", "心房細動の治療で開始")],
         K: [("関節リウマチ 手に力が入りにくい", "2012年", "診断を受けた")],
-        M: [("ラテックスアレルギー", "2018年", "手袋で手がかゆくなった")],
+        M: [("ラテックスアレルギー", "2018年", "")],
     }.items():
         for i, (b, period, detail) in enumerate(items, 1):
             r.add("important_notes", patient_id=pid, seq=i, body=b, period=period, detail=detail)

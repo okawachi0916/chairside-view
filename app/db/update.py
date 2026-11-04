@@ -32,6 +32,8 @@ def update(path=None) -> dict:
             if "staff_name" in cols:
                 for old, new in (("山本", "大川内"), ("田中", "佐藤")):
                     con.execute(f"UPDATE {t} SET staff_name = ? WHERE staff_name = ?", (new, old))
+        # G21j: 美咲様のラテックスアレルギーの「詳しく」は空にする（かゆみ程度の話は重要事項に載せない）
+        con.execute("UPDATE important_notes SET detail = '' WHERE body = 'ラテックスアレルギー' AND detail LIKE '%かゆ%'")
         con.commit()
         return {"added_columns": added, "inserted": inserted}
     finally:
