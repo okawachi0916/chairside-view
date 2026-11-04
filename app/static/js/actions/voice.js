@@ -96,7 +96,7 @@
   }
   CVActions.register("say-list-open", openSayList);
 
-  // ---- 口腔内写真（番号で呼ぶ）----
+  // ---- 写真（番号で呼ぶ）----
   function photoPanel() { return document.querySelector('[data-fs-panel="intraoral-photos"]'); }
   function photoItems() {
     var p = photoPanel();
@@ -138,7 +138,7 @@
     else window.CVActions.run("fs-open", key);
   }
   // スマホの QR の画面を開く。マウスでボタンを押したときと同じ道（data-action="phone" の click）。
-  // 口腔内写真の全画面の中にはボタンが見えないので、ボタンが無ければ入口を直接呼ぶ。
+  // 写真の全画面の中にはボタンが見えないので、ボタンが無ければ入口を直接呼ぶ。
   function openPhone() {
     var btn = document.querySelector('[data-action="phone"]');
     if (btn) btn.click();
@@ -347,7 +347,7 @@
         return res;
       }
       if (res.action === "part-number" || res.action === "photo-show") {
-        if (photoPanel()) { // 写真の番号は、口腔内写真の全画面の中でだけ効く
+        if (photoPanel()) { // 写真の番号は、写真の全画面の中でだけ効く
           var m = showPhotos(nums);
           say("「" + t + "」" + (m ? " " + m : ""));
         } else if (nums.length === 1) {
@@ -357,7 +357,7 @@
         }
         return res;
       }
-      if (res.action === "photo-open") { // 「口腔内写真の3番を拡大して」はいつもの画面からでも開く
+      if (res.action === "photo-open") { // 「写真の3番を拡大して」はいつもの画面からでも開く
         var m2 = showPhotos(nums);
         say("「" + t + "」" + (m2 ? " " + m2 : ""));
         return res;

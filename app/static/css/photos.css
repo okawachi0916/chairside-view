@@ -1,4 +1,4 @@
-/* 口腔内写真。一覧の写真の大きさ（--tw × --th、mock.css の :root）は、ふつうの画面と全画面の右の一覧で同じにする。 */
+/* 写真。一覧の写真の大きさ（--tw × --th、mock.css の :root）は、ふつうの画面と全画面の右の一覧で同じにする。 */
 .photos.pgroups { display: block; overflow-y: auto; }
 .pgroups .pg { margin-bottom: var(--sp-2); }
 .pgroups .pg-date { font-size: var(--fs-1); font-weight: var(--fw-medium); color: var(--c-sub); margin: var(--sp-1) 0; }

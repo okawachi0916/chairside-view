@@ -120,7 +120,7 @@ body.fs-mode .bands, body.fs-mode main.body { display: none; }
 .perio-pop button.bleed { color: var(--c-alert); font-weight: var(--fw-bold); }
 .mini.input:disabled { opacity: 0.4; }
 
-/* 口腔内写真の全画面の中の「スマホで写真をやり取り」 */
+/* 写真の全画面の中の「スマホで写真をやり取り」 */
 .fs-head button.phone-btn { background: var(--c-ink); color: var(--c-surface); border-color: var(--c-ink); }
 
 /* 話した内容の整理: 録音の区切り */
