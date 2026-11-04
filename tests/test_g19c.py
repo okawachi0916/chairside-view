@@ -15,17 +15,26 @@ OLD_TEXT = "前の日は根管の洗浄をしました。"
 HYG_TEXT = "清掃の仕方をお伝えしました。"
 
 
-def ago(days, hm="10:00"):
-    return (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d ") + hm + ":00"
+def visit_day(c, vid):
+    return c.execute("SELECT visit_date FROM visits WHERE id = ?", (vid,)).fetchone()[0]
+
+
+def day_before(day, days):
+    return (datetime.fromisoformat(day) - timedelta(days=days)).strftime("%Y-%m-%d")
 
 
 def add_segment(env, appt, text, days=0, role="", state="文字起こし済み"):
-    """日付と役割を指定した区切りを直接入れる（前の日の録音の代わり）。"""
+    """区切りを直接入れる。days>0 は、その日数だけ前の診療回（前の診療日）の区切り（前の日の録音の代わり）。"""
     c = con_of(env)
     pid, vid = recpipe.visit_for(c, appt)
+    day = day_before(visit_day(c, vid), days)
+    if days:
+        vid = c.execute("INSERT INTO visits (patient_id, visit_date, start_time, role, unit, status) VALUES (?, ?, '14:30', 'doctor', 2, 'closed')",
+                        (pid, day)).lastrowid
     n = c.execute("SELECT COALESCE(MAX(rec_no), 0) + 1 FROM recordings").fetchone()[0]
+    at = f"{datetime.now():%Y-%m-%d} 10:00:00"  # 録音した実際の時刻は、診療回の日付とは関係ない
     cur = c.execute("INSERT INTO recordings (rec_no, started_at, patient_id, visit_id, state, transcript, role, updated_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (n, ago(days), pid, vid, state, text, role, ago(days)))
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (n, at, pid, vid, state, text, role, at))
     c.commit()
     return cur.lastrowid
 
@@ -91,26 +100,29 @@ def test_screen_splits_by_date_and_role_today_first(manual):
     a = appt_of(manual, "0123")
     add_segment(manual, a, OLD_TEXT, days=1, role="doctor")
     add_segment(manual, a, HYG_TEXT, days=1, role="hygienist")
+    add_segment(manual, a, OLD_TEXT, days=2, role="doctor")
     record_as(manual, a, "hygienist", HYG_TEXT)
     record_as(manual, a, "doctor", TODAY_TEXT)
     html = manual["client"].get(f"/api/view/unit?appt={a}&role=doctor").json()["html"]
     import re
 
     heads = re.findall(r'<h4 class="seg-day">([^<]*)</h4>', html)
-    today = segview_label(0)
+    c = con_of(manual)
+    today = segview_label(c, a, 0)
     assert heads[0] == f"{today} 歯科医師" and heads[1] == f"{today} 歯科衛生士"  # 今日が上、今の役割が先
-    assert heads[2:4] == [f"{segview_label(1)} 歯科医師", f"{segview_label(1)} 歯科衛生士"]
-    assert heads[4:] == [f"{segview_label(2)} 歯科医師"]  # 見本データの2日前の分は、さらに下
+    assert heads[2:4] == [f"{segview_label(c, a, 1)} 歯科医師", f"{segview_label(c, a, 1)} 歯科衛生士"]
+    assert heads[4] == f"{segview_label(c, a, 2)} 歯科医師" and len(heads) >= 5  # さらに前の診療回の分は、さらに下（見本の10月の分はその下）
     assert html.count("data-today=1") == 2
     # 歯科衛生士で開くと、今の役割が変わる
     html2 = manual["client"].get(f"/api/view/unit?appt={a}&role=hygienist").json()["html"]
     assert re.findall(r'<h4 class="seg-day">([^<]*)</h4>', html2)[0] == f"{today} 歯科衛生士"
 
 
-def segview_label(days):
+def segview_label(c, appt, days):
     from app.ai import segview
 
-    return segview.date_label((datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d"))
+    today = visit_day(c, recpipe.visit_for(c, appt)[1])
+    return segview.date_label(day_before(today, days), today)
 
 
 def test_combine_button_only_when_todays_segments_of_this_role(manual):
@@ -139,7 +151,8 @@ def test_confirmed_segment_has_no_delete_button_and_cannot_be_deleted(manual):
 def test_seed_sample_segments_are_dated_before_today():
     from app.db import initial
 
-    rows = initial.build()["recordings"]
-    today = recpipe.today_str()
-    assert rows and all(r["started_at"][:10] < today for r in rows)  # 今日の分に見えない
+    built = initial.build()
+    rows = built["recordings"]
+    visits = {v["id"]: v["visit_date"] for v in built["visits"]}
+    assert rows and all(r["started_at"][:10] == visits[r["visit_id"]] < initial.TODAY for r in rows)  # 前の診療回の日付
     assert {r["role"] for r in rows} == {"doctor", "hygienist"} and all(r["state"] == "確定" for r in rows)
