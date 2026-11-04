@@ -320,8 +320,9 @@ def _doctor_teeth(d):
         lines += f"<div><b>義歯</b> <span>{h(t)}</span></div>"
     own = TC.own_teeth(d["teeth"], [x["site"] for x in d["history"]], d["dentures"])
     today = TC.today_teeth(a["detail"] for a in d["day"] if a["role"] == "doctor")
-    svg = TC.chart_svg(d["teeth"], own, today)
-    inner = f'<div class="teeth"><div class="frame">{svg}</div><div class="side">{lines}{TC.LEGEND}</div></div>'
+    doing = TC.doing_teeth(d["teeth"], d["plan"])
+    svg = TC.chart_svg(d["teeth"], own, today, doing)
+    inner = f'<div class="teeth"><div class="frame">{svg}{TC.LEGEND}</div><div class="side">{lines}</div></div>'
     return card("tooth-chart", "歯の状態", inner, 8)
 
 
