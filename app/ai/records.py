@@ -46,7 +46,7 @@ def build_records(con, patient_id: int) -> list:
         add(f"plan:{r['seq']}", "治療計画", "treatment-plan", [r["body"]], "出どころ: 治療計画")
 
     note_dates = set()
-    for r in q("SELECT note_date, author_role, body FROM clinical_notes WHERE patient_id=? ORDER BY note_date DESC"):
+    for r in q("SELECT note_date, author_role, body FROM clinical_notes WHERE patient_id=? ORDER BY note_date DESC, id DESC"):
         note_dates.add(r["note_date"])
         who = "歯科衛生士" if r["author_role"] == "hygienist" else "歯科医師"
         add(f"note:{r['note_date']}", f"診療メモ（{who}）", "past-notes", [r["body"]],
