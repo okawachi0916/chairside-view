@@ -32,6 +32,7 @@ def _run(fn):
 
 class StartBody(BaseModel):
     appt: int | None = None
+    role: str = ""
 
 
 class TransferBody(BaseModel):
@@ -45,7 +46,7 @@ class PasteBody(BaseModel):
 
 @router.post("/rec/start")
 def rec_start(body: StartBody):
-    return _run(lambda con: recpipe.start(con, body.appt))
+    return _run(lambda con: recpipe.start(con, body.appt, body.role))
 
 
 @router.post("/rec/{rec_id}/audio")

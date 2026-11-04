@@ -69,13 +69,17 @@ def parse_items(raw: str, transcript: str) -> dict:
         rows = obj[k]
         if not isinstance(rows, list):
             raise ValueError("応答の形が違います")
-        kept = []
+        kept, seen = [], set()
         for r in rows:
             if not isinstance(r, dict) or set(r) != {"text", "quote"} or not all(isinstance(r[x], str) for x in r):
                 raise ValueError("応答の形が違います")
             q = _squash(r["quote"])
             if r["text"].strip() and q and q in spoken:  # 抜き出しが無い、話の中に無い行は出さない
-                kept.append({"text": finish_text(r["text"]), "quote": r["quote"].strip()})
+                text = finish_text(r["text"])
+                if _squash(text) in seen:
+                    continue  # 同じ話が2回録音されたときなど、同じ項目は1つにまとめる
+                seen.add(_squash(text))
+                kept.append({"text": text, "quote": r["quote"].strip()})
         out[k] = kept
     return out
 

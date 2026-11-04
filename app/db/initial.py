@@ -122,6 +122,18 @@ def build() -> dict:
           body="右下奥の清掃を指導\n寝る前の歯間ブラシを継続",
           transcript="右下の奥は磨き残しが出やすいので、清掃の仕方をお伝えしました。寝る前の歯間ブラシは続けてください。",
           created_at=TODAY + " 15:40")
+    # 録音の区切りの見本。前の日の日付で入れる（今日の分に見えないように）。確定済みなので消せない。
+    #   日付はパソコンの今日から数える（区切りの「今日」と同じ時計）
+    from datetime import datetime, timedelta
+    now = datetime.now()
+    for n, (ago, vid, role, hm, text) in enumerate([
+        (1, tv_doc, "doctor", "14:40", "右下6番、根管充填をしました。デンタルで確認して、問題ありませんでした。"),
+        (1, tv_doc, "hygienist", "15:10", "右下の奥は磨き残しが出やすいので、清掃の仕方をお伝えしました。"),
+        (2, tv_doc, "doctor", "14:35", "右下6番、根管の洗浄をして、仮封をしました。"),
+    ], 1):
+        r.add("recordings", rec_no=n, started_at=(now - timedelta(days=ago)).strftime("%Y-%m-%d ") + hm + ":00",
+              patient_id=H, visit_id=vid, state="確定", transcript=text, role=role,
+              updated_at=(now - timedelta(days=ago)).strftime("%Y-%m-%d ") + hm + ":00")
     # 予約済みの次の予約
     appt(H, "2027-02-05", "14:30", "15:00", "hygienist", "SPT", 2, status="booked",
          recep="3か月SPT", staff="佐藤")

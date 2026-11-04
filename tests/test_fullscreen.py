@@ -82,7 +82,7 @@ def test_photos_fullscreen_select(server, browser):  # noqa: F811
 
 def test_spoken_fullscreen_two_columns(server, browser):  # noqa: F811
     for appt, role, line, said in [
-        (H_DOC, "doctor", "右下6番 根管充填、側方加圧", "根管充填をします"),
+        (H_DOC, "doctor", "右下6番 根管充填、側方加圧", "根管充填をしました"),  # 歯科医師の診療回には見本の区切りがある
         (H_HYG, "hygienist", "右下奥の清掃を指導", "清掃の仕方をお伝えしました"),
     ]:
         pg = open_unit(browser, server, appt, role)
@@ -90,7 +90,7 @@ def test_spoken_fullscreen_two_columns(server, browser):  # noqa: F811
         cols = pg.locator(".fs-col")
         assert cols.count() == 2
         assert line in cols.nth(0).inner_text() and said in cols.nth(1).inner_text()
-        assert "話したままの文字" in cols.nth(1).inner_text()
+        assert ("録音の区切り" if role == "doctor" else "話したままの文字") in cols.nth(1).inner_text()
         b0, b1 = cols.nth(0).bounding_box(), cols.nth(1).bounding_box()
         assert b0["x"] < b1["x"]  # 左に要約、右に話したままの文字
         pg.close()

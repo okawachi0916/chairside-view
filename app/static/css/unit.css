@@ -158,3 +158,8 @@ body.fs-mode .bands, body.fs-mode main.body { display: none; }
 .fs-panel[data-fs-panel="answer"] .ai-body > p { zoom: var(--fit, 1); break-inside: avoid; }
 .fs-panel[data-fs-panel="answer"] .ai-body.fit-2col { column-count: 2; column-gap: var(--sp-10); column-rule: 1px solid var(--c-line); }
 .fs-scroll.fit-2col > :first-child { margin-top: 0; }
+
+/* 録音の区切り: 日付 × 役割ごとの見出し */
+.seg-group { margin: 0 0 var(--sp-3); }
+.seg-group:not([data-today]) { opacity: .85; }
+.seg-day { margin: var(--sp-2) 0 var(--sp-2); font-size: var(--fs-2); border-bottom: 1px solid currentColor; }

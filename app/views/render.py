@@ -1,6 +1,7 @@
 """本番の画面の HTML を作る。見た目と data-part は見本 (app/mockview) と同じにしてある。"""
 from html import escape as h
 
+from app.ai import segview
 from app.db import TODAY
 from app.mockview.parts import FULL, MIC, PHONE, band, card
 from app.views import photos as PH
@@ -101,8 +102,18 @@ def spoken(d, cols):
 def _seg_rows(d):
     """全画面の右の列。区切りを録音した順に。区切りごとに要約と消すのボタン。"""
     appt = d["appt"]["id"]
+    out = []
+    for g in segview.groups(d["segments"], d["role"]):
+        who = segview.ROLE_NAME[g["role"]]
+        out.append(f'<section class="seg-group" data-date="{h(g["date"])}" data-role="{g["role"]}"'
+                   f'{" data-today=1" if g["is_today"] else ""}>'
+                   f'<h4 class="seg-day">{h(segview.date_label(g["date"]))} {who}</h4>{_seg_group(g)}</section>')
+    return "".join(out), appt
+
+
+def _seg_group(g):
     rows = []
-    for i, x in enumerate(d["segments"], 1):
+    for i, x in enumerate(g["items"], 1):
         if x["deleted"]:
             rows.append(
                 f'<div class="seg seg-gone" data-seg-id="{x["id"]}" data-undo="{x["undo_left"]:.1f}">'
@@ -115,7 +126,7 @@ def _seg_rows(d):
             btns += f'<button type="button" data-seg="summarize" data-id="{x["id"]}">この区切りを要約</button>'
         if x["state"] == "下書き" and x["draft_id"]:
             btns += f'<button type="button" data-seg="open" data-draft="{x["draft_id"]}">要約を見て記録する</button>'
-        if not working and x["state"] != "録音中":
+        if x["can_delete"] and not working and x["state"] != "録音中":   # 確定した区切りは消せないので、ボタンも出さない
             btns += f'<button type="button" class="seg-del" data-seg="delete" data-id="{x["id"]}">この区切りを消す</button>'
         lines = "".join(f"<li>{h(t)}</li>" for t in x["lines"])
         summ = f'<ul class="seg-sum">{lines}</ul>' if lines else ""
@@ -125,7 +136,7 @@ def _seg_rows(d):
             f'{" data-working=1" if working else ""}>'
             f'<div class="seg-head"><b>区切り {i}</b> <span>{h(x["time"])} 録音</span> <em>{h(x["label"])}</em></div>'
             f'<p class="seg-text">{h(x["text"])}</p>{summ}{err}<div class="seg-btns">{btns}</div></div>')
-    return "".join(rows), appt
+    return "".join(rows)
 
 
 def fullscreen_templates(d):
@@ -156,9 +167,10 @@ def fullscreen_templates(d):
     talk = h(d["transcript"])
     seg_html, appt = _seg_rows(d)
     live = [x for x in d["segments"] if not x["deleted"]]
-    can_combine = any(x["state"] in ("文字起こし済み", "下書き", "後で直す", "失敗") and x["text"] for x in live)
-    combine = (f'<button type="button" class="seg-combine" data-seg="combine" data-appt="{appt}">今日の分をまとめて要約</button>'
-               if can_combine else "")
+    mine = [x for x in live if x["role"] == d["role"] and x["date"] == segview.recpipe.today_str()]   # まとめるのは今日の・今の役割の分だけ
+    can_combine = any(x["state"] in ("文字起こし済み", "下書き", "後で直す", "失敗") and x["text"] for x in mine)
+    combine = (f'<button type="button" class="seg-combine" data-seg="combine" data-appt="{appt}" data-role="{d["role"]}">'
+               f'今日の分をまとめて要約</button>' if can_combine else "")
     open_c = (f'<button type="button" data-seg="open" data-draft="{d["combined_draft"]}">まとめた要約を見て記録する</button>'
               if d.get("combined_draft") else "")
     right = (f'<div class="fs-scroll seg-list" data-appt="{appt}">{seg_html}</div>' if live or seg_html

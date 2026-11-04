@@ -18,8 +18,13 @@ SENS = Sensitive(patients=[], staff=[], clinics=[])
 # 今朝の聞き違いを作り直した2つの録音の文字（実際の文字ではない。聞き違いは院長の例のとおり）
 REC1 = "今日は右下6番の根幹重点をしました。肺脳があったので洗浄しました。次回は2週間後に次第蓄造をします。"
 REC2 = "右下6番の次第地駆動の形成をしました。仮歯はTEKを入れました。"
-FIX1 = [{"from": "根幹重点", "to": "根管充填"}, {"from": "肺脳", "to": "排膿"}, {"from": "次第蓄造", "to": "支台築造"}]
-FIX2 = [{"from": "次第地駆動", "to": "支台築造"}]
+def fx(a, b, ay="あ", by="あ"):
+    """Claude の直し1つ（読みつき）。読みを指定しなければ、同じ読みとして渡す。"""
+    return {"from": a, "to": b, "from_yomi": ay, "to_yomi": by}
+
+
+FIX1 = [fx("根幹重点", "根管充填"), fx("肺脳", "排膿"), fx("次第蓄造", "支台築造")]
+FIX2 = [fx("次第地駆動", "支台築造")]
 
 
 def gw(tmp_path, fix_reply="[]", reply="{}"):
@@ -31,10 +36,12 @@ def gw(tmp_path, fix_reply="[]", reply="{}"):
 
 def test_dental_terms_config():
     cfg = json.loads((ROOT / "config" / "dental_terms.json").read_text(encoding="utf-8"))
-    assert 0 < len(cfg["terms"]) <= 30  # 語は30語以内
+    assert 0 < len(cfg["terms"]) <= 80  # 語は80語以内
+    for need in ("覆髄", "直接覆髄", "間接覆髄", "断髄", "根管拡大", "根管洗浄", "除去", "補綴", "プロビジョナル", "抜髄"):
+        assert need in cfg["terms"]
     assert len(set(cfg["terms"])) == len(cfg["terms"])
     p = fixtalk.initial_prompt()
-    assert p.startswith(cfg["sentence"]) and all(t in p for t in cfg["terms"]) and len(p) < 300
+    assert p.startswith(cfg["sentence"]) and all(t in p for t in cfg["terms"]) and len(p) < 800
     assert "TeC" in cfg["terms"] and "TEK" not in "".join(cfg["terms"])
     for need in ("根管充填", "排膿", "支台築造"):
         assert need in cfg["terms"]
@@ -62,13 +69,13 @@ def test_fixes_apply_to_both_recordings(tmp_path):
         assert "音声認識で文字にしたもので、聞き違いがあります" in system and "同じか近い読み" in system
         assert "迷う所は直しません" in system and "言い換えません" in system and "言葉を足しません" in system
         assert talk in user
-    # 直した一覧は「元→直し」で残る（書き方の統一もここに入る）
+    # 直した一覧は「元→直し」で残る（書き方の統一・決まりで直したものもここに入る。決まりにある言葉は決まりが直す）
     _, done = fixtalk.fix_transcript(REC2, SENS, gw(tmp_path, FIX2)[0])
-    assert {"from": "次第地駆動", "to": "支台築造", "by": "claude"} in done and {"from": "TEK", "to": "TeC", "by": "rule"} in done
+    assert {"from": "次第地駆動", "to": "支台築造", "by": "rule"} in done and {"from": "TEK", "to": "TeC", "by": "rule"} in done
 
 
 def test_only_words_in_the_text_are_accepted():
-    raw = json.dumps([{"from": "そんな言葉は無い", "to": "根管充填"}, {"from": "肺脳", "to": "排膿"}], ensure_ascii=False)
+    raw = json.dumps([fx("そんな言葉は無い", "根管充填"), fx("肺脳", "排膿")], ensure_ascii=False)
     assert [f["from"] for f in fixtalk.parse_fixes(raw, REC1)] == ["肺脳"]  # 話の文字に無い from は捨てる
 
 
@@ -86,26 +93,26 @@ def test_only_words_in_the_text_are_accepted():
 ])
 def test_unsafe_fixes_are_rejected(a, b):
     talk = "右下6番を2週間後に、10月23日にアモキシシリン250mgで、二週間後、肺脳"
-    assert fixtalk.parse_fixes(json.dumps([{"from": a, "to": b}], ensure_ascii=False), talk) == []
+    assert fixtalk.parse_fixes(json.dumps([fx(a, b)], ensure_ascii=False), talk) == []
 
 
 def test_numbers_never_change_even_if_claude_tries(tmp_path):
     talk = "右下6番の根幹重点を2週間後にします。10月23日のアモキシシリン250mgを続けます。"
-    bad = [{"from": "右下6番", "to": "左下7番"}, {"from": "2週間後", "to": "1週間後"}, {"from": "250mg", "to": "500mg"},
-           {"from": "10月23日", "to": "10月30日"}, {"from": "根幹重点", "to": "根管充填"}]
+    bad = [fx("右下6番", "左下7番"), fx("2週間後", "1週間後"), fx("250mg", "500mg"),
+           fx("10月23日", "10月30日"), fx("根幹重点", "根管充填")]
     text, _ = fixtalk.fix_transcript(talk, SENS, gw(tmp_path, bad)[0])
     assert text == talk.replace("根幹重点", "根管充填")
 
 
-@pytest.mark.parametrize("raw", ["", "直しは無し", "{}", '{"from":"肺脳","to":"排膿"}', '[{"from":"肺脳"}]',
-                                 '[{"from":"肺脳","to":"排膿","why":"x"}]', '[{"from":1,"to":2}]', "[1]", "null"])
+@pytest.mark.parametrize("raw", ["", "直しは無し", "{}", '{"from":"肺脳","to":"排膿","from_yomi":"はいのう","to_yomi":"はいのう"}',
+                                 "[1]", "null"])
 def test_bad_shape_is_an_error(raw):
     with pytest.raises(ValueError):
         fixtalk.parse_fixes(raw, REC1)
 
 
 def test_fenced_json_and_empty_list_are_ok():
-    assert fixtalk.parse_fixes('```json\n[{"from":"肺脳","to":"排膿"}]\n```', REC1)[0]["to"] == "排膿"
+    assert fixtalk.parse_fixes('```json\n[{"from":"肺脳","to":"排膿","from_yomi":"はいのう","to_yomi":"はいのう"}]\n```', REC1)[0]["to"] == "排膿"
     assert fixtalk.parse_fixes("[]", REC1) == []
 
 
@@ -174,7 +181,7 @@ def test_untalked_treatment_is_not_added(tmp_path):
     items, _, _ = memo.make_draft(talk, SENS, gw(tmp_path, FIX1[:1], made_up)[0])
     assert [r["text"] for r in items["done"]] == ["右下6番の根管充填。"] and "抜歯" not in memo.body_lines(items)
     # 直しの一覧で話していない治療を足そうとしても、from が話に無いので入らない
-    sneaky = [{"from": "抜歯をしました", "to": "抜歯と投薬をしました"}]
+    sneaky = [fx("抜歯をしました", "抜歯と投薬をしました")]
     text, _ = fixtalk.fix_transcript(talk, SENS, gw(tmp_path, sneaky)[0])
     assert text == fixtalk.normalize_spellings(talk)[0]  # 決まりの直し（根幹重点→根管充填）以外は変わらない
 
@@ -243,3 +250,63 @@ def test_numbers_survive_initial_prompt_with_real_whisper(tmp_path):
     without = tr.transcribe(pcm)["text"]
     digits = lambda s: [c for c in s if c in "0123456789０１２３４５６７８９"]  # noqa: E731
     assert len(digits(with_prompt)) >= len(digits(without)) > 0, (with_prompt, without)
+
+
+# ---- G19d: 読みが違う言葉には替えない ----
+
+def _reading_fix(a, b, ay, by):
+    return json.dumps([{"from": a, "to": b, "from_yomi": ay, "to_yomi": by}], ensure_ascii=False)
+
+
+def test_g19d_fuku_zui_becomes_fukuzui_not_batsuzui(tmp_path):
+    """「副髄」は覆髄になる。Claude が抜髄と返しても（読みが違う）捨てる。抜髄は抜髄のまま。"""
+    talk = "右下の5番は除去と副髄をします。"
+    wrong = _reading_fix("副髄", "抜髄", "ふくずい", "ばつずい")
+    text, done = fixtalk.fix_transcript(talk, SENS, gw(tmp_path, json.loads(wrong))[0])
+    assert text == "右下の5番は除去と覆髄をします。" and "抜髄" not in text
+    assert done == [{"from": "副髄", "to": "覆髄", "by": "rule"}]  # 決まりで直したものも一覧に出る
+    keep = "右下の5番は抜髄をします。"
+    assert fixtalk.fix_transcript(keep, SENS, gw(tmp_path, [])[0])[0] == keep
+
+
+def test_g19d_different_reading_is_dropped_by_the_program():
+    talk = "右下6番は副髄をします。"
+    assert fixtalk.parse_fixes(_reading_fix("副髄", "抜髄", "ふくずい", "ばつずい"), talk) == []
+    assert fixtalk.parse_fixes(_reading_fix("副髄", "覆髄", "ふくずい", "ふくずい"), talk)[0]["to"] == "覆髄"
+    # 1字だけ違う（濁点・長音・小さい字）は使う
+    assert fixtalk.parse_fixes(_reading_fix("副髄", "覆髄", "ふくずい", "ふくすい"), talk)
+    assert fixtalk.parse_fixes(_reading_fix("副髄", "覆髄", "ふくずい", "フクズイ"), talk)
+    assert fixtalk.parse_fixes(_reading_fix("副髄", "覆髄", "きょう", "きよう"), talk)
+    # 2字以上違う、ひらがなでない読みは捨てる
+    assert fixtalk.parse_fixes(_reading_fix("副髄", "覆髄", "ふくずい", "ふくずいい"), talk)  # 1字足りないだけは使う
+    assert fixtalk.parse_fixes(_reading_fix("副髄", "覆髄", "ふくずい", "ふくすいい"), talk) == []
+    assert fixtalk.parse_fixes(_reading_fix("副髄", "覆髄", "ふくずい", "覆髄"), talk) == []
+
+
+def test_g19d_missing_or_broken_reading_drops_only_that_fix():
+    talk = "根幹重点をして肺脳があった。"
+    rows = [{"from": "根幹重点", "to": "根管充填"},                                     # 読みが無い
+            {"from": "肺脳", "to": "排膿", "from_yomi": "はいのう", "to_yomi": 5},       # 読みの型が違う
+            {"from": "肺脳", "to": "排膿", "from_yomi": "はいのう", "to_yomi": "はいのう"}]
+    got = fixtalk.parse_fixes(json.dumps(rows, ensure_ascii=False), talk)
+    assert [f["from"] for f in got] == ["肺脳"]
+
+
+def test_g19d_four_common_mishearings_are_fixed_by_rules_without_claude(tmp_path):
+    talk = "根幹重点をして、肺脳があった。次第蓄造と次第地駆動。副髄もした。"
+    text, done = fixtalk.fix_transcript(talk, SENS, gw(tmp_path, [])[0])
+    assert text == "根管充填をして、排膿があった。支台築造と支台築造。覆髄もした。"
+    assert {d["from"] for d in done} == {"根幹重点", "肺脳", "次第蓄造", "次第地駆動", "副髄"} and all(d["by"] == "rule" for d in done)
+
+
+def test_g19d_prompt_says_same_reading_and_has_the_example():
+    s = fixtalk.SYSTEM
+    assert "同じ読みの言葉にします。読みが違う言葉には替えません。同じ読みの言葉が見つからなければ直しません" in s
+    assert "副髄→覆髄（抜髄ではない。読みが違う）" in s and "from_yomi" in s and "to_yomi" in s
+
+
+def test_g19d_same_items_are_merged_into_one():
+    talk = "今日は右下6番の根管充填をしました。今日は右下6番の根管充填をしました。"
+    row = {"text": "右下6番の根管充填。", "quote": "右下6番の根管充填をしました"}
+    raw = json.dumps({**{k: [] for k in memo.KEYS}, "done": [row, dict(row)]}, ensure_ascii=False)
+    assert len(memo.parse_items(raw, talk)["done"]) == 1
