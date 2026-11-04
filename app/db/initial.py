@@ -149,6 +149,8 @@ def build() -> dict:
     }.items():
         for i, (b, period, detail) in enumerate(items, 1):
             r.add("important_notes", patient_id=pid, seq=i, body=b, period=period, detail=detail)
+    # アレルギーの無い方の見本（「なし」と書いてある）。K は記録を空のまま残す。行の番号が動かないよう最後に足す
+    r.add("important_notes", patient_id=T, seq=2, body="アレルギー: 特になし", period="", detail="")
     for pid, items in {
         H: [("高血圧", "アムロジピン内服中", "2015年", "みどり内科クリニック"),
             ("脂質異常症", "ロスバスタチン内服中", "2017年", "みどり内科クリニック"),

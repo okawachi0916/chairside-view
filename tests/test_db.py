@@ -194,7 +194,7 @@ def test_update_db_old_database(seeded):
     con = con_of(seeded)
     assert con.execute("SELECT COUNT(*) FROM clinical_notes WHERE body='残る'").fetchone()[0] == 1
     assert con.execute("SELECT COUNT(*) FROM photos WHERE patient_id=1").fetchone()[0] == 12
-    assert con.execute("SELECT COUNT(*) FROM important_notes WHERE patient_id=3").fetchone()[0] == 1
+    assert con.execute("SELECT COUNT(*) FROM important_notes WHERE patient_id=3").fetchone()[0] == 2
     assert con.execute("SELECT name_kana FROM patients WHERE id=1").fetchone()[0] == "ミホン ハナコ"
     assert con.execute("SELECT kind FROM photos WHERE id=1").fetchone()[0] == "intraoral"
     con.execute("INSERT INTO voice_fixes (heard) VALUES ('x')")

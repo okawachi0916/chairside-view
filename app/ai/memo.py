@@ -11,9 +11,10 @@ import unicodedata
 from app.ai import fixtalk
 from app.ai.fixtalk import finish_text
 from app.ai.gateway import Gateway
+from app.ai.records import jp_date
 
 SECTIONS = [
-    ("done", "今日やったこと"),
+    ("done", "やったこと"),
     ("explained", "説明したこと"),
     ("next_plan", "次回の予定"),
     ("future_plan", "今後の治療計画"),
@@ -22,10 +23,17 @@ SECTIONS = [
 KEYS = [k for k, _ in SECTIONS]
 TITLES = dict(SECTIONS)
 
+
+def title_of(key: str, day: str = "") -> str:
+    """項目の見出し。「やったこと」には、その診療回の年月日を付ける（「今日」とは書かない。あとで記録を見るとき、いつか分かるように）。"""
+    if key == "done" and day:
+        return f"{jp_date(day)}にやったこと"
+    return TITLES[key]
+
 SYSTEM = (
     "あなたは歯科医院の記録の整理係です。歯科医師か歯科衛生士が話した内容を、次の5つに分けます。"
     "診断も治療の提案もしません。話していないことは足しません。\n"
-    "done=今日やったこと / explained=患者様に説明したこと / next_plan=次回の予定 / "
+    "done=その診療でやったこと / explained=患者様に説明したこと / next_plan=次回の予定 / "
     "future_plan=今後の治療計画 / future_policy=今後の治療方針\n"
     "決まり:\n"
     "- 各項目に、もとになった話の抜き出し quote を付けます。quote は話した文字からそのまま写した一続きの文字にします。言い換えません。\n"
@@ -34,6 +42,7 @@ SYSTEM = (
     "- 否定（〜はしません）、取り消し（〜はやめます）、訂正（右下と言いましたが左下です）があるときは、一番新しい言い方に従います。"
     "取り消された内容や、訂正前の言い方は text に入れません。\n"
     "- 話していない治療、提案、診断は足しません。該当する話が無い項目は空の配列にします。\n"
+    "- text に「今日」「本日」「きょう」とは書きません。日付を書く必要があるときは、話した言葉のままにします。\n"
     "次のJSONだけを返します。説明文は付けません。\n"
     '{"done":[{"text":"…","quote":"…"}],"explained":[],"next_plan":[],"future_plan":[],"future_policy":[]}'
 )
@@ -123,6 +132,6 @@ def make_combined(texts, offs, sens, gateway: Gateway):
     return organize(fixed, sens, gateway, combined=True), fixed, fixes
 
 
-def body_lines(items: dict) -> str:
-    """drafts.body 用。1行に1項目。"""
-    return "\n".join(f"{TITLES[k]}: {r['text']}" for k in KEYS for r in items.get(k, []))
+def body_lines(items: dict, day: str = "") -> str:
+    """drafts.body 用。1行に1項目。day はその診療回の日付（2026-11-06）。"""
+    return "\n".join(f"{title_of(k, day)}: {r['text']}" for k in KEYS for r in items.get(k, []))

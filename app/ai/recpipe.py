@@ -94,6 +94,12 @@ def role_of(con, rec) -> str:
     return "doctor"
 
 
+def visit_day(con, visit_id) -> str:
+    """その診療回の日付。見つからなければ空（見出しは日付なしの「やったこと」になる）。"""
+    v = con.execute("SELECT visit_date FROM visits WHERE id = ?", (visit_id,)).fetchone() if visit_id else None
+    return v["visit_date"] if v else ""
+
+
 def date_of(rec) -> str:
     return (rec["started_at"] or "")[:10]
 
@@ -347,7 +353,8 @@ def _organize(con, rec_id, attempt, r):
             # 整理し直した新しい下書き。人が見てから確定する（二重に作らず、同じ下書きを新しくする）
             draft_id = d["id"]
             con.execute("UPDATE drafts SET body = ?, transcript = ?, items = ?, fixed_transcript = ?, fixes = ? WHERE id = ?",
-                        (memo.body_lines(items), cur["transcript"], json.dumps(items, ensure_ascii=False), fixed,
+                        (memo.body_lines(items, visit_day(con, cur["visit_id"])), cur["transcript"],
+                         json.dumps(items, ensure_ascii=False), fixed,
                          json.dumps(fixes, ensure_ascii=False), draft_id))
         elif d:
             draft_id = d["id"]  # 確定済みは触らない
@@ -355,7 +362,8 @@ def _organize(con, rec_id, attempt, r):
             c2 = con.execute(
                 "INSERT INTO drafts (patient_id, visit_id, kind, body, transcript, status, created_at, "
                 "recording_id, items, fixed_transcript, fixes) VALUES (?, ?, 'spoken_summary', ?, ?, 'draft', ?, ?, ?, ?, ?)",
-                (cur["patient_id"], cur["visit_id"], memo.body_lines(items), cur["transcript"], now(),
+                (cur["patient_id"], cur["visit_id"], memo.body_lines(items, visit_day(con, cur["visit_id"])),
+                 cur["transcript"], now(),
                  rec_id, json.dumps(items, ensure_ascii=False), fixed, json.dumps(fixes, ensure_ascii=False)))
             draft_id = c2.lastrowid
         con.execute("UPDATE recordings SET state = ?, draft_id = ?, updated_at = ? WHERE id = ?",
@@ -489,7 +497,8 @@ def _combine_job(use, marks):
             c2 = con.execute(
                 "INSERT INTO drafts (patient_id, visit_id, kind, body, transcript, status, created_at, "
                 "recording_id, items, fixed_transcript, fixes, combined) VALUES (?, ?, 'spoken_summary', ?, ?, 'draft', ?, ?, ?, ?, ?, 1)",
-                (last["patient_id"], last["visit_id"], memo.body_lines(items), joined, now(), last["id"],
+                (last["patient_id"], last["visit_id"], memo.body_lines(items, visit_day(con, last["visit_id"])),
+                 joined, now(), last["id"],
                  json.dumps(items, ensure_ascii=False), fixed, json.dumps(fixes, ensure_ascii=False)))
             con.execute(f"UPDATE recordings SET state = ?, draft_id = ?, updated_at = ? WHERE id IN ({q})",
                         [DRAFT, c2.lastrowid, now(), *ids])
