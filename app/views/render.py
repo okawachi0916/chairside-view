@@ -314,20 +314,13 @@ def _doctor_history(d):
 
 
 def _doctor_teeth(d):
-    lines = "".join(f"<div><b>その他粘膜疾患</b> <span>{h(m['site'])} {h(m['name'])}</span></div>" for m in d["mucosal"])
-    for x in d["dentures"]:
-        t = f"{x['site']} {x['kind']}"
-        if x["made_by"]:
-            t += f" {x['made_by']}"
-        if x["made_on"]:
-            t += f" {D.ja_date(x['made_on'])} 経過期間 {_months_since(x['made_on'])}か月"
-        lines += f"<div><b>義歯</b> <span>{h(t)}</span></div>"
+    dentures = [{**x, "date": (f"{D.ja_date(x['made_on'])} 経過期間 {_months_since(x['made_on'])}か月"
+                               if x["made_on"] else "")} for x in d["dentures"]]
     own = TC.own_teeth(d["teeth"], [x["site"] for x in d["history"]], d["dentures"])
     today = TC.today_teeth(a["detail"] for a in d["day"] if a["role"] == "doctor")
     doing = TC.doing_teeth(d["teeth"], d["plan"])
     svg = TC.chart_svg(d["teeth"], own, today, doing)
-    inner = f'<div class="teeth"><div class="frame">{svg}{TC.LEGEND}</div><div class="side">{lines}</div></div>'
-    return card("tooth-chart", "歯の状態", inner, 8)
+    return card("tooth-chart", "歯の状態", TC.panel(svg, dentures, d["mucosal"]), 8)
 
 
 def doctor_page(d):

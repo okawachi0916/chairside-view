@@ -123,8 +123,10 @@ def unit_data(appt, role):
         d["perio_all"] = _perio(c, pid, None)  # 全画面で過去の検査へ遡る。新しい検査から順
         d["perio"] = d["perio_all"][:2]
         # 歯冠と根があればその2つ、無ければ今までの状態の文字（絵の側で読み替える）
-        d["teeth"] = {r["tooth"]: ((r["crown"], r["root"]) if r["crown"] else r["status"]) for r in c.execute(
-            "SELECT tooth, status, crown, root FROM tooth_status WHERE patient_id = ?", (pid,))}
+        # 歯冠・根・カリエスの3つ（G07g）。歯冠が空の古い行は今までの1つの状態の文字を読み替える
+        d["teeth"] = {r["tooth"]: ((r["crown"], r["root"], bool(r["caries"])) if r["crown"] else r["status"])
+                      for r in c.execute("SELECT tooth, status, crown, root, caries FROM tooth_status "
+                                         "WHERE patient_id = ?", (pid,))}
     return d
 
 
