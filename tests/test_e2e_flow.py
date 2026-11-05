@@ -185,10 +185,7 @@ def flow(server, browser):  # noqa: F811
     inner = next(f for f in ap.frames if f != ap.main_frame)
     inner.wait_for_function("document.body.dataset.ready === '1'")
     assert "まだ記録に入っていません" in inner.inner_text("[data-part=draft-mark]")
-    inner.evaluate("window.cvTyped('確定')")
-    assert "先に" in inner.inner_text("#msg")  # 「確定する」の前に「確定」だけでは入らない
-    inner.evaluate("window.cvTyped('確定する')")
-    inner.evaluate("window.cvTyped('確定')")
+    inner.evaluate("window.cvTyped('確定する')")  # G19m: 1回言えば記録する（2回目を待たない）
     # 確定すると診療の画面などへ自動で戻るので、画面ではなく記録に入ったことで確かめる
     for _ in range(100):
         with D.con() as c:
