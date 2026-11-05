@@ -17,7 +17,7 @@
 - G26d: 記録・あとで直すのあとは録音を始めた画面へ戻る（全画面と並べた写真も）。場所は actions/rec.js の CVReturn.here、開き直しは view.js。「戻して」は全画面を閉じる動きのまま
 - G19b: 録音を止めたら文字起こしまで（区切り＝状態「文字起こし済み」。auto_summary は config/model.json、既定 false）。話した内容の整理の全画面に区切りを順に並べ、「この区切りを要約」「今日の分をまとめて要約」（recpipe.combine、memo.make_combined：直す段を通して、同じ話は1つ・言い直しは後）「この区切りを消す」（5秒だけ元に戻せる）。API は app/routers/segments.py、画面は render.py の _seg_rows と static/js/segments.js。まとめた下書きは drafts.combined=1（区切りが同じ下書きにつながる）。根幹重点などは spellings の決まりで必ず直る
 - G19c: 区切りは日付 × 役割で分けて並べる（segview.groups、見出しは render の _seg_rows）。recordings.role は録音を始めた画面の役割（rec.js が渡す）、空なら診療回の担当→歯科医師。「今日の分をまとめて要約」は今日（パソコンの日付）・今の役割の区切りだけ。確定した区切りには消すボタンを出さない。見本データに前の日の確定済み区切りあり（花子様の歯科医師の診療回）
-- G19d〜G19i は G19k で清書に置き換わった（readings の置き換え・読みを比べる処理は無い）。terms は40〜80語（ヒント）、glossary は清書へ渡す一覧。scripts/redo_recording.py 録音番号 で録音を清書からやり直す。G19h/i: 整理の指示は「所見はやったこと、指示は説明したこと」。動画用の状態 demo_states の 聞き違い直し_1104c（1104b は残す）
+- G19d〜G19i は G19k で清書に置き換わった（readings の置き換え・読みを比べる処理は無い）。terms は40〜80語（ヒント）、glossary は清書へ渡す一覧。scripts/redo_recording.py 録音番号 で録音を清書からやり直す。G19h/i: 整理の指示は「所見はやったこと、指示は説明したこと」。動画用の状態は demo_states の 聞き違い直し_1105（G19n。記録前の下書き。scripts/insert_recording.py で録音を入れて作る。古い _1104・_1104b・_1104c は旧作品の状態）
 - G19e: 要約・下書きの見出しは「2026年11月6日にやったこと」（memo.title_of。「今日」と書かない）。アレルギー・薬・前回・次回は、記録が空でも quick_answers.json の empty の言葉を出す（ほかの記録にその言葉があれば Claude へ）。見本は3人目に「アレルギー: 特になし」、K は空。聞き違いに 全身起用・今前病変・陰霊 を足した（terms 66語）
 - G19f: 区切りの日付と「今日」は診療回の日付（visits.visit_date）。一覧は、この診療回＋同じ患者様の前の診療回の区切り。まとめて要約はこの診療回の・今の役割の分だけ（前の版の古い要約は押し直すと入れ替わる）。見本の前の区切りは花子様の10/23・10/9の診療回。「前回」は診療日の順
 - 試験: 全体（偽物の口）。送信文・伏字・応答・モデルを変えたら real_api_check.py の --questions、--memo、--fix、--combine を動かし直す
