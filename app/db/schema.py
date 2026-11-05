@@ -163,7 +163,8 @@ TABLES = {
         "cols": [
             ("patient_id", "INTEGER", None, True),
             ("exam_date", "TEXT", None, True),
-            ("kind", "TEXT", "'basic'", True),
+            ("kind", "TEXT", "'basic'", True),  # basic＝1本に1か所 / precise＝1本に6点
+            ("exam_time", "TEXT", "''", True),  # 検査した時刻（HH:MM）。空なら、その日の診療回の開始時刻を使う
         ],
         "extra": [_PATIENT_FK, "UNIQUE (patient_id, exam_date)"],
     },
@@ -171,10 +172,13 @@ TABLES = {
         "cols": [
             ("exam_id", "INTEGER", None, True),
             ("tooth", "INTEGER", None, True),
-            ("pocket", "INTEGER", None, True),  # 基本検査は1本に1つ (mm)
+            ("pocket", "INTEGER", None, True),  # 基本検査は1本に1つ (mm)。精密検査は6点のいちばん深い値（読む側が基本と同じに数えられる）
             ("bop", "INTEGER", "0", True),
             ("plaque", "TEXT", "'0000'", True),  # 近心・遠心・頬側・舌側の順、1が付着
             ("mobility", "INTEGER", "0", True),
+            # 精密検査の6点。カンマ区切り。順は 頬側（遠心・中央・近心）、舌側または口蓋側（遠心・中央・近心）。基本検査は空
+            ("pockets6", "TEXT", "''", True),
+            ("bops6", "TEXT", "''", True),  # 6点の出血。0/1 を6文字。基本検査は空
         ],
         "extra": ["FOREIGN KEY (exam_id) REFERENCES perio_exams(id)", "UNIQUE (exam_id, tooth)"],
     },

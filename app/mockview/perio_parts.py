@@ -1,14 +1,34 @@
-"""歯周基本検査の欄。見本（mockview/hygienist.py）と本物（views/render.py）で共通に使う。"""
+"""歯周検査の欄。見本（mockview/hygienist.py）と本物（views/render.py・全画面・入力）で同じ部品を使う。
+
+基本検査と精密検査は同じ枠・同じ表で、違うのはポケットの行だけ（基本＝「PD」1行で1本に1マス、精密＝2行で1本に3マス）。
+見る画面には「精密」「基本」の文字は出さない（マスの数を見れば分かる）。
+exam は app/views/data.py の perio_exam() の形: {date, weekday, time, kind, teeth, n, bop, pcr, loose}。
+"""
+from datetime import date
 from html import escape as h
 
 from app.mockview.parts import FULL, card
 
-# 入力モードに入るボタン。押したときの動きは G24 で作る（今は見た目だけ）
+TITLE = "歯周検査"
+
+# 入力モードに入るボタン。押したときの動きは actions/perio.js
 INPUT = '<button class="mini input" type="button" data-action="perio-input">入力</button>'
 
-# 左から右へ、見ている向きで並べる。上顎 18〜11 | 21〜28、下顎 48〜41 | 31〜38。
+# 見ている向きで左から右へ。上顎 18〜11 | 21〜28、下顎 48〜41 | 31〜38。患者様の右が画面の左。
 UPPER = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]
 LOWER = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
+WEEK = "月火水木金土日"
+
+# 精密検査の6点の持ち方: 頬側（遠心・中央・近心）→ 舌側または口蓋側（遠心・中央・近心）
+BUCCAL, INNER = 0, 3
+KINDS = ("basic", "precise")
+
+LEGEND = (
+    '<span><b class="red">4</b> 赤の太字 = 出血(BOP)</span>'
+    '<span><svg class="lg-tri" viewBox="0 0 10 10"><polygon points="0,0 10,5 0,10"/></svg> プラーク</span>'
+    '<span><i class="lg-slash"></i> 斜線 = 欠損・対象外</span>'
+)
+LEGEND_3 = "<span>3マスは見たままの並び（右側の歯＝遠心・中央・近心／左側の歯＝近心・中央・遠心）</span>"
 
 
 def plaque_svg(sides):
@@ -31,56 +51,129 @@ def plaque_svg(sides):
     )
 
 
-def _cells(teeth, tooth_nos, make):
-    out = []
-    for i, t in enumerate(tooth_nos):
-        mid = "mid" if i == 8 else ""
-        d = teeth.get(t)
-        out.append(f'<td class="gone {mid}">―</td>' if d is None else make({**d, "tooth": t}, mid))
-    return "".join(out)
+SIDE = {0: "l", 1: "r", 2: "t", 3: "b"}  # プラークの4文字（近心・遠心・頬側・舌側）→ 四角の4辺
 
 
-def _pocket(d, mid):
-    cls = ("deep " if d["pocket"] >= 4 else "") + ("bop " if d["bop"] else "")
-    return f'<td class="{cls}{mid}" data-tooth="{d["tooth"]}" data-k="pocket">{d["pocket"]}</td>'
+def _val(v):
+    return "" if v is None else str(v)
 
 
-def _loose(d, mid):
-    return f'<td class="{mid}" data-tooth="{d["tooth"]}" data-k="mob">{d["mobility"]}</td>'
+def _mid(i):
+    return " mid" if i == 8 else ""
 
 
-def _plaque(d, mid):
-    return f'<td class="pl {mid}" data-tooth="{d["tooth"]}" data-k="plq">{plaque_svg(d["sides"])}</td>'
+def _gone(i):
+    return f'<td class="gone{_mid(i)}"></td>'
 
 
-def _stat(label, now, prev):
-    before = f"<i>（前回 {h(prev)}）</i>" if prev else ""
-    return f'<div class="st"><small>{h(label)}</small><span><b>{h(now)}</b>{before}</span></div>'
+def _pocket(d, t, i):
+    """基本検査: 1本に1マス。"""
+    v, bop = d["pocket"], d["bop"]
+    cls = ("bop " if bop else "") + ("todo " if v is None else "") + ("deep " if (v or 0) >= 4 else "")
+    extra = f' data-v="{_val(v)}" data-bop="{1 if bop else 0}"'
+    return f'<td class="{cls}{_mid(i)[1:]}" data-tooth="{t}" data-k="pocket"{extra}>{_val(v)}</td>'
 
 
-def perio_card(teeth, stats, date_txt):
-    """teeth: 歯番 → {pocket, bop, mobility, sides}。欠けた歯は入れない。
-    stats: (項目名, 今の値, 前回の値 または None) の並び。"""
-    nos = "".join(
-        f'<td class="{"mid" if i == 8 else ""}">{abs(i - 7.5) + 0.5:.0f}</td>' for i in range(16)
+def _three(d, t, i, base):
+    """精密検査: 1本に3マス（見たままの並び。右側の歯＝遠心・中央・近心、左側の歯＝近心・中央・遠心）。"""
+    order = (0, 1, 2) if t // 10 in (1, 4) else (2, 1, 0)
+    cells = []
+    for k in order:
+        idx = base + k
+        v, bop = d["pts"][idx], d["bops"][idx]
+        cls = ("bop " if bop else "") + ("todo " if v is None else "")
+        cells.append(f'<span class="{cls.strip()}" data-k="pt" data-i="{idx}" data-v="{_val(v)}" data-bop="{1 if bop else 0}">{_val(v)}</span>')
+    return f'<td class="p3{_mid(i)}" data-tooth="{t}">{"".join(cells)}</td>'
+
+
+def _loose(d, t, i):
+    return f'<td class="{_mid(i)[1:]}" data-tooth="{t}" data-k="mob" data-v="{d["mobility"]}">{d["mobility"]}</td>'
+
+
+def _plaque(d, t, i):
+    sides = {SIDE[k] for k, c in enumerate(d["plaque"]) if c == "1"}
+    return f'<td class="pl{_mid(i)}" data-tooth="{t}" data-k="plq">{plaque_svg(sides)}</td>'
+
+
+def _row(exam, tooth_nos, make, label, cls=""):
+    cells = "".join(
+        _gone(i) if t not in exam["teeth"] else make(exam["teeth"][t], t, i)
+        for i, t in enumerate(tooth_nos)
+    )
+    return f'<tr class="{cls}"><th class="row">{label}</th>{cells}</tr>'
+
+
+def perio_table(exam):
+    """表だけ。見る画面でも入力の画面でも、これを使う。"""
+    precise = exam["kind"] == "precise"
+
+    def pocket_rows(nos, upper):
+        if not precise:
+            return [_row(exam, nos, _pocket, "PD", "pd")]
+        names = ("頬側", "口蓋側") if upper else ("舌側", "頬側")
+        bases = (BUCCAL, INNER) if upper else (INNER, BUCCAL)
+        return [_row(exam, nos, lambda d, t, i, b=b: _three(d, t, i, b), n, "pd3") for n, b in zip(names, bases)]
+
+    band = "".join(f'<td class="{_mid(i)[1:]}">{abs(i - 7.5) + 0.5:.0f}</td>' for i in range(16))
+    rows = (
+        [_row(exam, UPPER, _loose, "動揺度", "mob")]
+        + pocket_rows(UPPER, True)
+        + [_row(exam, UPPER, _plaque, "プラーク", "plq")]
+        + [f'<tr class="no"><th class="row"></th>{band}</tr>']
+        + [_row(exam, LOWER, _plaque, "プラーク", "plq")]
+        + pocket_rows(LOWER, False)
+        + [_row(exam, LOWER, _loose, "動揺度", "mob")]
+    )
+    return (
+        f'<table class="perio {"precise" if precise else "basic"}" data-kind="{exam["kind"]}">'
+        '<colgroup><col class="lab">' + "<col>" * 16 + "</colgroup>"
+        f'<tbody>{"".join(rows)}</tbody></table>'
     )
 
-    def row(label, tooth_nos, make, cls="", grp=""):
-        return f'<tr class="{cls}">{grp}<th class="row">{label}</th>{_cells(teeth, tooth_nos, make)}</tr>'
 
-    table = (
-        '<table class="perio"><tbody>'
-        + row("動揺度", UPPER, _loose, grp='<th class="grp" rowspan="3">上顎</th>')
-        + row("プラークチャート", UPPER, _plaque, "plq")
-        + row("ポケット", UPPER, _pocket)
-        + f'<tr class="no"><th class="row" colspan="2">歯番</th>{nos}</tr>'
-        + row("ポケット", LOWER, _pocket, grp='<th class="grp" rowspan="3">下顎</th>')
-        + row("プラークチャート", LOWER, _plaque, "plq")
-        + row("動揺度", LOWER, _loose)
-        + "</tbody></table>"
+def _stat(label, now, prev=None):
+    before = f'<i>前回 {h(prev)}</i>' if prev else ""
+    return f'<div class="st"><b>{now}</b><div class="lab"><small>{h(label)}</small>{before}</div></div>'
+
+
+def _date_block(exam):
+    y, m, d = (int(x) for x in exam["date"].split("-"))
+    wd = WEEK[date(y, m, d).weekday()]
+    t = f'<small class="tm">{h(exam["time"])}</small>' if exam.get("time") else ""
+    return f'<div class="pdate"><b>{y}/{m}/{d}</b><em class="wd">({wd})</em>{t}</div>'
+
+
+def perio_top(exam, prev):
+    """上の帯: PCR・BOP率・動揺のある歯・検査した歯と、検査の日付。"""
+    def pct(k):
+        return f'{exam[k]}<u>%</u>', (f'{prev[k]}%' if prev else None)
+
+    parts = (
+        _stat("PCR", *pct("pcr")) + _stat("BOP率", *pct("bop"))
+        + _stat("動揺のある歯（本数）", str(exam["loose"])) + _stat("検査した歯（本数）", str(exam["n"]))
     )
-    st = '<div class="perio-stats">' + "".join(_stat(*s) for s in stats) + "</div>"
-    return card(
-        "perio-exam", "歯周基本検査", st + table, 12, extra=f"検査日 {date_txt}", actions=INPUT + FULL,
-        cls="perio-card",
+    return f'<div class="perio-top"><div class="perio-stats">{parts}</div>{_date_block(exam)}</div>'
+
+
+def perio_body(exam, prev=None):
+    legend = LEGEND + (LEGEND_3 if exam["kind"] == "precise" else "")
+    return (
+        perio_top(exam, prev)
+        + '<div class="perio-lr"><span>右</span><span>左</span></div>'
+        + perio_table(exam)
+        + f'<div class="perio-legend">{legend}</div>'
     )
+
+
+def perio_card(exam, prev=None):
+    return card("perio-exam", TITLE, perio_body(exam, prev), 12, actions=INPUT + FULL, cls="perio-card")
+
+
+def blank_exam(teeth, kind):
+    """入力の画面用: 検査する歯だけを入れ、値は未入力にする。動揺度は 0、プラークは付いていない状態から始める。"""
+    if kind not in KINDS:
+        raise ValueError(kind)
+    one = {"pocket": None, "bop": 0, "plaque": "0000", "mobility": 0,
+           "pts": [None] * 6, "bops": [0] * 6}
+    return {"date": "2000-01-01", "weekday": "", "time": "", "kind": kind, "n": len(teeth), "bop": 0, "pcr": 0, "loose": 0,
+            "teeth": {t: {**one, "pts": [None] * 6, "bops": [0] * 6} for t in teeth}}

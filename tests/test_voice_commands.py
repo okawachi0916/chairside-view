@@ -56,7 +56,7 @@ def test_all_fullscreens_are_ready():
     assert ready == {"important", "intraoral-photos", "spoken-summary", "medical-history", "today-treatment",
                      "treatment-history", "perio-exam"}  # 受付メモは声の言葉に足さない
     for part, arg in (("全身既往", "medical-history"), ("今日の処置", "today-treatment"), ("治療歴", "treatment-history"),
-                      ("歯周基本検査", "perio-exam")):
+                      ("歯周検査", "perio-exam")):
         res = interpret(f"{part}を全画面にして")
         assert res["action"] == "fs-open" and res["arg"] == arg
     assert interpret("受付メモを全画面にして")["action"] is None

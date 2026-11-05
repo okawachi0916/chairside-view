@@ -59,7 +59,7 @@ def build_records(con, patient_id: int) -> list:
             f"出どころ: {jp_date(r['done_date'])}の治療歴", r["done_date"])
 
     for r in q("SELECT exam_date FROM perio_exams WHERE patient_id=? ORDER BY exam_date DESC"):
-        add(f"perio:{r['exam_date']}", "歯周基本検査", "perio-exam", ["歯周基本検査", f"検査日 {jp_date(r['exam_date'])}"],
+        add(f"perio:{r['exam_date']}", "歯周検査", "perio-exam", ["歯周検査", f"検査日 {jp_date(r['exam_date'])}"],
             f"出どころ: {jp_date(r['exam_date'])}の歯周検査", r["exam_date"])
 
     for r in q("SELECT body FROM handovers WHERE patient_id=?"):

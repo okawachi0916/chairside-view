@@ -7,7 +7,7 @@ from app.mockview.parts import FULL, MIC, PHONE, band, card
 from app.views import photos as PH
 from app.numbering import label as num_label
 from app.mockview.reception_parts import heat_card, next_card, reserve_card
-from app.mockview.perio_parts import perio_card
+from app.mockview.perio_parts import TITLE as PERIO_TITLE, perio_body, perio_card
 from app.mockview import tooth_chart as TC
 from app.views import data as D
 
@@ -234,39 +234,16 @@ def _fs_doctor(d):
     return today + hist
 
 
-UPPER = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]
-LOWER = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
-
-
-def _perio_col(ex, label):
-    def cell(t):
-        v = ex["teeth"].get(t)
-        if not v:
-            return f'<div class="pc none"><i>{t}</i></div>'
-        cls = " deep" if v["pocket"] >= 4 else ""
-        return (f'<div class="pc{cls}"><i>{t}</i><b>{v["pocket"]}</b>'
-                f'<u class="bop">{"●" if v["bop"] else ""}</u>{"<em>動</em>" if v["mobility"] else ""}</div>')
-
-    stats = (f'4mm以上 {ex["deep"]}本　BOP {ex["bop"]}%　PCR {ex["pcr"]}%　動揺 {ex["loose"]}本　検査した歯 {ex["n"]}本')
-    return (f'<div class="fs-col pcol"><h3>{label} {D.ja_date(ex["date"])}</h3><div class="pstat">{stats}</div>'
-            f'<div class="pgrid">{"".join(cell(t) for t in UPPER)}</div>'
-            f'<div class="pgrid">{"".join(cell(t) for t in LOWER)}</div></div>')
 
 
 def _fs_perio(d):
-    """新しい検査から順に、前回と今回を前後に並べる。1ページに1組。ページ送りで過去の検査へ遡る。"""
+    """新しい検査から順に、1ページに1回分の検査を大きく出す。ページ送りで過去の検査へ遡る。"""
     ex = d["perio_all"]
     if not ex:
-        return _tpl("perio-exam", "歯周基本検査", '<div class="fs-scroll"><p>検査の記録はありません</p></div>')
-    pages = []
-    for i in range(max(1, len(ex) - 1)):
-        new = ex[i]
-        old = ex[i + 1] if i + 1 < len(ex) else None
-        first = i == 0
-        left = _perio_col(old, "前回" if first else "前の検査") if old else ""
-        right = _perio_col(new, "今回" if first else "この検査")
-        pages.append(f'<section class="fs-page"><div class="fs-cols">{left}{right}</div></section>')
-    return _tpl("perio-exam", "歯周基本検査", f'<div class="fs-scroll" data-pages>{"".join(pages)}</div>')
+        return _tpl("perio-exam", PERIO_TITLE, '<div class="fs-scroll"><p>検査の記録はありません</p></div>')
+    pages = [f'<section class="fs-page perio-page">{perio_body(e, ex[i + 1] if i + 1 < len(ex) else None)}</section>'
+             for i, e in enumerate(ex)]
+    return _tpl("perio-exam", PERIO_TITLE, f'<div class="fs-scroll perio-fs" data-pages>{"".join(pages)}</div>')
 
 
 def _fs_memo(d):
@@ -343,27 +320,11 @@ def doctor_page(d):
 
 
 # ---------- 歯科衛生士 ----------
-SIDE = {0: "l", 1: "r", 2: "t", 3: "b"}  # 近心・遠心・頬側・舌側 → 四角の4辺
-
-
 def _perio(d):
     ex = d["perio"]
     if not ex:
-        return card("perio-exam", "歯周基本検査", "", 12, actions=FULL)
-    cur = ex[0]
-    prev = ex[1] if len(ex) > 1 else None
-    teeth = {
-        t: {"pocket": v["pocket"], "bop": v["bop"], "mobility": v["mobility"],
-            "sides": {SIDE[i] for i, c in enumerate(v["plaque"]) if c == "1"}}
-        for t, v in cur["teeth"].items()
-    }
-
-    def stat(label, key, unit):
-        return (label, f"{cur[key]}{unit}", f"{prev[key]}{unit}" if prev else None)
-
-    stats = [stat("4mm以上", "deep", "本"), stat("BOP", "bop", "%"), stat("PCR", "pcr", "%"),
-             stat("動揺のある歯", "loose", "本"), ("検査した歯", f"{cur['n']}本", None)]
-    return perio_card(teeth, stats, D.ja_date(cur["date"]))
+        return card("perio-exam", PERIO_TITLE, "", 12, actions=FULL)
+    return perio_card(ex[0], ex[1] if len(ex) > 1 else None)
 
 
 def _hyg_side(d):

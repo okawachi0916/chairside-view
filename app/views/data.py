@@ -133,21 +133,40 @@ def percent(part, whole):
     return int(100 * part / whole + 0.5) if whole else 0
 
 
+def perio_exam(exam_row, teeth_rows, visit_time=""):
+    """検査1回分を画面用の形にする。基本検査も精密検査も同じ形で、精密検査の歯だけ pts（6点のポケット）と bops（6点の出血）を持つ。
+    割合: PCR＝赤い面÷（検査した歯×4）。BOP率＝出血のある点÷点の数（基本は歯1本に1点、精密は1本に6点）。"""
+    precise = exam_row["kind"] == "precise"
+    teeth = {}
+    for r in teeth_rows:
+        t = dict(r)
+        if precise:  # 6点が無い精密検査の歯（壊れたデータ）は、空欄で出す。基本検査の値から作り足さない
+            t["pts"] = [int(x) for x in t["pockets6"].split(",")] if t["pockets6"] else [None] * 6
+            t["bops"] = [int(x) for x in t["bops6"]] if t["bops6"] else [0] * 6
+        teeth[t["tooth"]] = t
+    n = len(teeth)
+    points = sum(6 if precise else 1 for _ in teeth.values())
+    bleeding = sum(sum(t["bops"]) if "bops" in t else t["bop"] for t in teeth.values())
+    day = date.fromisoformat(exam_row["exam_date"])
+    return {
+        "date": exam_row["exam_date"], "weekday": WEEK[day.weekday()], "time": exam_row["exam_time"] or visit_time,
+        "kind": exam_row["kind"], "teeth": teeth, "n": n,
+        "deep": sum(t["pocket"] >= 4 for t in teeth.values()),
+        "bop": percent(bleeding, points),
+        "pcr": percent(sum(t["plaque"].count("1") for t in teeth.values()), n * 4),
+        "loose": sum(t["mobility"] > 0 for t in teeth.values()),
+    }
+
+
 def _perio(c, pid, limit=2):
-    exams = _all(c, "SELECT id, exam_date FROM perio_exams WHERE patient_id = ? ORDER BY exam_date DESC, id DESC"
+    exams = _all(c, "SELECT id, exam_date, kind, exam_time FROM perio_exams WHERE patient_id = ? ORDER BY exam_date DESC, id DESC"
                     + (f" LIMIT {int(limit)}" if limit else ""), pid)
     out = []
     for e in exams:
-        teeth = {r["tooth"]: dict(r) for r in c.execute(
-            "SELECT tooth, pocket, bop, plaque, mobility FROM perio_teeth WHERE exam_id = ?", (e["id"],))}
-        n = len(teeth) or 1
-        out.append({
-            "date": e["exam_date"], "teeth": teeth, "n": len(teeth),
-            "deep": sum(t["pocket"] >= 4 for t in teeth.values()),
-            "bop": percent(sum(t["bop"] for t in teeth.values()), n),
-            "pcr": percent(sum(t["plaque"].count("1") for t in teeth.values()), n * 4),
-            "loose": sum(t["mobility"] > 0 for t in teeth.values()),
-        })
+        rows = _all(c, "SELECT tooth, pocket, bop, plaque, mobility, pockets6, bops6 FROM perio_teeth WHERE exam_id = ?", e["id"])
+        v = c.execute("SELECT start_time FROM visits WHERE patient_id = ? AND visit_date = ? ORDER BY id LIMIT 1",
+                      (pid, e["exam_date"])).fetchone()
+        out.append(perio_exam(e, rows, v[0] if v else ""))
     return out
 
 
