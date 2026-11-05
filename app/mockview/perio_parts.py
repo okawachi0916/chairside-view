@@ -24,7 +24,7 @@ BUCCAL, INNER = 0, 3
 KINDS = ("basic", "precise")
 
 LEGEND = (
-    '<span><b class="red">4</b> 赤の太字 = 出血(BOP)</span>'
+    '<span><b class="bl">4</b> 赤の太字 = 出血(BOP)</span>'
     '<span><svg class="lg-tri" viewBox="0 0 10 10"><polygon points="0,0 10,5 0,10"/></svg> プラーク</span>'
     '<span><i class="lg-slash"></i> 斜線 = 欠損・対象外</span>'
 )

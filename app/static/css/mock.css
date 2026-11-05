@@ -436,7 +436,7 @@ table.precise tr.no { height: 9%; }
 .pq-off { fill: var(--c-surface); }
 .pq-line { stroke: var(--c-line-strong); }
 .perio-legend { display: flex; flex-wrap: wrap; gap: var(--sp-6); flex: none; font-size: var(--fs-1); color: var(--c-sub); padding-top: var(--sp-1); line-height: var(--lh-tight); }
-.perio-legend .red { color: var(--c-alert); font-weight: var(--fw-bold); }
+.perio-legend .bl { color: var(--c-alert); font-weight: var(--fw-bold); }
 .perio-legend .lg-tri { width: 11px; height: 11px; fill: var(--c-alert); vertical-align: -1px; }
 .perio-legend .lg-slash { display: inline-block; width: 14px; height: 11px; vertical-align: -1px; border: 1px solid var(--c-line-strong); background: linear-gradient(to top right, transparent calc(50% - 0.7px), var(--c-line-strong) calc(50% - 0.7px), var(--c-line-strong) calc(50% + 0.7px), transparent calc(50% + 0.7px)); }
 
