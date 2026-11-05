@@ -52,7 +52,7 @@ def con_of(env):
 def appt_of(env, chart):
     c = con_of(env)
     r = c.execute("SELECT a.id FROM appointments a JOIN patients p ON p.id = a.patient_id WHERE p.chart_no = ? "
-                  "AND a.appt_date = '2026-11-06' AND a.status = 'booked' ORDER BY a.start_time", (chart,)).fetchone()
+                  "AND a.appt_date = '2026-11-06' AND a.status IN ('booked', 'done') ORDER BY a.start_time", (chart,)).fetchone()
     c.close()
     return r[0]
 

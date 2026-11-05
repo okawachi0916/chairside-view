@@ -155,6 +155,20 @@ TABLES = {
         ],
         "extra": [_PATIENT_FK],
     },
+    # G19m: 「カルテに記録する」で変えた所を1行ずつ残す（どの表のどの行をどう変えたか）。その日のうちの「記録を取り消す」は、これを逆にたどって戻す
+    "record_changes": {
+        "cols": [
+            ("draft_id", "INTEGER", None, True),
+            ("patient_id", "INTEGER", None, True),
+            ("seq", "INTEGER", None, True),  # 変えた順。取り消すときは大きい方から戻す
+            ("tbl", "TEXT", None, True),
+            ("row_id", "INTEGER", None, True),
+            ("op", "TEXT", None, True),  # insert=足した（戻すときは消す） / update=書き替えた（戻すときは before の値へ）
+            ("before", "TEXT", "'{}'", True),  # update の、変える前の値 (JSON)
+            ("recorded_on", "TEXT", None, True),  # 記録した日（パソコンの今日）。「その日のうち」を測る
+        ],
+        "extra": [_PATIENT_FK],
+    },
     "mucosal_conditions": {
         "cols": [
             ("patient_id", "INTEGER", None, True),

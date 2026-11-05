@@ -54,6 +54,7 @@ KEEP = {
     ("phone_links", "created_at"): "QR の有効期限を測る秒の数",
     ("phone_links", "expires_at"): "QR の有効期限を測る秒の数",
     ("phone_events", "at"): "スマホの写真の合図を、時刻の順に拾うための時刻",
+    ("record_changes", "recorded_on"): "記録した日。「その日のうちだけ取り消せる」を測るので、ずらすと次の日になっても取り消せてしまう",
     ("voice_fixes", "created_at"): "聞き違いの記録の時刻（機械の記録）",
 }
 

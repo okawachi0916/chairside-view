@@ -247,9 +247,9 @@ def _draft_html(d, p, v, rec, fix, back="/"):
         "<table class='rtab plan-table'><thead><tr><th>今の計画</th><th>新しい計画</th><th>操作</th></tr></thead>"
         "<tbody id='plan-rows'></tbody></table></section>"
         + ("" if done else
-           "<section class='plan-block' id='tooth-compare' hidden><h2>歯ごとの処置（歯の絵と治療歴に反映）</h2>"
-           "<p class='plan-hint' id='tooth-hint'>「やったこと」の中で、歯が1本に決まり、処置の言葉が決まっているものだけ出ます。反映したいものに印を付けてください。</p>"
-           "<table class='rtab plan-table'><thead><tr><th>歯と処置</th><th>歯の状態（今 → 記録後）</th><th>操作</th></tr></thead>"
+           "<section class='plan-block' id='tooth-compare' hidden><h2>他の画面にも入れる（歯の絵・治療歴・次回の予定・治療方針）</h2>"
+           "<p class='plan-hint' id='tooth-hint'>初めから印が付いています。入れたくないものは印を外してください（声なら「3番 外す」）。歯の処置は、歯が1本に決まり、処置の言葉が決まっている行だけ出ます。</p>"
+           "<table class='rtab plan-table'><thead><tr><th>内容</th><th>今 → 記録後</th><th>操作</th></tr></thead>"
            "<tbody id='tooth-rows'></tbody></table></section>") + "</div>"
         "<script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script>"
         "<script src='/static/js/numrule.js'></script><script src='/static/js/numtags.js'></script><script src='/static/js/draft.js'></script><script src='/static/js/actions/look.js'></script></body></html>"

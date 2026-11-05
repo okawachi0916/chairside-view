@@ -18,3 +18,6 @@ table.book tr.row { cursor: pointer; }
 table.book tr.row:hover, table.book tr.row:focus { background: var(--c-canvas); outline: none; }
 table.book .nm { margin-right: var(--sp-3); }
 table.book .mini { font-size: var(--fs-2); padding: var(--sp-1) var(--sp-3); }
+
+/* G19m: 記録を済ませた予約の印 */
+.book .done-tag { margin-left: var(--sp-3); padding: 0 var(--sp-3); border: 1px solid var(--c-line-strong); border-radius: var(--r-s); font-size: var(--fs-2); color: var(--c-sub); }

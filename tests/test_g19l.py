@@ -24,7 +24,7 @@ def items_with(*rows):
 
 
 def cands(env, draft_id, *rows):
-    code, d = api(env, "post", f"/api/drafts/{draft_id}/tooth-candidates", json={"items": items_with(*rows)})
+    code, d = api(env, "post", f"/api/drafts/{draft_id}/candidates", json={"items": items_with(*rows)})
     assert code == 200, d
     return d["candidates"]
 
@@ -55,7 +55,7 @@ def snapshot(env, chart="0123"):
 
 
 def confirm(env, draft_id, items, teeth, plan=None):
-    return api(env, "post", f"/api/drafts/{draft_id}/confirm", json={"items": items, "plan": plan or {}, "teeth": teeth})
+    return api(env, "post", f"/api/drafts/{draft_id}/confirm", json={"items": items, "plan": plan or {}, "picks": teeth})
 
 
 def unit_html(env, chart="0123"):
@@ -217,13 +217,13 @@ def test_write_failure_rolls_back_note_and_plans(env, monkeypatch):
     snap = snapshot(env)
     items = api(env, "get", f"/api/drafts/{r['draft_id']}")[1]["items"]
 
-    def broken(con, *a, **k):
-        con.execute("INSERT INTO tooth_status_history (patient_id, tooth, superseded_on) VALUES (1, 46, '2026-11-06')")  # 半分書いてから失敗
+    def broken(j, *a, **k):
+        j.con.execute("INSERT INTO tooth_status_history (patient_id, tooth, superseded_on) VALUES (1, 46, '2026-11-06')")  # 半分書いてから失敗
         raise RuntimeError("書けません")
 
     monkeypatch.setattr(toothtx, "apply", broken)
     with pytest.raises(RuntimeError):
-        env["client"].post(f"/api/drafts/{r['draft_id']}/confirm", json={"items": items, "plan": {}, "teeth": ["46:根管充填"]})
+        env["client"].post(f"/api/drafts/{r['draft_id']}/confirm", json={"items": items, "plan": {}, "picks": ["46:根管充填"]})
     assert snapshot(env) == snap
 
 

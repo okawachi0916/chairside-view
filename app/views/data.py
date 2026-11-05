@@ -1,4 +1,6 @@
 """画面に出すデータをデータベースから読む。毎回読み直し、どこにも保存しない。"""
+import json
+import re
 from datetime import date
 
 from app.ai import segview
@@ -50,9 +52,9 @@ def today_list():
     """今日の予約 (予約一覧の行)。"""
     with con() as c:
         return [dict(r) for r in c.execute(
-            "SELECT a.id, a.start_time, a.end_time, a.treatment, a.role, p.id AS patient_id, "
+            "SELECT a.id, a.start_time, a.end_time, a.treatment, a.role, a.status, p.id AS patient_id, "
             "p.chart_no, p.name FROM appointments a JOIN patients p ON p.id = a.patient_id "
-            "WHERE a.appt_date = ? AND a.status = 'booked' ORDER BY a.start_time, p.chart_no, a.id",
+            "WHERE a.appt_date = ? AND a.status IN ('booked', 'done') ORDER BY a.start_time, p.chart_no, a.id",
             (app_today(),))]
 
 
@@ -87,7 +89,7 @@ def common(c, pid):
 
 
 def same_day(c, appt):
-    return _all(c, "SELECT * FROM appointments WHERE patient_id = ? AND appt_date = ? AND status = 'booked' "
+    return _all(c, "SELECT * FROM appointments WHERE patient_id = ? AND appt_date = ? AND status IN ('booked', 'done') "
                    "ORDER BY start_time, id", appt["patient_id"], appt["appt_date"])
 
 
@@ -106,7 +108,10 @@ def unit_data(appt, role):
         d["photos"] = [r["number"] for r in c.execute(
             "SELECT number FROM photos WHERE patient_id = ? ORDER BY number", (pid,))]
         d["policy"] = [r["body"] for r in c.execute(
-            "SELECT body FROM treatment_plans WHERE patient_id = ? AND kind = 'policy' ORDER BY seq, id", (pid,))]
+            "SELECT body FROM treatment_plans WHERE patient_id = ? AND kind = 'policy' AND superseded_on IS NULL ORDER BY seq, id", (pid,))]
+        # G19m: 古くなった治療方針は消さず、日付を付けて全画面で見られる
+        d["policy_old"] = _all(c, "SELECT body, superseded_on FROM treatment_plans WHERE patient_id = ? AND kind = 'policy' "
+                                  "AND superseded_on IS NOT NULL ORDER BY superseded_on DESC, seq, id", pid)
         d["mucosal"] = _all(c, "SELECT site, name FROM mucosal_conditions WHERE patient_id = ? ORDER BY id", pid)
         d["dentures"] = _all(c, "SELECT site, kind, made_by, made_on FROM dentures WHERE patient_id = ? ORDER BY id", pid)
         # 今日のこの役割の下書きを、新しい順に全部出す（見本データの下書きも録音から作った下書きも同じ扱い）
@@ -115,11 +120,19 @@ def unit_data(appt, role):
         d["summary"] = [x for dr in d["drafts"] for x in dr["body"].split("\n") if x]
         d["transcript"] = "\n".join(dr["transcript"] for dr in d["drafts"] if dr["transcript"])
         vrow = c.execute("SELECT id, visit_date FROM visits WHERE appointment_id = ?", (appt["id"],)).fetchone()
+        d["done_today"] = _done_of_visit(c, vrow["id"] if vrow else None)
         d["segments"] = segview.list_for_visit(c, vrow["id"] if vrow else None)  # 録音の区切り（録音した順）
         d["seg_today"] = vrow["visit_date"] if vrow else appt["appt_date"]
         d["combined_draft"] = segview.combined_draft(c, vrow["id"] if vrow else None, role)
         d["photo_rows"] = _all(c, "SELECT number, taken_on, file FROM photos WHERE patient_id = ? ORDER BY number", pid)
-        d["interval"] = c.execute("SELECT months, last_date FROM maintenance_intervals WHERE patient_id = ?", (pid,)).fetchone()
+        # 前回: 保存した値（maintenance_intervals.last_date）は読まず、毎回求める。この診療日より前の、歯科衛生士の最後の診療回の日付。
+        # 無ければ、最後の歯周検査の日付（G19m）
+        iv = c.execute("SELECT months FROM maintenance_intervals WHERE patient_id = ?", (pid,)).fetchone()
+        last = (c.execute("SELECT MAX(visit_date) FROM visits WHERE patient_id = ? AND role = 'hygienist' AND visit_date < ?",
+                          (pid, appt["appt_date"])).fetchone()[0]
+                or c.execute("SELECT MAX(exam_date) FROM perio_exams WHERE patient_id = ? AND exam_date < ?",
+                             (pid, appt["appt_date"])).fetchone()[0])
+        d["interval"] = {"months": iv["months"], "last_date": last} if iv else None
         d["care"] = _all(c, "SELECT item, last_date FROM care_purchases WHERE patient_id = ? ORDER BY last_date DESC, id", pid)
         d["perio_all"] = _perio(c, pid, None)  # 全画面で過去の検査へ遡る。新しい検査から順
         d["perio"] = d["perio_all"][:2]
@@ -129,6 +142,20 @@ def unit_data(appt, role):
                       for r in c.execute("SELECT tooth, status, crown, root, caries FROM tooth_status "
                                          "WHERE patient_id = ?", (pid,))}
     return d
+
+
+def _done_of_visit(c, visit_id):
+    """この診療回で記録した（確定した）「やったこと」の文。記録する前は空。今日の処置の大きな1行と、歯の絵の「今日の歯」が使う。"""
+    if not visit_id:
+        return []
+    row = c.execute("SELECT items FROM drafts WHERE visit_id = ? AND status = 'confirmed' ORDER BY id DESC LIMIT 1", (visit_id,)).fetchone()
+    if not row:
+        return []
+    try:
+        rows = json.loads(row["items"] or "{}").get("done", [])
+    except ValueError:
+        return []
+    return [re.sub(r"[。.]+$", "", r["text"].strip()) for r in rows if isinstance(r, dict) and (r.get("text") or "").strip()]
 
 
 def percent(part, whole):
@@ -176,10 +203,10 @@ def _perio(c, pid, limit=2):
 def reception_data(pid):
     with con() as c:
         d = common(c, pid)
-        d["today"] = _all(c, "SELECT * FROM appointments WHERE patient_id = ? AND appt_date = ? AND status = 'booked' "
+        d["today"] = _all(c, "SELECT * FROM appointments WHERE patient_id = ? AND appt_date = ? AND status IN ('booked', 'done') "
                              "ORDER BY start_time, id", pid, app_today())
-        d["recent"] = _all(c, "SELECT v.visit_date, a.treatment FROM visits v LEFT JOIN appointments a ON a.id = v.appointment_id "
-                              "WHERE v.patient_id = ? AND v.visit_date < ? ORDER BY v.visit_date DESC, v.id DESC LIMIT 4",
+        d["recent"] = _all(c, "SELECT appt_date AS visit_date, treatment FROM appointments "
+                              "WHERE patient_id = ? AND status = 'done' AND appt_date <= ? ORDER BY appt_date DESC, start_time DESC, id DESC LIMIT 4",
                            pid, app_today())
         d["visits"] = [r["visit_date"] + " " + r["start_time"] for r in c.execute(
             "SELECT visit_date, start_time FROM visits WHERE patient_id = ? AND visit_date < ? AND visit_date >= ?",
@@ -188,8 +215,9 @@ def reception_data(pid):
                                "ORDER BY cancel_date DESC", pid)
         d["appt_count"] = c.execute("SELECT COUNT(*) FROM appointments WHERE patient_id = ? AND status IN ('done','cancelled')",
                                     (pid,)).fetchone()[0]
-        d["next"] = c.execute("SELECT body, staff_role, staff_name, minutes, timing FROM treatment_plans "
-                              "WHERE patient_id = ? AND kind = 'next' ORDER BY id", (pid,)).fetchone()
+        nx = _all(c, "SELECT body, staff_role, staff_name, minutes, timing FROM treatment_plans "
+                     "WHERE patient_id = ? AND kind = 'next' AND superseded_on IS NULL ORDER BY id", pid)
+        d["next"] = {**nx[0], "body": "、".join(x["body"] for x in nx)} if nx else None  # 記録で入った次回の予定が何行でも、1つにして出す
         d["booked"] = _all(c, "SELECT appt_date, start_time, role, staff_name, reception_text FROM appointments "
                               "WHERE patient_id = ? AND appt_date > ? AND status = 'booked' ORDER BY appt_date, start_time",
                            pid, app_today())
@@ -207,9 +235,9 @@ def reception_patients():
     """受付で選ぶ患者様 (今日の予約がある人)。"""
     with con() as c:
         rows = _all(c, "SELECT p.id, p.chart_no, p.name FROM patients p WHERE p.id IN "
-                       "(SELECT patient_id FROM appointments WHERE appt_date = ? AND status = 'booked') "
+                       "(SELECT patient_id FROM appointments WHERE appt_date = ? AND status IN ('booked', 'done')) "
                        "ORDER BY p.chart_no", app_today())
         for r in rows:
             r["today"] = _all(c, "SELECT start_time, end_time, treatment FROM appointments WHERE patient_id = ? "
-                                 "AND appt_date = ? AND status = 'booked' ORDER BY start_time", r["id"], app_today())
+                                 "AND appt_date = ? AND status IN ('booked', 'done') ORDER BY start_time", r["id"], app_today())
         return rows

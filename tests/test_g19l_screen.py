@@ -13,24 +13,6 @@ from tests.test_g19g import numbers, say_number
 SHOTS = Path(__file__).resolve().parents[1] / "docs" / "画面" / "G19l"
 
 
-@pytest.fixture(autouse=True)
-def tooth_clean():
-    """歯の状態と治療歴は clean が戻さないので、ここで戻す。"""
-    c = connect()
-    saved = [tuple(r) for r in c.execute("SELECT id, status, crown, root, caries FROM tooth_status")]
-    max_hist = c.execute("SELECT COALESCE(MAX(id), 0) FROM treatment_history").fetchone()[0]
-    c.close()
-    yield
-    c = connect()
-    for i, st, cr, ro, ca in saved:
-        c.execute("UPDATE tooth_status SET status = ?, crown = ?, root = ?, caries = ? WHERE id = ?", (st, cr, ro, ca, i))
-    c.execute("DELETE FROM tooth_status WHERE id > ?", (max(r[0] for r in saved),))
-    c.execute("DELETE FROM tooth_status_history")
-    c.execute("DELETE FROM treatment_history WHERE id > ?", (max_hist,))
-    c.commit()
-    c.close()
-
-
 def doctor_page(browser, server):  # noqa: F811
     pg = open_page(browser, server, f"/unit?appt={appt_of('0123', 'doctor')}&role=doctor&typed=1&hide=1")
     pg.wait_for_selector('[data-part="tooth-chart"] .tc-tooth[data-tooth="46"]')
@@ -49,7 +31,7 @@ def tooth_ready(pg):
     pg.wait_for_function("document.body.dataset.toothReady")
 
 
-def test_candidates_are_shown_unchecked_and_voice_picks_and_records(server, browser):  # noqa: F811
+def test_candidates_are_checked_at_first_and_voice_switches_them_and_records(server, browser):  # noqa: F811
     s = make_rec(server)
     # 前: 歯科医師の画面（右下6番は根の治療中、治療歴に今日の行は無い）
     dp = doctor_page(browser, server)
@@ -65,14 +47,17 @@ def test_candidates_are_shown_unchecked_and_voice_picks_and_records(server, brow
     assert rows.count() == 1
     text = rows.first.inner_text()
     assert "右下6番 根管充填" in text and "健全、根治中 → 健全、根充済" in text
-    assert not pg.locator("#tooth-rows input").first.is_checked()          # 初めは「反映しない」
+    assert pg.locator("#tooth-rows input").first.is_checked()              # G19m: 初めから印が付いている
     shoot(pg, "下書き_選ぶ欄.png")
     # ボタン2 → 番号 → 声: 候補の「反映する」にも番号が出る（記録する・あとで直す・各行の消す・計画の削除するの次）
     m = numbers(pg)
-    n = next(k for k, v in m.items() if v == "tooth:1")
-    pg.evaluate("t => window.cvTyped(t)", f"{n}番")
+    n = next(k for k, v in m.items() if v == "pick:1")
+    pg.evaluate("t => window.cvTyped(t)", f"{n}番")                         # 番号だけ言うと、印を替える（付いていれば外れる）
+    assert not pg.locator("#tooth-rows input").first.is_checked()
+    pg.evaluate("window.cvNumbers(true)")
+    pg.evaluate("t => window.cvTyped(t)", f"{n}番 付ける")                  # 付け直す
     assert pg.locator("#tooth-rows input").first.is_checked()
-    assert db_one("SELECT root FROM tooth_status WHERE tooth = 46 AND patient_id = 1")[0] == "根治中"  # 選んだだけでは書かない
+    assert db_one("SELECT root FROM tooth_status WHERE tooth = 46 AND patient_id = 1")[0] == "根治中"  # 印を替えただけでは書かない
     pg.evaluate("window.cvNumbers(true)")
     shoot(pg, "下書き_番号.png")
     pg.evaluate("t => window.cvTyped(t)", "1番")                            # 記録する
@@ -91,11 +76,12 @@ def test_candidates_are_shown_unchecked_and_voice_picks_and_records(server, brow
     dp.close()
 
 
-def test_not_picking_changes_nothing_on_the_screen_either(server, browser):  # noqa: F811
+def test_unchecked_changes_nothing_on_the_screen_either(server, browser):  # noqa: F811
     s = make_rec(server)
     pg, _ = open_draft(browser, server, s["draft_id"], back="/recordings")
     ready(pg)
     tooth_ready(pg)
+    pg.locator("#tooth-rows input").first.uncheck()                          # 外した候補は、どこにも入らない
     pg.click("#btn-confirm")
     pg.wait_for_url(home(server))
     assert db_one("SELECT root FROM tooth_status WHERE tooth = 46 AND patient_id = 1")[0] == "根治中"

@@ -119,13 +119,21 @@ def site_teeth(site):
     return {q * 10 + n for q in quads for n in range(1, 9)}
 
 
+_TOOTH_MENTION = re.compile(r"(?:右上|左上|左下|右下)\s*[1-8]\s*番")
+
+
 def today_teeth(texts):
-    """今日の処置の文（「右下6番 根管充填」など）から、1本に決まる歯だけを取り出す。"""
+    """今日の処置の文（予約の予定「右下6番 根管充填」、記録した「やったこと」の「右下6番の根管充填、左上3番のCR充填」など）から、
+    1本に決まる歯だけを取り出す。1つの文に歯が何本も出てくるときは、出てきた歯を全部（G19m）。"""
     out = set()
     for x in texts:
-        t = site_teeth(x)
-        if len(t) == 1:
-            out |= t
+        mentions = _TOOTH_MENTION.findall(x or "")
+        for m in mentions:
+            out |= site_teeth(m)
+        if not mentions:
+            t = site_teeth(x)
+            if len(t) == 1:
+                out |= t
     return out
 
 

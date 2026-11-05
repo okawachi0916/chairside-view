@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
-from app.ai import confirm, memo, recpipe, toothtx
+from app.ai import confirm, memo, recpipe, reflect
 from app.ai.recpipe import RecError
 from app.db import connect
 from app.today import today as app_today
@@ -41,7 +41,7 @@ class ItemsBody(BaseModel):
 class ConfirmBody(BaseModel):
     items: dict
     plan: dict | None = None
-    teeth: list[str] | None = None   # 選んだ「歯ごとの処置」の印（候補の key）
+    picks: list[str] | None = None   # 選んだ「他の画面にも入れる」候補の印（key。歯ごとの処置・次回の予定・治療方針）
 
 
 class TextBody(BaseModel):
@@ -75,16 +75,33 @@ def api_save_items(draft_id: int, body: ItemsBody):
 
 @router.post("/api/drafts/{draft_id}/confirm")
 def api_confirm(draft_id: int, body: ConfirmBody):
-    return _run(lambda con: confirm.confirm(con, draft_id, body.items, body.plan, body.teeth))
+    return _run(lambda con: confirm.confirm(con, draft_id, body.items, body.plan, body.picks))
 
 
-@router.post("/api/drafts/{draft_id}/tooth-candidates")
-def api_tooth_candidates(draft_id: int, body: ItemsBody):
-    """いま画面にある「やったこと」から、歯ごとの処置の候補を作り直す（直すたびに呼ぶ。保存はしない）。"""
+@router.post("/api/drafts/{draft_id}/candidates")
+def api_candidates(draft_id: int, body: ItemsBody):
+    """いま画面にある項目から、「他の画面にも入れる」候補（歯ごとの処置・次回の予定・治療方針）を作り直す（直すたびに呼ぶ。保存はしない）。"""
     def go(con):
         d = confirm.draft_of(con, draft_id)
         items = confirm.check_items(body.items)
-        return {"candidates": toothtx.candidates(con, d["patient_id"], items)}
+        return {"candidates": reflect.candidates(con, d["patient_id"], items)}
+    return _run(go)
+
+
+@router.post("/api/drafts/{draft_id}/cancel")
+def api_cancel(draft_id: int):
+    """その日のうちなら、記録を取り消す（変わった所を全部、記録する前へ戻す）。"""
+    return _run(lambda con: confirm.cancel_record(con, draft_id))
+
+
+@router.post("/api/records/cancel")
+def api_cancel_by_appt(body: ApptBody):
+    """ユニットの画面の「記録を取り消す」。この予約の診療回で、いちばん新しく記録した下書きを取り消し、その下書きの番号を返す。"""
+    def go(con):
+        a = con.execute("SELECT id FROM appointments WHERE id = ?", (body.appt,)).fetchone()
+        if not a:
+            raise RecError("その予約が見つかりません", 404)
+        return confirm.cancel_record(con, confirm.last_cancellable(con, body.appt))
     return _run(go)
 
 
@@ -181,7 +198,7 @@ def api_today():
         for a in con.execute(
                 "SELECT a.id, a.start_time, a.end_time, a.treatment, a.role, a.status, p.id AS pid, p.chart_no, p.name "
                 "FROM appointments a JOIN patients p ON p.id = a.patient_id "
-                "WHERE a.appt_date = ? AND a.status = 'booked' ORDER BY a.start_time, p.chart_no, a.id", (app_today(),)):
+                "WHERE a.appt_date = ? AND a.status IN ('booked', 'done') ORDER BY a.start_time, p.chart_no, a.id", (app_today(),)):
             v = con.execute("SELECT id, status FROM visits WHERE appointment_id = ? AND patient_id = ?",
                             (a["id"], a["pid"])).fetchone()
             note = v and con.execute("SELECT 1 FROM clinical_notes WHERE visit_id = ?", (v["id"],)).fetchone()

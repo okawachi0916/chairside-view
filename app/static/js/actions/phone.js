@@ -1,4 +1,5 @@
-// 写真の欄の「スマホ」ボタン。QR を出し、残り時間を数え、スマホから入った写真を画面に取り込む。
+// 写真の欄の「スマホ」ボタン。QR を出し、残り時間を数える。
+// スマホから入った写真を画面に取り込む見張りは、QR の窓とは別に、ユニットの画面が開いている間ずっと動かす（G19m。QR を閉じたあとの写真も出る）。
 (function () {
   var style = document.createElement("style");
   style.textContent =
@@ -11,13 +12,13 @@
     "#phone-modal button{font:inherit;font-size:20px;padding:8px 24px;margin:0 6px;border:2px solid #1f5fbf;border-radius:8px;background:#fff;color:#1f5fbf;cursor:pointer}";
   document.head.appendChild(style);
 
-  var cur = null; // { timer, poll, expires, appt, count }
+  var cur = null; // { timer, expires }
 
   function apptNow() { return new URLSearchParams(location.search).get("appt"); }
   function mmss(s) { return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
 
   function close() {
-    if (cur) { clearInterval(cur.timer); clearInterval(cur.poll); cur = null; }
+    if (cur) { clearInterval(cur.timer); cur = null; }
     var m = document.getElementById("phone-modal");
     if (m) m.remove();
   }
@@ -32,22 +33,26 @@
     m.querySelector(".hint").textContent = gone ? "もう一度QRを出してください" : "スマホのカメラで読み取ってください";
     m.querySelector("[data-act=again]").hidden = !gone;
     m.dataset.left = String(left);
-    if (gone) clearInterval(cur.poll);
   }
 
-  function watchPhotos(appt) {
-    var base = null;
-    cur.poll = setInterval(function () {
-      fetch("/api/phone-photos/count?appt=" + appt, { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {
-        if (base === null) { base = d.count; return; }
-        if (d.count !== base) { // スマホから写真が入った: 画面を読み直して、番号付きで欄に出す
-          base = d.count;
-          var role = /role-hygienist/.test(document.body.className) ? "hygienist" : "doctor";
-          if (window.cv && window.cv.openUnit && !window.CVActions.isHidden()) window.cv.openUnit(appt, role);
-        }
-      }).catch(function () { /* つながらないときは次の回に */ });
-    }, 2500);
+  // 写真の数の見張り。画面が開いている間ずっと動く。数が変わったら画面を読み直す（番号付きで欄に出る）。患者様が替わったら数え直す
+  var watch = { appt: null, base: null };
+  function watchPhotos() {
+    var appt = apptNow();
+    if (!appt) return;
+    if (watch.appt !== appt) { watch.appt = appt; watch.base = null; }
+    fetch("/api/phone-photos/count?appt=" + appt, { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {
+      if (watch.appt !== appt) return;
+      if (watch.base === null) { watch.base = d.count; return; }
+      if (d.count !== watch.base) {
+        watch.base = d.count;
+        var role = /role-hygienist/.test(document.body.className) ? "hygienist" : "doctor";
+        if (window.cv && window.cv.openUnit && !window.CVActions.isHidden()) window.cv.openUnit(appt, role);
+      }
+    }).catch(function () { /* つながらないときは次の回に */ });
   }
+  setInterval(watchPhotos, 2500);
+  watchPhotos();
 
   function open() {
     var appt = apptNow();
@@ -75,7 +80,6 @@
         m.dataset.url = d.url;
         cur = { expires: d.expires_at };
         cur.timer = setInterval(paint, 500);
-        watchPhotos(appt);
         paint();
       })
       .catch(function (e) { m.querySelector(".left").textContent = (e && e.detail) || "QRを作れませんでした"; });

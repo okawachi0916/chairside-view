@@ -215,13 +215,17 @@ def _fs_doctor(d):
     a = d["appt"]
     plan = "".join(f"<li>{h(x)}</li>" for x in d["plan"])
     policy = "".join(f"<p>{h(x)}</p>" for x in d["policy"])
+    old = "".join(f'<p class="old-policy"><small>{D.slash_date(x["superseded_on"])}まで</small> {h(x["body"])}</p>' for x in d.get("policy_old", []))
+    if old:
+        policy += f'<h4 class="old-policy-h">前の治療方針</h4>{old}'
+    main, sub = _today_main(d)
     notes = "".join(
         f'<div class="fs-note"><b>{D.ja_date(n["note_date"])}{" 歯科衛生士" if n["author_role"] == "hygienist" else ""}</b> {h(n["body"])}</div>'
         for n in d["notes"]
     )
     today = _tpl("today-treatment", _treat_title(a),
                  '<div class="fs-cols"><div class="fs-col"><div class="fs-scroll">'
-                 f'<h3>{_treat_title(a)}</h3><p class="fs-big-line">{h(a["detail"] or a["treatment"])}</p><p>{h(a["detail_sub"])}</p>'
+                 f'<h3>{_treat_title(a)}</h3><p class="fs-big-line">{h(main)}</p><p>{h(sub)}</p>'
                  f"<h3>治療計画</h3><ul>{plan}</ul><h3>治療方針</h3>{policy}</div></div>"
                  f'<div class="fs-col"><h3>過去の診療メモ</h3><div class="fs-scroll">{notes}</div></div></div>')
     rows = "".join(
@@ -261,8 +265,18 @@ def _months_since(s):
     return round(days / 30.4375)
 
 
+def _today_main(d):
+    """今日の処置の大きな1行と下の小さな行。記録したあとは、予約の予定ではなく、記録した「やったこと」を出す（G19m）。"""
+    a = d["appt"]
+    done = d.get("done_today") or []
+    if done:
+        return "、".join(done), ""
+    return a["detail"] or a["treatment"], a["detail_sub"]
+
+
 def _doctor_today(d):
     a = d["appt"]
+    main, sub = _today_main(d)
     notes = "".join(
         f'<div class="n{" hyg" if n["author_role"] == "hygienist" else ""}">{D.ja_date(n["note_date"])} '
         f'{"歯科衛生士 " if n["author_role"] == "hygienist" else ""}{h(n["body"])}</div>'
@@ -271,7 +285,7 @@ def _doctor_today(d):
     plan = "".join(f"<div>{h(x)}</div>" for x in d["plan"])
     inner = (
         '<div class="today">'
-        f'<div class="main">{h(a["detail"] or a["treatment"])}</div><div class="sub">{h(a["detail_sub"])}</div></div>'
+        f'<div class="main">{h(main)}</div><div class="sub">{h(sub)}</div></div>'
         f'<div class="plan" data-part="treatment-plan"><h3>治療計画</h3>{plan}</div>'
         '<h3 class="notes-h">過去の診療メモ</h3>'
         f'<div class="notes" data-part="past-notes">{notes}</div>'
@@ -295,7 +309,8 @@ def _doctor_teeth(d):
     dentures = [{**x, "date": (f"{D.ja_date(x['made_on'])} 経過期間 {_months_since(x['made_on'])}か月"
                                if x["made_on"] else "")} for x in d["dentures"]]
     own = TC.own_teeth(d["teeth"], [x["site"] for x in d["history"]], d["dentures"])
-    today = TC.today_teeth(a["detail"] for a in d["day"] if a["role"] == "doctor")
+    # 今日の歯: 記録したあとは「やったこと」の歯、記録する前は予約の予定から
+    today = TC.today_teeth(d["done_today"] if d.get("done_today") else [a["detail"] for a in d["day"] if a["role"] == "doctor"])
     doing = TC.doing_teeth(d["teeth"], d["plan"])
     svg = TC.chart_svg(d["teeth"], own, today, doing)
     return card("tooth-chart", "歯の状態", TC.panel(svg, dentures, d["mucosal"]), 8)
@@ -495,7 +510,7 @@ def list_page(rows):
             f'<td class="time">{r["start_time"]}〜{r["end_time"]}</td><td class="no">{h(r["chart_no"])}</td>'
             f'<td class="name"><span class="nm" data-name="{h(r["name"])}">●● ●●</span>'
             '<button type="button" class="mini reveal" data-action="reveal">表示</button></td>'
-            f'<td class="proc">{h(r["treatment"])}</td></tr>'
+            f'<td class="proc">{h(r["treatment"])}{" <span class='done-tag'>済み</span>" if r.get("status") == "done" else ""}</td></tr>'
         )
     return (
         "<!doctype html><html lang='ja'><head><meta charset='utf-8'><title>予約一覧</title>"

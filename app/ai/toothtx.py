@@ -114,10 +114,11 @@ def site_name(tooth: int) -> str:
     return {1: "右上", 2: "左上", 3: "左下", 4: "右下"}[tooth // 10] + f"{tooth % 10}番"
 
 
-def apply(con, patient_id: int, day: str, items: dict, picked: list):
+def apply(j, day: str, items: dict, picked: list):
     """人が選んだ候補だけを書く（確定の取引の中。失敗は RecError で、取引ごと戻る）。
     歯の状態: 古い状態は tooth_status_history に day の日付で残してから、表の言葉どおりに変える。
     治療歴: 日付＝診療回の日、部位＝歯、内容＝処置の名前。自院の印は、治療歴に1本の歯として入ることで付く（tooth_chart.own_teeth）。"""
+    con, patient_id = j.con, j.patient_id
     if not picked:
         return []
     if not isinstance(picked, list) or any(not isinstance(k, str) for k in picked) or len(set(picked)) != len(picked):
@@ -141,14 +142,10 @@ def apply(con, patient_id: int, day: str, items: dict, picked: list):
         if crown == "欠損":
             status = "欠損"
         if row:
-            con.execute("INSERT INTO tooth_status_history (patient_id, tooth, status, crown, root, caries, superseded_on) "
-                        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        (patient_id, c["tooth"], row["status"], row["crown"], row["root"], row["caries"] or 0, day))
-            con.execute("UPDATE tooth_status SET status = ?, crown = ?, root = ?, caries = ? WHERE id = ?",
-                        (status, crown, root, int(caries), row["id"]))
+            j.insert("tooth_status_history", patient_id=patient_id, tooth=c["tooth"], status=row["status"], crown=row["crown"],
+                     root=row["root"], caries=row["caries"] or 0, superseded_on=day)
+            j.update("tooth_status", row["id"], status=status, crown=crown, root=root, caries=int(caries))
         else:
-            con.execute("INSERT INTO tooth_status (patient_id, tooth, status, crown, root, caries) VALUES (?, ?, ?, ?, ?, ?)",
-                        (patient_id, c["tooth"], status, crown, root, int(caries)))
-        con.execute("INSERT INTO treatment_history (patient_id, done_date, site, content) VALUES (?, ?, ?, ?)",
-                    (patient_id, day, c["site"], c["word"]))
+            j.insert("tooth_status", patient_id=patient_id, tooth=c["tooth"], status=status, crown=crown, root=root, caries=int(caries))
+        j.insert("treatment_history", patient_id=patient_id, done_date=day, site=c["site"], content=c["word"])
     return chosen
