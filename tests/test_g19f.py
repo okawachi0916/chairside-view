@@ -30,13 +30,14 @@ def test_headings_use_the_visit_date_not_the_pc_date(manual):
 
 def test_sample_earlier_segments_belong_to_earlier_visits():
     from app.db import initial
+    from app.today import BASE  # 見本は BASE を「今日」として書いてある（今日へずらすのは dates.py）
 
     built = initial.build()
     visits = {v["id"]: v for v in built["visits"]}
     assert built["recordings"]
     for r in built["recordings"]:
         v = visits[r["visit_id"]]
-        assert v["visit_date"] < initial.TODAY and r["started_at"][:10] == v["visit_date"]  # 前の診療回の日付
+        assert v["visit_date"] < BASE and r["started_at"][:10] == v["visit_date"]  # 前の診療回の日付
 
 
 def test_sample_screen_shows_earlier_visit_dates(manual):

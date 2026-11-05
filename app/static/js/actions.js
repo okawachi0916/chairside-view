@@ -124,7 +124,7 @@
     var p = panel();
     if (!p) return;
     scrollers(p).forEach(function (el) {
-      // 組で1ページの表 (歯周基本検査) は1組ずつ、ほかは9割ずつ送る
+      // 1ページに1回分の表 (歯周検査) は1組ずつ、ほかは9割ずつ送る
       el.scrollTop += dir * (el.hasAttribute("data-pages") ? el.clientHeight : Math.max(40, Math.floor(el.clientHeight * 0.9)));
     });
     fsUpdate();

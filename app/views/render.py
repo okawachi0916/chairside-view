@@ -2,11 +2,12 @@
 from html import escape as h
 
 from app.ai import fixtalk, segview
-from app.db import TODAY
+from app.today import today as app_today
 from app.mockview.parts import FULL, MIC, PHONE, band, card
 from app.views import photos as PH
+from app.numbering import label as num_label
 from app.mockview.reception_parts import heat_card, next_card, reserve_card
-from app.mockview.perio_parts import perio_card
+from app.mockview.perio_parts import TITLE as PERIO_TITLE, perio_body, perio_card
 from app.mockview import tooth_chart as TC
 from app.views import data as D
 
@@ -21,7 +22,7 @@ def topbar(tag, patient, appt, buttons, mic=True):
         '<header class="topbar">'
         f'<span class="role-tag">{tag}</span>'
         f'<span class="patient">{patient}</span>'
-        f'<span class="date">{D.ja_date(TODAY, week=True)}</span>'
+        f'<span class="date">{D.ja_date(app_today(), week=True)}</span>'
         f'<span class="appt" data-part="today-appointment">{appt}</span>'
         f'<span class="spacer"></span>{right}</header>'
     )
@@ -71,8 +72,8 @@ def appt_text(d):
 
 
 def _tile(x):
-    return (f'<div class="ph" data-n="{x["number"]}"><img src="{PH.url_for(x["number"], x["file"])}" alt="" loading="lazy">'
-            f'<span class="no">{x["number"]}</span></div>')
+    return (f'<div class="ph" data-n="{num_label(x["number"])}"><img src="{PH.url_for(x["number"], x["file"])}" alt="" loading="lazy">'
+            f'<span class="no">{num_label(x["number"])}</span></div>')
 
 
 def _photos(rows):
@@ -156,9 +157,9 @@ def fullscreen_templates(d):
         f'<div class="fs-scroll fs-important">{rows}</div></template>'
     )
     items = "".join(
-        f'<button type="button" class="fs-item" data-action="fs-photo" data-n="{x["number"]}" '
+        f'<button type="button" class="fs-item" data-action="fs-photo" data-n="{num_label(x["number"])}" '
         f'data-date="{D.ja_date(x["taken_on"])}" data-src="{PH.url_for(x["number"], x["file"])}">'
-        f'<span class="ph"><img src="{PH.url_for(x["number"], x["file"])}" alt=""><span class="no">{x["number"]}</span></span>'
+        f'<span class="ph"><img src="{PH.url_for(x["number"], x["file"])}" alt=""><span class="no">{num_label(x["number"])}</span></span>'
         f'<span class="dt">{D.ja_date(x["taken_on"])}</span></button>'
         for x in reversed(d["photo_rows"])
     )
@@ -206,7 +207,7 @@ def _fs_medical(d):
 
 def _treat_title(a):
     """今日の診療回だけ「今日の処置」。過去・先の診療回は、その年月日で出す。"""
-    return "今日の処置" if a["appt_date"] == TODAY else f"{D.ja_date(a['appt_date'])}の処置"
+    return "今日の処置" if a["appt_date"] == app_today() else f"{D.ja_date(a['appt_date'])}の処置"
 
 
 def _fs_doctor(d):
@@ -233,39 +234,16 @@ def _fs_doctor(d):
     return today + hist
 
 
-UPPER = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]
-LOWER = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
-
-
-def _perio_col(ex, label):
-    def cell(t):
-        v = ex["teeth"].get(t)
-        if not v:
-            return f'<div class="pc none"><i>{t}</i></div>'
-        cls = " deep" if v["pocket"] >= 4 else ""
-        return (f'<div class="pc{cls}"><i>{t}</i><b>{v["pocket"]}</b>'
-                f'<u class="bop">{"●" if v["bop"] else ""}</u>{"<em>動</em>" if v["mobility"] else ""}</div>')
-
-    stats = (f'4mm以上 {ex["deep"]}本　BOP {ex["bop"]}%　PCR {ex["pcr"]}%　動揺 {ex["loose"]}本　検査した歯 {ex["n"]}本')
-    return (f'<div class="fs-col pcol"><h3>{label} {D.ja_date(ex["date"])}</h3><div class="pstat">{stats}</div>'
-            f'<div class="pgrid">{"".join(cell(t) for t in UPPER)}</div>'
-            f'<div class="pgrid">{"".join(cell(t) for t in LOWER)}</div></div>')
 
 
 def _fs_perio(d):
-    """新しい検査から順に、前回と今回を前後に並べる。1ページに1組。ページ送りで過去の検査へ遡る。"""
+    """新しい検査から順に、1ページに1回分の検査を大きく出す。ページ送りで過去の検査へ遡る。"""
     ex = d["perio_all"]
     if not ex:
-        return _tpl("perio-exam", "歯周基本検査", '<div class="fs-scroll"><p>検査の記録はありません</p></div>')
-    pages = []
-    for i in range(max(1, len(ex) - 1)):
-        new = ex[i]
-        old = ex[i + 1] if i + 1 < len(ex) else None
-        first = i == 0
-        left = _perio_col(old, "前回" if first else "前の検査") if old else ""
-        right = _perio_col(new, "今回" if first else "この検査")
-        pages.append(f'<section class="fs-page"><div class="fs-cols">{left}{right}</div></section>')
-    return _tpl("perio-exam", "歯周基本検査", f'<div class="fs-scroll" data-pages>{"".join(pages)}</div>')
+        return _tpl("perio-exam", PERIO_TITLE, '<div class="fs-scroll"><p>検査の記録はありません</p></div>')
+    pages = [f'<section class="fs-page perio-page">{perio_body(e, ex[i + 1] if i + 1 < len(ex) else None)}</section>'
+             for i, e in enumerate(ex)]
+    return _tpl("perio-exam", PERIO_TITLE, f'<div class="fs-scroll perio-fs" data-pages>{"".join(pages)}</div>')
 
 
 def _fs_memo(d):
@@ -279,7 +257,7 @@ def _fs_memo(d):
 # ---------- 歯科医師 ----------
 def _months_since(s):
     """経過した月数。日数から四捨五入する (2026年5月8日から6か月)。"""
-    days = (D.date.fromisoformat(TODAY) - D.date.fromisoformat(s)).days
+    days = (D.date.fromisoformat(app_today()) - D.date.fromisoformat(s)).days
     return round(days / 30.4375)
 
 
@@ -335,27 +313,11 @@ def doctor_page(d):
 
 
 # ---------- 歯科衛生士 ----------
-SIDE = {0: "l", 1: "r", 2: "t", 3: "b"}  # 近心・遠心・頬側・舌側 → 四角の4辺
-
-
 def _perio(d):
     ex = d["perio"]
     if not ex:
-        return card("perio-exam", "歯周基本検査", "", 12, actions=FULL)
-    cur = ex[0]
-    prev = ex[1] if len(ex) > 1 else None
-    teeth = {
-        t: {"pocket": v["pocket"], "bop": v["bop"], "mobility": v["mobility"],
-            "sides": {SIDE[i] for i, c in enumerate(v["plaque"]) if c == "1"}}
-        for t, v in cur["teeth"].items()
-    }
-
-    def stat(label, key, unit):
-        return (label, f"{cur[key]}{unit}", f"{prev[key]}{unit}" if prev else None)
-
-    stats = [stat("4mm以上", "deep", "本"), stat("BOP", "bop", "%"), stat("PCR", "pcr", "%"),
-             stat("動揺のある歯", "loose", "本"), ("検査した歯", f"{cur['n']}本", None)]
-    return perio_card(teeth, stats, D.ja_date(cur["date"]))
+        return card("perio-exam", PERIO_TITLE, "", 12, actions=FULL)
+    return perio_card(ex[0], ex[1] if len(ex) > 1 else None)
 
 
 def _hyg_side(d):
@@ -394,7 +356,7 @@ def _reserve(d):
     start, end = (t[0]["start_time"], t[-1]["end_time"]) if t else ("", "")
     dur = D.duration(D.minutes(start, end)) if t else ""
     recent = [(D.ja_date(r["visit_date"]), r["treatment"] or "") for r in d["recent"]]
-    return reserve_card(D.ja_date(TODAY, week=True), f"{start}〜{end}（{dur}）", recent)
+    return reserve_card(D.ja_date(app_today(), week=True), f"{start}〜{end}（{dur}）", recent)
 
 
 def _heat(d):
@@ -515,7 +477,7 @@ def reception_chooser(rows):
             f'<td class="time">{t}</td></tr>'
         )
     top = ('<header class="topbar"><span class="role-tag">受付用</span>'
-           f'<span class="date">{D.ja_date(TODAY, week=True)}</span></header>')
+           f'<span class="date">{D.ja_date(app_today(), week=True)}</span></header>')
     return (
         top + '<main class="list" data-part="appointment-list"><table class="book">'
         "<thead><tr><th>カルテ番号</th><th>氏名</th><th>今日の予約</th></tr></thead>"
@@ -539,7 +501,7 @@ def list_page(rows):
         "<!doctype html><html lang='ja'><head><meta charset='utf-8'><title>予約一覧</title>"
         "<link rel='stylesheet' href='/static/css/mock.css'>"
         "<link rel='stylesheet' href='/static/css/booklist.css'></head><body class='role-list'>"
-        f'<header class="topbar"><span class="role-tag">予約一覧</span><span class="date">{D.ja_date(TODAY, week=True)}</span></header>'
+        f'<header class="topbar"><span class="role-tag">予約一覧</span><span class="date">{D.ja_date(app_today(), week=True)}</span></header>'
         '<main class="list" data-part="appointment-list"><table class="book">'
         "<thead><tr><th>時間</th><th>カルテ番号</th><th>氏名 "
         '<button type="button" class="mini" data-action="reveal-all">すべて表示</button></th>'
@@ -562,7 +524,7 @@ def shell(kind, title):
         + ("<div id='band' data-part='key-band' hidden><span data-band-text></span><span data-band-left></span></div>"
            "<script src='/static/js/voice_keys.js'></script>" if kind == "unit" else "")
         + "<script src='/static/js/actions.js'></script><script src='/static/js/actions/look.js'></script>"
-        + ("<script src='/static/js/numtags.js'></script><script src='/static/js/actions/voice.js'></script><script src='/static/js/actions/ai.js'></script><script src='/static/js/actions/rec.js'></script><script src='/static/js/actions/phone.js'></script><script src='/static/js/actions/perio.js'></script><script src='/static/js/segments.js'></script>"
+        + ("<script src='/static/js/numrule.js'></script><script src='/static/js/numtags.js'></script><script src='/static/js/actions/voice.js'></script><script src='/static/js/actions/ai.js'></script><script src='/static/js/actions/rec.js'></script><script src='/static/js/actions/phone.js'></script><script src='/static/js/actions/perio.js'></script><script src='/static/js/segments.js'></script>"
            if kind == "unit" else "")
         + "<script src='/static/js/view.js'></script></body></html>"
     )

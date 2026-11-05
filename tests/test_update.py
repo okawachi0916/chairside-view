@@ -136,7 +136,7 @@ def test_waits_while_recording_or_editing(server, browser):  # noqa: F811
         assert pg.evaluate("window.__mark") == 1  # 録音中は読み直さない（録音が消えない）
         pg.evaluate("CVRec.mode = window.__realMode")  # 終わったら読み直す
         pg.wait_for_function("window.__mark === undefined", timeout=10000)
-    # 歯周基本検査を入力している途中も待つ
+    # 歯周検査を入力している途中も待つ
     pg2 = page(browser, f"{base}/unit?appt={APPT}&role=hygienist")
     pg2.wait_for_selector('[data-part="perio-exam"]')
     pg2.evaluate("window.__mark = 1; document.body.classList.add('perio-editing')")

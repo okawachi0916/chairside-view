@@ -11,7 +11,7 @@ HYG = f"/unit?appt={H_DOC}&role=hygienist&typed=1&hide=1"
 
 PARTS = {"重要事項": "important", "口腔内写真": "intraoral-photos", "写真": "intraoral-photos", "話した内容": "spoken-summary",
          "全身既往": "medical-history", "今日の処置": "today-treatment", "治療歴": "treatment-history",
-         "歯周基本検査": "perio-exam"}
+         "歯周検査": "perio-exam"}
 BACK = ["もとに戻す", "元に戻す", "もとに戻して", "元に戻して", "戻す", "戻して", "閉じて"]
 NUMBER_WORDS = {
     1: ["1番", "一番", "いちばん", "1番です", "一番です", "いちばんで", "1", "いち番", "1ばん", "1番で", "いちばんです"],
@@ -119,8 +119,8 @@ def test_badges_doctor_over_fullscreen_buttons_and_big(server, browser):  # noqa
     assert pg.evaluate("window.cvNumbers(true)") == 9
     assert sorted(badges(pg)) == [
         [1, "important"], [2, "medical-history"], [3, "today-treatment"],
-        [4, "treatment-history"], [5, "intraoral-photos"], [6, "spoken-summary"], [8, "say-list"],
-        [9, "change-role"], [10, "phone"],
+        [4, "treatment-history"], [6, "intraoral-photos"], [7, "spoken-summary"], [10, "say-list"],
+        [11, "change-role"], [12, "phone"],  # 5 と 8 は飛ばす（G14n）
     ]
     assert pg.locator("#num-dim").count() == 1
     dim = pg.locator("#num-dim").evaluate("e => getComputedStyle(e).backgroundColor")
@@ -165,15 +165,15 @@ def test_same_part_same_number_on_hygienist(server, browser):  # noqa: F811
     pg.evaluate("window.cvNumbers(true)")
     got = dict((key, n) for n, key in badges(pg))
     assert got["important"] == 1 and got["medical-history"] == 2
-    assert got["intraoral-photos"] == 5 and got["spoken-summary"] == 6 and got["perio-exam"] == 7 and got["say-list"] == 8
+    assert got["intraoral-photos"] == 6 and got["spoken-summary"] == 7 and got["perio-exam"] == 9 and got["say-list"] == 10
     assert "today-treatment" not in got and "treatment-history" not in got  # 画面に無い部品は出さない
     pg.evaluate("window.cvNumbers(false)")
 
 
 def test_number_opens_part_and_clears_overlay(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
-    for word, part in [("1番", "important"), ("ごばん", "intraoral-photos"), ("6番を開いて", "spoken-summary"),
-                       ("一番", "important"), ("5", "intraoral-photos"), ("ろく番を全画面にして", "spoken-summary")]:
+    for word, part in [("1番", "important"), ("ろくばん", "intraoral-photos"), ("7番を開いて", "spoken-summary"),
+                       ("一番", "important"), ("6", "intraoral-photos"), ("7番を全画面にして", "spoken-summary")]:
         pg.evaluate("window.cvNumbers(true)")
         say(pg, word)
         pg.wait_for_selector(f'[data-fs-panel="{part}"]')
@@ -217,18 +217,18 @@ def test_number_words_do_nothing_when_numbers_are_not_shown(server, browser):  #
 def test_number_not_on_screen(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     pg.evaluate("window.cvNumbers(true)")
-    say(pg, "7番")
+    say(pg, "9番")
     pg.wait_for_function("document.getElementById('heard').textContent.includes('その番号はありません')")
     assert pg.locator("[data-fs-panel]").count() == 0
     pg.evaluate("window.cvNumbers(true)")
-    say(pg, "ななばん")
+    say(pg, "きゅうばん")
     pg.wait_for_function("document.getElementById('heard').textContent.includes('その番号はありません')")
 
 
 def test_hygienist_perio_by_number_opens(server, browser):  # noqa: F811
     pg = open_unit(browser, server, HYG)
     pg.evaluate("window.cvNumbers(true)")
-    say(pg, "ななばん")
+    say(pg, "9番")
     pg.wait_for_selector('[data-fs-panel="perio-exam"]')
 
 
@@ -244,9 +244,9 @@ def test_overlay_numbers_beat_photo_numbers_on_normal_screen(server, browser):  
         say(pg, "戻して")
         pg.wait_for_function("document.querySelectorAll('[data-fs-panel]').length === 0")
     pg.evaluate("window.cvNumbers(true)")
-    say(pg, "5番を拡大して")  # 部品の5（口腔内写真）の全画面が開く。写真の5ではない
+    say(pg, "6番を拡大して")  # 部品の6（写真）の全画面が開く。写真の6ではない
     pg.wait_for_selector('[data-fs-panel="intraoral-photos"]')
-    assert pg.locator(".fs-fig").count() == 1 and pg.locator(".fs-fig").first.get_attribute("data-n") != "5"
+    assert pg.locator(".fs-fig").count() == 1 and pg.locator(".fs-fig").first.get_attribute("data-n") != "6"
 
 
 def test_photo_numbers_only_inside_photo_fullscreen(server, browser):  # noqa: F811
@@ -260,7 +260,7 @@ def test_photo_numbers_only_inside_photo_fullscreen(server, browser):  # noqa: F
     say(pg, "口腔内写真の3番を拡大して")  # 名前つきならいつもの画面から開く
     pg.wait_for_selector('[data-fs-panel="intraoral-photos"] .fs-fig')
     js = "w => JSON.stringify(Array.from(document.querySelectorAll('.fs-fig')).map(e => Number(e.dataset.n))) === JSON.stringify(w)"
-    for word, want in [("5番", [5]), ("ごばん", [5]), ("1番と5番を大きく", [1, 5]), ("3番を拡大して", [3]), ("10", [10])]:
+    for word, want in [("6番", [6]), ("ろくばん", [6]), ("1番と6番を大きく", [1, 6]), ("3番を拡大して", [3]), ("10", [10])]:
         say(pg, word)
         pg.wait_for_function(js, arg=want)
     say(pg, "99番")
@@ -297,7 +297,7 @@ def test_numbers_config_and_say_list(server, browser):  # noqa: F811
     assert "back" not in cfg and cfg["parts"]["important"] == 1 and cfg["parts"]["medical-history"] == 2
     assert cfg["parts"]["today-treatment"] == 3
     assert len(set(cfg["parts"].values())) == len(cfg["parts"])
-    assert cfg["parts"]["say-list"] == 8
+    assert cfg["parts"]["say-list"] == 10
     pg.click("#say-list-btn")
     pg.wait_for_selector('[data-fs-panel="say-list"]')
     assert "(" not in pg.inner_text('[data-fs-panel="say-list"]')
@@ -366,7 +366,7 @@ def test_badge_text_has_ban(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     pg.evaluate("window.cvNumbers(true)")
     texts = pg.evaluate("Array.from(document.querySelectorAll('.num-badge')).map(e => e.textContent)")
-    assert sorted(texts) == sorted(["1番", "2番", "3番", "4番", "5番", "6番", "8番", "9番", "10番"])
+    assert sorted(texts) == sorted(["1番", "2番", "3番", "4番", "6番", "7番", "10番", "11番", "12番"])
     say(pg, "1番")
     pg.wait_for_selector('[data-fs-panel="important"]')
 
@@ -486,7 +486,7 @@ def test_hidden_screen_still_gets_a_dark_band(server, browser):  # noqa: F811
 def test_say_list_by_number_and_word(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     pg.evaluate("window.cvNumbers(true)")
-    say(pg, "8番")
+    say(pg, "10番")
     pg.wait_for_selector('[data-fs-panel="say-list"]')
     say(pg, "戻して")
     pg.wait_for_function("document.querySelectorAll('[data-fs-panel]').length === 0")
@@ -564,6 +564,7 @@ def role_of(pg):
 
 
 def test_9_is_change_role_after_the_existing_numbers():
+    """部品の順番（config/numbers.json）。画面の番号は 5 と 8 を飛ばす（G14n）ので 役割を変える は 11 番。"""
     cfg = json.loads((ROOT / "config" / "numbers.json").read_text(encoding="utf-8"))["parts"]
     assert cfg["change-role"] == 9
     assert [cfg[k] for k in ("important", "medical-history", "today-treatment", "treatment-history",
@@ -574,16 +575,16 @@ def test_9_is_change_role_after_the_existing_numbers():
 def test_badge_9_sits_on_change_role_and_none_on_change_patient(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     pg.evaluate("window.cvNumbers(true)")
-    assert [9, "change-role"] in badges(pg)
-    b = pg.locator('.num-badge[data-n="9"]')
-    assert b.inner_text() == "9番"
+    assert [11, "change-role"] in badges(pg)
+    b = pg.locator('.num-badge[data-n="11"]')
+    assert b.inner_text() == "11番"
     bb, btn = b.bounding_box(), pg.locator('[data-action="change-role"]').bounding_box()
     assert not overlap(bb, btn) and abs(bb["x"] - btn["x"]) <= 200 and abs(bb["y"] - btn["y"]) <= 120  # G14j: ボタンのそばで、重ならない
     assert not any(k == "change-patient" for _, k in badges(pg))
     pg.close()
 
 
-@pytest.mark.parametrize("word", ["9番", "9番です", "きゅうばん", "9番を開いて"])
+@pytest.mark.parametrize("word", ["11番", "11番です", "十一番", "11番を開いて"])
 def test_saying_9_switches_role_like_the_mouse(server, browser, word):  # noqa: F811
     pg = open_unit(browser, server)
     pg.evaluate("window.cvNumbers(true)")
@@ -592,14 +593,14 @@ def test_saying_9_switches_role_like_the_mouse(server, browser, word):  # noqa: 
     assert role_of(pg) == "hygienist"
     assert pg.locator(".num-badge").count() == 0  # 言い終わったら番号は消える
     pg.evaluate("window.cvNumbers(true)")
-    say(pg, "9番")  # もう一度で歯科医師へ
+    say(pg, "11番")  # もう一度で歯科医師へ
     pg.wait_for_function("document.body.className.includes('role-doctor')")
     pg.close()
 
 
 def test_9_without_badges_does_nothing(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
-    say(pg, "9番")
+    say(pg, "11番")
     pg.wait_for_timeout(300)
     assert role_of(pg) == "doctor"
     pg.close()
@@ -609,7 +610,7 @@ def test_9_inside_fullscreen_does_nothing(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     pg.click('[data-part="important"] [data-action="fullscreen"]')
     pg.wait_for_selector(".fs-panel")
-    say(pg, "9番")
+    say(pg, "11番")
     pg.wait_for_timeout(300)
     assert role_of(pg) == "doctor" and pg.locator(".fs-panel").count() == 1
     pg.close()
@@ -617,7 +618,7 @@ def test_9_inside_fullscreen_does_nothing(server, browser):  # noqa: F811
 
 def test_say_list_and_examples_mention_9(server, browser):  # noqa: F811
     ex = json.loads((ROOT / "config" / "examples.json").read_text(encoding="utf-8"))
-    assert "9番 役割を変える" in ex["say_list"][0]["words"]
+    assert "11番 役割を変える" in ex["say_list"][0]["words"]
 
 
 # ---- G14h: スマホで写真をやり取り（声と10番） ----
@@ -663,12 +664,12 @@ def test_phone_goes_through_the_button_click(server, browser):  # noqa: F811
 def test_badge_10_on_phone_button_bright_and_not_overlapping(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     pg.evaluate("window.cvNumbers(true)")
-    assert [10, "phone"] in badges(pg)
-    b = pg.locator('.num-badge[data-n="10"]')
-    assert b.inner_text() == "10番"
+    assert [12, "phone"] in badges(pg)
+    b = pg.locator('.num-badge[data-n="12"]')
+    assert b.inner_text() == "12番"
     bb, btn = b.bounding_box(), pg.locator('[data-action="phone"]').bounding_box()
     assert not overlap(bb, btn) and abs(bb["x"] - btn["x"]) <= 200 and abs(bb["y"] - btn["y"]) <= 120  # G14j: ボタンのそばで、重ならない
-    for n in range(1, 10):  # ほかの丸と重ならない
+    for n in (1, 2, 3, 4, 6, 7, 10, 11):  # ほかの丸と重ならない
         o = pg.locator(f'.num-badge[data-n="{n}"]')
         if not o.count():
             continue
@@ -681,25 +682,25 @@ def test_badge_10_on_phone_button_bright_and_not_overlapping(server, browser):  
     pg.close()
 
 
-def test_saying_10_opens_qr_and_1_to_9_unchanged(server, browser):  # noqa: F811
+def test_saying_12_opens_qr_and_others_unchanged(server, browser):  # noqa: F811
     cfg = json.loads((ROOT / "config" / "numbers.json").read_text(encoding="utf-8"))["parts"]
-    assert cfg["phone"] == 10 and cfg["change-role"] == 9 and cfg["say-list"] == 8 and cfg["important"] == 1
+    assert cfg["phone"] == 10 and cfg["change-role"] == 9 and cfg["say-list"] == 8 and cfg["important"] == 1  # 順番。画面の番号は 12 / 11 / 10 / 1
     pg = open_unit(browser, server)
     pg.evaluate("window.cvNumbers(true)")
-    say(pg, "10番")
+    say(pg, "12番")
     pg.wait_for_selector("#phone-modal")
     assert pg.locator(".num-badge").count() == 0
     pg.close()
 
 
-def test_10_without_badges_or_in_fullscreen_does_nothing(server, browser):  # noqa: F811
+def test_12_without_badges_or_in_fullscreen_does_nothing(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
-    say(pg, "10番")
+    say(pg, "12番")
     pg.wait_for_timeout(300)
     assert not modal_open(pg)
     pg.click('[data-part="important"] [data-action="fullscreen"]')
     pg.wait_for_selector(".fs-panel")
-    say(pg, "10番")
+    say(pg, "12番")
     pg.wait_for_timeout(300)
     assert not modal_open(pg)
     pg.close()
@@ -708,4 +709,4 @@ def test_10_without_badges_or_in_fullscreen_does_nothing(server, browser):  # no
 def test_examples_mention_phone():
     ex = json.loads((ROOT / "config" / "examples.json").read_text(encoding="utf-8"))
     assert "スマホで写真をやり取り" in ex["screens"]["intraoral-photos"]["words"]
-    assert "10番 スマホで写真をやり取り" in ex["say_list"][0]["words"]
+    assert "12番 スマホで写真をやり取り" in ex["say_list"][0]["words"]

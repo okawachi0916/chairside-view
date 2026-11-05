@@ -109,13 +109,14 @@ def test_drafts_are_shown_the_same_way_sample_or_recorded(tmp_path, monkeypatch)
     assert subprocess.run([sys.executable, str(root / "scripts" / "seed.py")], env=env, capture_output=True).returncode == 0
     probe = r'''
 import json
-from app.db import connect, TODAY
+from app.db import connect
+from app.today import today
 from app.views import data as D
 con = connect()
-a = dict(con.execute("SELECT * FROM appointments WHERE patient_id=1 AND appt_date=? AND role='doctor'", (TODAY,)).fetchone())
+a = dict(con.execute("SELECT * FROM appointments WHERE patient_id=1 AND appt_date=? AND role='doctor'", (today(),)).fetchone())
 before = [x["body"] for x in D.unit_data(a, "doctor")["drafts"]]
 v = con.execute("SELECT id FROM visits WHERE appointment_id=?", (a["id"],)).fetchone()[0]
-con.execute("INSERT INTO drafts (patient_id, visit_id, kind, body, transcript, status, created_at) VALUES (1, ?, 'spoken_summary', '新しい下書き', '話した内容', 'draft', ?)", (v, TODAY + " 16:00"))
+con.execute("INSERT INTO drafts (patient_id, visit_id, kind, body, transcript, status, created_at) VALUES (1, ?, 'spoken_summary', '新しい下書き', '話した内容', 'draft', ?)", (v, today() + " 16:00"))
 con.commit()
 after = [x["body"] for x in D.unit_data(a, "doctor")["drafts"]]
 print(json.dumps({"before": before, "after": after}, ensure_ascii=False))

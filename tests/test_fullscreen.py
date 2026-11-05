@@ -61,7 +61,7 @@ def test_photos_fullscreen_select(server, browser):  # noqa: F811
     open_fs(pg, "intraoral-photos")
     panel = pg.locator('[data-fs-panel="intraoral-photos"]')
     assert panel.locator(".fs-item").count() == 17
-    assert "写真 17" in panel.locator(".fs-big").inner_text()  # 一番新しい写真から
+    assert "写真 19" in panel.locator(".fs-big").inner_text()  # 一番新しい写真から
     # 左が選んだ写真、右が一覧
     big, lst = panel.locator(".fs-big").bounding_box(), panel.locator(".fs-list").bounding_box()
     assert big["x"] < lst["x"]
@@ -152,25 +152,27 @@ def test_treatment_history_goes_back_with_paging(server, browser):  # noqa: F811
     pg.close()
 
 
-def test_perio_pairs_and_pages(server, browser):  # noqa: F811
+def test_perio_pages(server, browser):  # noqa: F811
+    """G24b: 歯周検査の全画面は、1ページに1回分の検査を大きく出す。新しい検査から順。ページ送りで過去へ遡る。"""
     pg = open_unit(browser, server, H_HYG, "hygienist")
     open_fs(pg, "perio-exam")
     panel = pg.locator('[data-fs-panel="perio-exam"]')
     pages = panel.locator(".fs-page")
-    assert pages.count() == 3  # 4回の検査 → 3組
-    first = pages.nth(0).locator(".pcol")
-    assert "前回 2026年5月8日" in first.nth(0).inner_text() and "今回 2026年8月7日" in first.nth(1).inner_text()
-    assert pages.nth(0).locator(".pcol").nth(0).bounding_box()["x"] < pages.nth(0).locator(".pcol").nth(1).bounding_box()["x"]
-    assert "4mm以上 6本" in first.nth(1).inner_text() and "4mm以上 9本" in first.nth(0).inner_text()
+    assert pages.count() == 4  # 4回の検査 → 4ページ（前後に並べず、1回分ずつ）
+    dates = [pages.nth(i).locator(".pdate b").inner_text() for i in range(4)]
+    assert dates == ["2026/8/7", "2026/5/8", "2026/2/6", "2025/10/17"]
+    assert pages.nth(0).locator(".pcol").count() == 0
+    s = panel.locator(".st")
+    assert "前回 24%" in pages.nth(0).locator(".perio-stats").inner_text()
     nxt, prv = pg.locator('[data-action="fs-next"]'), pg.locator('[data-action="fs-prev"]')
     assert nxt.is_visible() and prv.is_disabled()
     nxt.click()
     pg.wait_for_function("document.querySelector('.fs-scroll[data-pages]').scrollTop > 100")
-    assert pages.nth(1).locator(".pcol").first.is_visible()
-    assert "2026年5月8日" in pages.nth(1).inner_text()  # 一つ前の組が前後に並ぶ
+    assert pages.nth(1).locator("table.perio").is_visible()
+    nxt.click()
     nxt.click()
     pg.wait_for_function("document.querySelector('[data-action=fs-next]').disabled")
-    assert "2025年10月17日" in pages.nth(2).inner_text() and pages.nth(2).locator(".pcol").first.is_visible()
+    assert pages.nth(3).locator("table.perio").is_visible() and pages.nth(3).locator(".pdate b").inner_text() == "2025/10/17"
     prv.click()
     pg.wait_for_function("!document.querySelector('[data-action=fs-next]').disabled")
     pg.close()
@@ -235,19 +237,19 @@ def test_paging_buttons_and_wheel(server, browser):  # noqa: F811
 def test_hide_and_restore_returns_to_fullscreen(server, browser):  # noqa: F811
     pg = open_unit(browser, server, H_DOC, "doctor")
     open_fs(pg, "intraoral-photos")
-    pg.locator('.fs-item[data-n="5"]').click()
+    pg.locator('.fs-item[data-n="6"]').click()
     pg.keyboard.press(KEY3)
     time.sleep(0.15)
     pg.keyboard.press(KEY3)
     pg.wait_for_selector('[data-part="hidden-screen"]')
     text = pg.inner_text("body")
-    assert "写真 5" not in text and "見本 花子" not in text and PEN not in text
+    assert "写真 6" not in text and "見本 花子" not in text and PEN not in text
     pg.keyboard.press(KEY3)
     time.sleep(0.15)
     pg.keyboard.press(KEY3)
     pg.wait_for_selector('[data-fs-panel="intraoral-photos"]')
-    assert "写真 5" in pg.locator(".fs-big").inner_text()
-    assert pg.locator(".fs-item.sel").get_attribute("data-n") == "5"
+    assert "写真 6" in pg.locator(".fs-big").inner_text()
+    assert pg.locator(".fs-item.sel").get_attribute("data-n") == "6"
     assert not pg.locator('[data-part="today-treatment"]').is_visible()
     pg.close()
 

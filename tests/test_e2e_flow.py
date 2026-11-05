@@ -126,9 +126,9 @@ def flow(server, browser):  # noqa: F811
     say(pg, "戻して")
     gone(pg, "[data-fs-panel]")
 
-    # 4. 丸の番号で口腔内写真（5番）を開き、中では「3番を拡大して」。一覧に戻す
+    # 4. 丸の番号で口腔内写真（6番）を開き、中では「3番を拡大して」。一覧に戻す
     pg.evaluate("window.cvNumbers(true)")
-    say(pg, "5番")
+    say(pg, "6番")
     pg.wait_for_selector('[data-fs-panel="intraoral-photos"]')
     say(pg, "3番を拡大して")
     pg.wait_for_selector('[data-fs-panel="intraoral-photos"] .fs-fig')

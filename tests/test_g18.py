@@ -7,6 +7,7 @@ import urllib.request
 
 from PIL import Image
 
+from app.numbering import label
 from app.views import data as D
 from app.views import photos as P
 from tests.screen_helper import ROOT, browser, open_page, server  # noqa: F401
@@ -67,14 +68,14 @@ def test_third_photo_zoom_shows_the_right_picture(server, browser):  # noqa: F81
     pg.wait_for_selector('[data-fs-panel="intraoral-photos"]')
     assert pg.locator('[data-fs-panel="intraoral-photos"] .ph').count() >= 17 or pg.locator(".fs-photos .ph, .fs-photos [data-n]").count() >= 17
     nums = pg.evaluate("Array.from(document.querySelectorAll('[data-fs-panel=\"intraoral-photos\"] [data-n]')).map(e => Number(e.dataset.n))")
-    assert set(range(1, 18)) <= set(nums)
+    assert {label(i) for i in range(1, 18)} <= set(nums)  # 札は 5・8 を飛ばした番号（G14n）
     pg.evaluate("window.cvTyped('3番を拡大して')")
     pg.wait_for_function("document.querySelectorAll('.fs-fig').length === 1")
     src = pg.evaluate("document.querySelector('.fs-fig img').getAttribute('src')")
     assert src == "/photo-files/photo03.jpg"
     assert pg.evaluate("document.querySelector('.fs-fig img').complete && document.querySelector('.fs-fig img').naturalWidth") == 1600
     assert (PHOTOS / "photo03.jpg").read_bytes() == urllib.request.urlopen(f"http://127.0.0.1:{server}{src}").read()
-    pg.evaluate("window.cvTyped('17番を拡大して')")
+    pg.evaluate("window.cvTyped('19番を拡大して')")  # 通し番号17 = 札19
     pg.wait_for_function("document.querySelector('.fs-fig img') && document.querySelector('.fs-fig img').getAttribute('src').endsWith('photo17.jpg')")
     pg.close()
 
@@ -83,7 +84,7 @@ def test_normal_screen_shows_numbers_1_to_17(server, browser):  # noqa: F811
     pg = open_page(browser, server, UNIT)
     pg.wait_for_selector('[data-part="intraoral-photos"]')
     nos = pg.locator('[data-part="intraoral-photos"] .ph .no').all_inner_texts()
-    assert sorted(int(n) for n in nos) == list(range(1, 18))
+    assert sorted(int(n) for n in nos) == [label(i) for i in range(1, 18)]
     pg.close()
 
 

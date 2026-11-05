@@ -66,8 +66,8 @@ def test_returns_to_the_intraoral_photo_fullscreen_with_the_same_photos(server, 
     f = inner(pg)
     f.evaluate("window.cvTyped('口腔内写真を全画面にして')")
     f.wait_for_selector('[data-fs-panel="intraoral-photos"] .fs-fig')
-    f.evaluate("window.CVActions.run('photo-show', [3, 5])")
-    assert _photos(pg) == ["3", "5"]
+    f.evaluate("window.CVActions.run('photo-show', [3, 6])")
+    assert _photos(pg) == ["3", "6"]
     start_rec(pg)
     time.sleep(0.8)
     stop_rec(pg)
@@ -76,7 +76,7 @@ def test_returns_to_the_intraoral_photo_fullscreen_with_the_same_photos(server, 
     _wait_unit(pg)
     inner(pg).wait_for_selector('[data-fs-panel="intraoral-photos"] .fs-fig')
     assert _fs(pg) == "intraoral-photos"
-    assert _photos(pg) == ["3", "5"]  # 並べていた写真もそのまま
+    assert _photos(pg) == ["3", "6"]  # 並べていた写真もそのまま
 
     # 「戻して」は、全画面を開く前の診療の画面へ戻る（録音や下書きの途中には戻らない）
     cmds = json.loads((ROOT / "config" / "commands.json").read_text(encoding="utf-8"))

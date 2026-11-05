@@ -62,7 +62,7 @@ def test_hanako_screens_fit(server, browser):  # noqa: F811
     h_appt = H_HYG
     pg = open_page(browser, server, f"/unit?appt={h_appt}&role=hygienist")
     pg.wait_for_selector('[data-part="perio-exam"]')
-    check_screen(pg, HYG_PARTS, ["歯周基本検査", "4mm以上", "前回 9本", "検査日 2026年8月7日", "3か月ごと"])
+    check_screen(pg, HYG_PARTS, ["歯周検査", "PCR", "前回 24%", "2026/8/7", "検査した歯（本数）", "3か月ごと"])
     pg.close()
     pg = open_page(browser, server, "/reception?patient=1")
     pg.wait_for_selector('[data-part="important"]')

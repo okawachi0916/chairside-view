@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from app.ai import confirm, memo, recpipe
 from app.ai.recpipe import RecError
 from app.db import connect
-from app.db.initial import TODAY
+from app.today import today as app_today
 from app.routers.recordings import safe_back
 
 router = APIRouter()
@@ -170,7 +170,7 @@ def api_today():
         for a in con.execute(
                 "SELECT a.id, a.start_time, a.end_time, a.treatment, a.role, a.status, p.id AS pid, p.chart_no, p.name "
                 "FROM appointments a JOIN patients p ON p.id = a.patient_id "
-                "WHERE a.appt_date = ? AND a.status = 'booked' ORDER BY a.start_time, p.chart_no, a.id", (TODAY,)):
+                "WHERE a.appt_date = ? AND a.status = 'booked' ORDER BY a.start_time, p.chart_no, a.id", (app_today(),)):
             v = con.execute("SELECT id, status FROM visits WHERE appointment_id = ? AND patient_id = ?",
                             (a["id"], a["pid"])).fetchone()
             note = v and con.execute("SELECT 1 FROM clinical_notes WHERE visit_id = ?", (v["id"],)).fetchone()

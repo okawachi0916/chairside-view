@@ -1,32 +1,24 @@
 """架空の患者様5人の初期データ。番号は毎回同じになるよう、書いた順に1から振る。"""
-import re
-from datetime import date, timedelta
+from datetime import date
 
 from app.today import BASE, today
-
-TODAY = today()  # 今日はパソコンの日付（app/today.py。CV_TODAY で止められる）
-_ISO = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 UPPER = list(range(18, 10, -1)) + list(range(21, 29))
 LOWER = list(range(48, 40, -1)) + list(range(31, 39))
 ALL_TEETH = UPPER + LOWER
 
 
-def age_on(birth_date: str, today: str = TODAY) -> int:
-    b, t = date.fromisoformat(birth_date), date.fromisoformat(today)
+def age_on(birth_date: str, on: str = "") -> int:
+    """on の日の年齢。省くと今日（app/today.py の today()。使うたびに聞く）。"""
+    b, t = date.fromisoformat(birth_date), date.fromisoformat(on or today())
     return t.year - b.year - ((t.month, t.day) < (b.month, b.day))
 
 
 class _Rows(dict):
-    """表ごとの行の一覧。id は表ごとに書いた順に 1 から振る。"""
+    """表ごとの行の一覧。id は表ごとに書いた順に 1 から振る。
+    日付は、見本の BASE（2026-11-06）を「今日」として書いたまま入れる。今日へずらすのは app/db/dates.py の決まり1か所だけ。"""
 
     def add(self, table, **row):
-        # 見本の日付は 2026-11-06 を今日として書いてある。今日からの日数の差を保って、本当の今日に合わせる（生年月日は動かさない）
-        shift = (date.fromisoformat(TODAY) - date.fromisoformat(BASE)).days
-        if shift:
-            row = {k: ((date.fromisoformat(v) + timedelta(days=shift)).isoformat()
-                       if k != "birth_date" and isinstance(v, str) and _ISO.fullmatch(v) else v)
-                   for k, v in row.items()}
         rows = self.setdefault(table, [])
         row = {"id": len(rows) + 1, **row}
         rows.append(row)
@@ -127,11 +119,11 @@ def build() -> dict:
           body="右下6番 根管充填、側方加圧\nデンタルで確認、問題なし\n次回 支台築造と形成、2週間後ごろ",
           transcript="右下6番、根管充填をします。側方加圧で詰めました。デンタルで確認して、問題ありませんでした。"
                      "次回は支台築造と形成です。二週間後ごろでお願いします。",
-          created_at=TODAY + " 14:50")
+          created_at=BASE + " 14:50")
     r.add("drafts", patient_id=H, visit_id=tv_hyg, kind="spoken_summary", status="draft",
           body="右下奥の清掃を指導\n寝る前の歯間ブラシを継続",
           transcript="右下の奥は磨き残しが出やすいので、清掃の仕方をお伝えしました。寝る前の歯間ブラシは続けてください。",
-          created_at=TODAY + " 15:40")
+          created_at=BASE + " 15:40")
     # 録音の区切りの見本。前の診療回（花子様の10/23と10/9）につなぎ、その診療回の日付で入れる。確定済みなので消せない
     for n, (day, vid, role, hm, text) in enumerate([
         ("2026-10-23", hv["2026-10-23"], "doctor", "14:40", "右下6番、根管充填をしました。デンタルで確認して、問題ありませんでした。"),
