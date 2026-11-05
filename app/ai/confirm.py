@@ -30,7 +30,7 @@ def check_items(items) -> dict:
                 raise RecError("項目の形が違います")
             text = r["text"].strip()
             if text:  # 空にした行は消えたものとして扱う
-                kept.append({"text": text[:500], "quote": (r.get("quote") or "")[:500]})
+                kept.append({"text": text, "quote": r.get("quote") or ""})  # 長さで黙って切らない
         out[k] = kept
     return out
 
@@ -122,10 +122,7 @@ def confirm(con, draft_id: int, items, plan=None) -> dict:
     for audio in audios:  # 確定したら音声を消す
         if not audio:
             continue
-        try:
-            (audio_dir() / Path(audio).name).unlink()
-        except OSError:
-            pass
+        recpipe.remove_audio(audio, "確定した録音")
     return {"confirmed": True, "draft_id": draft_id}
 
 

@@ -4,12 +4,13 @@
   - 院長の手順: docs/通しの手順.md（17行）。
   - scripts/demo_state.py: `save 名前` で data/runtime（データベース・音声・下書き・追記必要の印）を C:\hackathon\demo_states\名前（環境変数 CV_DEMO_DIR で変更）へ写す。`restore 名前` で全部を戻し、update_db.py を動かす。サーバーが動いたままでよい（データベースは SQLite の backup で入れ替える）。試験は tests/test_demo_state.py。
   - seed.py: サーバーがデータベースを開いたままで消せないとき（Windows）は、中の表を捨てて空にしてから初期の行を入れる。audio も初期化する。
-  - G20-r2: ボタン1で止めると OK なしで自動転送→文字起こし→下書き。窓は「下書きにしています…」→「下書きができました」（押すか「下書きを開いて」で開く）。患者様なしは転送待ち。話した内容の欄は録音の下書きを新しい順に出し、あるときは見本を出さない。view.js の refreshSummary がその欄だけ読み直す（隠している間は戻したとき）。
+  - G20-r2: ボタン1で止めると OK なしで自動転送→文字起こし→下書き。窓は「下書きにしています…」→「下書きができました」（押すか「下書きを開いて」で開く）。患者様なしは転送待ち。話した内容の欄は録音の下書きを新しい順に出し、見本の下書きも同じ扱いで後ろに並ぶ（G21k）。view.js の refreshSummary がその欄だけ読み直す（隠している間は戻したとき）。
   - G22: 全身既往（病名・薬・いつから・通院先の表）、今日の処置（処置・計画・方針・過去メモを同時）、治療歴（全行で遡る）、歯周基本検査（前回と今回を前後、ページ送りで過去へ）、受付メモ（書いた時期つき、受付でマウス）。commands.json の未実装の行は無くなり、歯周基本検査の言葉を足した。データは medical_histories に since・clinic、reception_memos に written_on、治療方針は kind='policy'。
   - G24: 「入力」で表が入力状態に。数字・BOP は同じ一覧、プラークは面を押す、動揺度は 0〜3。保存は今日の新しい検査（過去は不変）、未入力の歯があれば止める。パーセントは四捨五入（data.percent）。試験 tests/test_perio_input.py。
   - G25b: スマホ用の QR を画面の高さの約6割で出す（viewBox 付き）。ボタンは写真の欄の右上と全画面の枠の中（G25c で上の行の固定ボタンはやめた）。試験 tests/test_phone.py。
   - G21c: 更新は画面下いっぱいの帯「新しい版があります。更新するにはここをクリック」（G21f で文字だけ変更）（24px、赤、どこを押しても更新）。下の質問（#num-questions）と重なるときは上に出る。右上の小ボタンは廃止。
   - G21b: 新しい版の「更新」ボタン（app/versioning.py、updater.js、/version）。試験 tests/test_update.py。
+  - G21k: 名前の一覧が読めないときは Claude へ送らず止める／確定で行を500字で切らない／スマホの写真は「画像でない」と「保存できない」を分ける／失敗は data/runtime/error_log.txt に残る（app/errlog.py。GPU→CPU は /voice/status と /voice-test、スマホ用サーバーの起動失敗は QR の窓）／要約の応答の余計な項目は無視／下書きは見本も録音も同じ扱い（新しい順）／下書き画面の声の言葉は commands.json の screen=draft の行。/voice/commands は (あ|い) の行を1つの言い方で出す。
   - G21j: 美咲様の重要事項は「ラテックスアレルギー 2018年」だけ（詳しくは空）。
   - G21i: 見本の「今日」はパソコンの日付（app/today.py、CV_TODAY で止める）。見本の過去の日付は今日からの差を保ってずらす。過去の診療回の処置の見出しは年月日。試験 tests/test_g21i.py（conftest は CV_TODAY=2026-11-06 に止める）。
   - G21g: scripts/撮影の前に戻す.bat（reset_for_shoot.py）で控えを残して見本へ戻す。治療歴・「前回」は診療日順（前回は開いている回の日付より前の最新。ai/ask.py の visit_date）。試験 tests/test_g21g.py。

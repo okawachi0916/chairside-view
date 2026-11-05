@@ -8,7 +8,7 @@ import json
 import re
 import unicodedata
 
-from app.ai import fixtalk
+from app import errlog
 from app.ai.fixtalk import finish_text
 from app.ai.gateway import Gateway
 from app.ai.records import jp_date
@@ -41,8 +41,8 @@ SYSTEM = (
     "部位（右下6番など）、時期（二週間後など）、薬の名前は、話した言葉のままにします。仮歯は TeC と書き、TEK とは書きません。\n"
     "- 否定（〜はしません）、取り消し（〜はやめます）、訂正（右下と言いましたが左下です）があるときは、一番新しい言い方に従います。"
     "取り消された内容や、訂正前の言い方は text に入れません。\n"
-    "- 診察でその場の状態を話した言葉（例: 封鎖は良好、飲み込みは問題ない）は、done に話した言葉のまま入れます。"
-    "患者様への指示や注意（例: 反対側で噛んでもらう）は、explained に入れます。「確認した」「説明した」など話していない言葉は足しません。\n"
+    "- 診察の中で、その場で見たり聞いたりした患者様の今の状態（所見）を話した言葉は、done に話した言葉のまま入れます。"
+    "患者様への指示や注意、生活上のお願いは、explained に入れます。「確認した」「説明した」など話していない言葉は足しません。\n"
     "- 話していない治療、提案、診断は足しません。該当する話が無い項目は空の配列にします。\n"
     "- text に「今日」「本日」「きょう」とは書きません。日付を書く必要があるときは、話した言葉のままにします。\n"
     "次のJSONだけを返します。説明文は付けません。\n"
@@ -72,8 +72,10 @@ def parse_items(raw: str, transcript: str) -> dict:
         obj = json.loads(s)
     except ValueError:
         raise ValueError("応答の形が違います") from None
-    if not isinstance(obj, dict) or set(obj) != set(KEYS):
-        raise ValueError("応答の形が違います")
+    if not isinstance(obj, dict) or not set(KEYS) <= set(obj):
+        raise ValueError("応答の形が違います")  # 5つの項目が足りないときだけ失敗にする
+    if set(obj) != set(KEYS):  # 余計な項目だけ無視する。捨てたことは記録に残す
+        errlog.record("要約", f"応答に余計な項目があったので無視しました: {sorted(set(obj) - set(KEYS))}")
     spoken = _squash(transcript)
     out = {}
     for k in KEYS:
@@ -82,8 +84,10 @@ def parse_items(raw: str, transcript: str) -> dict:
             raise ValueError("応答の形が違います")
         kept, seen = [], set()
         for r in rows:
-            if not isinstance(r, dict) or set(r) != {"text", "quote"} or not all(isinstance(r[x], str) for x in r):
+            if not isinstance(r, dict) or not {"text", "quote"} <= set(r) or not all(isinstance(r[x], str) for x in ("text", "quote")):
                 raise ValueError("応答の形が違います")
+            if set(r) != {"text", "quote"}:
+                errlog.record("要約", f"行に余計な項目があったので無視しました: {sorted(set(r) - {'text', 'quote'})}")
             q = _squash(r["quote"])
             if r["text"].strip() and q and q in spoken:  # 抜き出しが無い、話の中に無い行は出さない
                 text = finish_text(r["text"])
@@ -95,43 +99,12 @@ def parse_items(raw: str, transcript: str) -> dict:
     return out
 
 
-def organize(transcript: str, sens, gateway: Gateway, combined: bool = False) -> dict:
-    """話した文字を Claude に渡して5つに分ける。送るのは送信口だけ（伏字つき）。
-    sens は sensitive_from_db(con) の結果（接続は別の処理に渡さないので、呼ぶ側で作る）。"""
+def organize(transcript: str, sens, gateway: Gateway, combined: bool = False, timeout: float = 0) -> dict:
+    """話した文字（清書した文）を Claude に渡して5つに分ける。送るのは送信口だけ（伏字つき）。
+    sens は sensitive_from_db(con) の結果（接続は別の処理に渡さないので、呼ぶ側で作る）。timeout は、この送信1回の秒数。"""
     system = SYSTEM + COMBINED_NOTE if combined else SYSTEM
-    reply = gateway.send(f"話した内容:\n{transcript}", sens, system=system, max_tokens=4000, purpose="memo")
+    reply = gateway.send(f"話した内容:\n{transcript}", sens, system=system, max_tokens=4000, purpose="memo", timeout=timeout)
     return parse_items(reply.text, transcript)  # 名前を戻したあとの文字で、話した文字と照らす
-
-
-def make_draft(transcript: str, sens, gateway: Gateway, fix: bool = True, combined: bool = False):
-    """下書きを作る。先に聞き違いを直し（fix=True）、直した文字を5つに分ける。
-    抜き出しの確認は直した文字に対して行う。戻り値: (項目, 直した文字, 直した一覧)。
-    fix=False は、人が直した文字（そのまま5つに分ける）。"""
-    if not fix:
-        return organize(transcript, sens, gateway, combined), transcript, []
-    fixed, fixes = fixtalk.fix_transcript(transcript, sens, gateway)
-    return organize(fixed, sens, gateway, combined), fixed, fixes
-
-
-def make_combined(texts, offs, sens, gateway: Gateway):
-    """診療回の区切りを録音した順につないで、1つの要約にする。聞き違いを直す段は必ず通す。
-    texts は区切りの文字、offs は人が直した区切り（直さない）。戻り値: (項目, つないだ直した文字, 直した一覧)。"""
-    if not any(offs):
-        fixed, fixes = fixtalk.fix_transcript(JOIN.join(texts), sens, gateway)
-    else:
-        parts, fixes, seen = [], [], set()
-        for t, off in zip(texts, offs):
-            if off:
-                parts.append(t)
-                continue
-            f, fx = fixtalk.fix_transcript(t, sens, gateway)
-            parts.append(f)
-            for x in fx:
-                if x["from"] not in seen:
-                    seen.add(x["from"])
-                    fixes.append(x)
-        fixed = JOIN.join(parts)
-    return organize(fixed, sens, gateway, combined=True), fixed, fixes
 
 
 def body_lines(items: dict, day: str = "") -> str:

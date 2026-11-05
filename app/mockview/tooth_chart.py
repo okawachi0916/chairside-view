@@ -2,7 +2,7 @@
 
 上顎と下顎を2行にし、歯冠どうしが咬み合うように向かい合わせる。
 1本は「歯冠が上（咬む面が y=0）、根が下」の形で描き、上顎は上下を返して置く。
-色は CSS の変数（.tc-* の決まり）。"""
+1本の歯の状態は「歯冠」と「根」の2つで持つ（G07f）。色は CSS の変数（.tc-* の決まり）。"""
 import re
 
 # 見ている向きの左から右。上顎 18〜11 | 21〜28、下顎 48〜41 | 31〜38
@@ -23,14 +23,52 @@ BODY = {1: 38, 2: 34, 3: 38, 4: 40, 5: 40, 6: 52, 7: 50, 8: 48}  # 歯の太さ
 ROOTS = {"upper": {1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 3, 7: 3, 8: 3},
          "lower": {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 2, 7: 2, 8: 2}}
 
+# 歯冠: 健全 / カリエス / 充填（CR・インレー・充填）/ クラウン / ブリッジ支台 / 残根 / 欠損。
+# 「インレー+カリエス」のように + でつないでよい（二次カリエス）。根: 生活 / 失活 / 根治中 / 根充後
+CROWNS = ("健全", "カリエス", "CR", "インレー", "充填", "クラウン", "ブリッジ支台", "残根", "欠損")
+ROOTS_STATE = ("生活", "失活", "根治中", "根充後")
 MISSING = {"欠損"}
-DEAD = {"RCT中", "根管治療済", "残根", "失活"}  # 歯髄を取った歯
-CAP = {"クラウン", "ブリッジ支台"}  # 歯冠を全部おおう
-PART = {"CR", "インレー", "充填"}  # 歯冠の一部を直す
-ROOT_ONLY = {"残根"}
-TREATED = (DEAD - ROOT_ONLY) | CAP | PART  # 処置した歯。残根は処置ではない
+CAP = {"クラウン", "ブリッジ支台"}  # 歯冠を全部おおう（灰色）
+PART = {"CR", "インレー", "充填"}  # 歯冠の一部を直す（緑）
+CARIES = re.compile(r"カリエス|う蝕|C[1-4]")
+# 今までの1つの状態の文字を、歯冠と根に読み替える。ここに無い文字は歯冠の状態として読む
+OLD = {
+    "欠損": ("欠損", ""),
+    "RCT中": ("健全", "根治中"),
+    "根管治療済": ("健全", "根充後"),
+    "失活": ("健全", "失活"),
+    "残根": ("残根", "失活"),
+}
+WAIT = re.compile(r"経過観察|様子を見")  # 計画にあっても処置ではない
 
 _Q = {"右上": 1, "左上": 2, "左下": 3, "右下": 4}
+
+
+def parts(v):
+    """歯の状態を (歯冠, 根) にする。v は (歯冠, 根) か、今までの1つの状態の文字。"""
+    if isinstance(v, (tuple, list)):
+        crown, root = (v[0] or "健全"), (v[1] or "")
+    else:
+        v = (v or "").strip()
+        crown, root = OLD.get(v, (v or "健全", ""))
+    if crown in MISSING:
+        return "欠損", ""
+    if "残根" in crown.split("+"):
+        return "残根", ("根充後" if root == "根充後" else "失活")  # 残根に生活歯はない
+    return crown, (root or "生活")
+
+
+def marks(crown):
+    m = set(crown.split("+"))
+    return {"cap": bool(m & CAP), "fill": bool(m & PART), "caries": bool(CARIES.search(crown)),
+            "root_only": "残根" in m}
+
+
+def treated(v):
+    """処置した歯（充填・クラウン・ブリッジ・根の治療）。カリエスだけ・残根だけは処置ではない。"""
+    crown, root = parts(v)
+    m = marks(crown)
+    return m["cap"] or m["fill"] or root in ("根治中", "根充後")
 
 
 def site_teeth(site):
@@ -65,7 +103,7 @@ def today_teeth(texts):
 
 def own_teeth(status, history_sites, dentures):
     """自院で処置した歯。義歯やブリッジの記録が他院ならその範囲は他院。
-    治療歴に1本の歯として出てくる歯は自院。どちらにも無い処置済みの歯は他院とみなす。"""
+    治療歴に1本の歯として出てくる歯は自院。どちらにも無い処置済みの歯は自院とみなさない。"""
     other = set()
     for x in dentures:
         if "他院" in (x.get("made_by") or ""):
@@ -75,7 +113,17 @@ def own_teeth(status, history_sites, dentures):
         t = site_teeth(s)
         if len(t) == 1:
             mine |= t
-    return {t for t, s in status.items() if s in TREATED and t in mine and t not in other}
+    return {t for t, s in status.items() if treated(s) and t in mine and t not in other}
+
+
+def doing_teeth(status, plans):
+    """自院で治療の途中の歯: 根治中の歯と、今の治療計画に1本に決まる処置がある歯（経過観察は除く）。"""
+    out = {t for t, s in status.items() if parts(s)[1] == "根治中"}
+    for body in plans:
+        t = site_teeth(body)
+        if len(t) == 1 and not WAIT.search(body or ""):
+            out |= {x for x in t if parts(status.get(x, ""))[0] not in MISSING}
+    return out
 
 
 def _x(i):
@@ -103,29 +151,38 @@ def _roots(cx, bw, k):
         f'{c + 2:.1f},{LEN - 2} L {c + rw / 2:.1f},{CROWN - 2} Z"/>'
         for c in centers
     )
-    canals = "".join(
-        f'<path d="M {c - 2:.1f},{CROWN - 2} L {c - 0.6:.1f},{LEN - 12} L {c + 0.6:.1f},{LEN - 12} L {c + 2:.1f},{CROWN - 2} Z"/>'
+    return roots, centers
+
+
+def _canals(centers, root, top):
+    """根管。失活は黒い線、根治中はオレンジの枠（中は白）、根充後はオレンジの塗り。生活は描かない。"""
+    if root == "失活":
+        return "".join(f'<path class="tc-canal dead" d="M {c:.1f},{top} L {c:.1f},{LEN - 12}"/>' for c in centers)
+    if root not in ("根治中", "根充後"):
+        return ""
+    cls = "tc-canal filled" if root == "根充後" else "tc-canal open"
+    return "".join(
+        f'<path class="{cls}" d="M {c - 4:.1f},{top} L {c - 1.5:.1f},{LEN - 12} L {c + 1.5:.1f},{LEN - 12} '
+        f'L {c + 4:.1f},{top} Z"/>'
         for c in centers
     )
-    return roots, canals
 
 
 def _tooth(cx, n, jaw, status):
-    """1本の歯（歯冠の先が y=0）。status は歯の状態の文字。"""
+    """1本の歯（歯冠の先が y=0）。status は (歯冠, 根) か今までの状態の文字。"""
+    crown, root = parts(status)
+    m = marks(crown)
     bw = BODY[n]
     hw = bw / 2
-    roots, canals = _roots(cx, bw, ROOTS[jaw][n])
-    pulp_cls = "tc-pulp dead" if status in DEAD else "tc-pulp"
-    chamber = f'<rect x="{cx - hw * 0.4:.1f}" y="{CROWN - 30}" width="{hw * 0.8:.1f}" height="30" rx="6"/>'
-    out = roots
-    if status not in ROOT_ONLY:
-        crown_cls = "tc-crown cap" if status in CAP else "tc-crown"
-        out += f'<path class="{crown_cls}" d="{_crown_path(cx, bw, n)}"/>'
-        if status in PART:
-            out += f'<ellipse class="tc-fill" cx="{cx:.1f}" cy="13" rx="{hw * 0.6:.1f}" ry="9"/>'
-        out += f'<g class="{pulp_cls}">{chamber}{canals}</g>'
-    else:
-        out += f'<g class="{pulp_cls}">{canals}</g>'
+    roots, centers = _roots(cx, bw, ROOTS[jaw][n])
+    if m["root_only"]:  # 残根: 歯冠は描かず、根だけ
+        return roots + _canals(centers, root, CROWN + 2)
+    out = roots + _canals(centers, root, CROWN + 2)
+    out += f'<path class="{"tc-crown cap" if m["cap"] else "tc-crown"}" d="{_crown_path(cx, bw, n)}"/>'
+    if m["fill"] and not m["cap"]:
+        out += f'<ellipse class="tc-fill" cx="{cx:.1f}" cy="14" rx="{hw * 0.6:.1f}" ry="9"/>'
+    if m["caries"]:
+        out += f'<circle class="tc-caries" cx="{cx + (hw * 0.4 if m["fill"] else 0):.1f}" cy="{36 if m["fill"] else 28}" r="6"/>'
     return out
 
 
@@ -133,66 +190,77 @@ def _pontic(cx, n):
     return f'<path class="tc-crown cap" d="{_crown_path(cx, BODY[n], n)}"/>'
 
 
+def _gone(status, t):
+    return parts(status.get(t, ""))[0] in MISSING
+
+
 def _bridges(order, status):
     """支台の間が欠損でつながっていれば、ブリッジの範囲 (始め, 終わり) の並びを返す（列の番号）。"""
     spans = []
-    abut = [i for i, t in enumerate(order) if status.get(t) == "ブリッジ支台"]
+    abut = [i for i, t in enumerate(order) if "ブリッジ支台" in parts(status.get(t, ""))[0].split("+")]
     for a, b in zip(abut, abut[1:]):
         between = order[a + 1:b]
-        if between and all(status.get(t) in MISSING for t in between):
+        if between and all(_gone(status, t) for t in between):
             spans.append((a, b))
     return spans
 
 
-def _jaw(order, jaw, status, today):
+def _jaw(order, jaw, status, boxes):
     occ = UPPER_OCC if jaw == "upper" else LOWER_OCC
     flip = f"translate(0,{occ}) scale(1,-1)" if jaw == "upper" else f"translate(0,{occ})"
     spans = _bridges(order, status)
     pontics = {i for a, b in spans for i in range(a + 1, b)}
-    body = ""
+    # 囲みは歯より先に描き、歯の下に敷く
+    body = "".join(
+        f'<rect class="tc-box {boxes[t]}" data-tooth="{t}" x="{_x(i) - COL / 2 + 2:.1f}" y="-6" width="{COL - 4}" '
+        f'height="{LEN + 12}" rx="6"/>'
+        for i, t in enumerate(order) if t in boxes
+    )
     for a, b in spans:
         body += f'<rect class="tc-crown cap tc-bridge" x="{_x(a):.1f}" y="20" width="{_x(b) - _x(a):.1f}" height="24" rx="4"/>'
     for i, t in enumerate(order):
-        s = status.get(t, "")
         if i in pontics:
             body += f'<g class="tc-tooth pontic" data-tooth="{t}">{_pontic(_x(i), t % 10)}</g>'
-        elif s not in MISSING:
-            body += f'<g class="tc-tooth" data-tooth="{t}">{_tooth(_x(i), t % 10, jaw, s)}</g>'
-    frames = "".join(
-        f'<rect class="tc-today" data-tooth="{t}" x="{_x(i) - COL / 2 + 2:.1f}" y="-6" width="{COL - 4}" height="{LEN + 12}" rx="8"/>'
-        for i, t in enumerate(order) if t in today
+        elif not _gone(status, t):
+            crown, root = parts(status.get(t, ""))
+            body += (f'<g class="tc-tooth" data-tooth="{t}" data-crown="{crown}" data-root="{root}">'
+                     f'{_tooth(_x(i), t % 10, jaw, status.get(t, ""))}</g>')
+    return f'<g class="tc-jaw tc-{jaw}" transform="{flip}">{body}</g>'
+
+
+def _numbers(order, y, status):
+    return "".join(
+        f'<text class="{"tc-no gone" if _gone(status, t) else "tc-no"}" x="{_x(i):.1f}" y="{y}" data-no="{t}">{t % 10}</text>'
+        for i, t in enumerate(order)
     )
-    return f'<g class="tc-jaw tc-{jaw}" transform="{flip}">{body}{frames}</g>'
 
 
-def _numbers(order, y, own, status):
-    out = ""
-    for i, t in enumerate(order):
-        s = status.get(t, "")
-        if s in MISSING:
-            cls = "tc-no gone"
-        elif s in TREATED:
-            cls = "tc-no own" if t in own else "tc-no other"
-        else:
-            cls = "tc-no"
-        out += f'<text class="{cls}" x="{_x(i):.1f}" y="{y}" data-no="{t}">{t % 10}</text>'
-    return out
-
-
-def chart_svg(status, own=(), today=()):
-    """status: 歯番 → 状態の文字（無い歯は「欠損」）。own: 自院の歯。today: 今日の処置の歯。"""
-    own, today = set(own), set(today)
+def chart_svg(status, own=(), today=(), doing=()):
+    """status: 歯番 → (歯冠, 根) か今までの状態の文字（無い歯は「欠損」）。
+    own: 自院で治療が済んだ歯（薄い四角）。doing: 自院で治療の途中の歯（濃い四角）。
+    today: 今日の処置の歯。左上の「今日の処置」の欄に出ているので、治療済みの薄い四角は付けない
+    （治療の途中の歯は、今日の処置の歯でも濃い四角で囲む。院長の決定 11/4）。"""
+    boxes = {t: "done" for t in set(own) - set(today)}
+    boxes.update({t: "doing" for t in doing})
     mid = LEFT + COL * 8 + MID / 2
     return (
         f'<svg class="tooth-svg" viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="歯の状態">'
         f'<line class="tc-mid" x1="{mid}" y1="8" x2="{mid}" y2="{H - 8}"/>'
-        + _jaw(UPPER, "upper", status, today)
-        + _jaw(LOWER, "lower", status, today)
-        + _numbers(UPPER, 18, own, status)
-        + _numbers(LOWER, H - 4, own, status)
+        + _jaw(UPPER, "upper", status, boxes)
+        + _jaw(LOWER, "lower", status, boxes)
+        + _numbers(UPPER, 18, status)
+        + _numbers(LOWER, H - 4, status)
         + "</svg>"
     )
 
 
-# 歯番の色の見分け
-LEGEND = '<div class="tc-legend"><span class="own">自院</span><span class="other">他院</span></div>'
+# 色の説明。絵の下に1行で置く
+LEGEND = (
+    '<div class="tc-legend">'
+    '<span><i class="sw"></i>健全</span><span><i class="sw fill"></i>充填</span>'
+    '<span><i class="sw cap"></i>クラウン・ブリッジ</span><span><i class="dot"></i>カリエス</span>'
+    '<span class="grp lbl">根管</span><span><i class="cn dead"></i>失活</span><span><i class="cn open"></i>根治中</span>'
+    '<span><i class="cn filled"></i>根充後</span>'
+    '<span class="grp"><i class="bx done"></i>自院で治療済み</span><span><i class="bx doing"></i>自院で治療中</span>'
+    "</div>"
+)

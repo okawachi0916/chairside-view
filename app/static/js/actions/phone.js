@@ -65,7 +65,10 @@
     });
     document.body.appendChild(m);
     fetch("/api/phone-link", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appt: Number(appt) }) })
-      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (r) {
+        if (r.ok) return r.json();
+        return r.json().catch(function () { return {}; }).then(function (j) { var e = new Error(r.status); e.detail = j.detail; throw e; });
+      })
       .then(function (d) {
         if (!document.getElementById("phone-modal")) return;
         m.querySelector(".qr").innerHTML = d.svg;
@@ -75,7 +78,7 @@
         watchPhotos(appt);
         paint();
       })
-      .catch(function () { m.querySelector(".left").textContent = "QRを作れませんでした"; });
+      .catch(function (e) { m.querySelector(".left").textContent = (e && e.detail) || "QRを作れませんでした"; });
   }
 
   document.addEventListener("click", function (e) {

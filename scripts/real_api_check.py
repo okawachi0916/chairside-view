@@ -7,7 +7,8 @@
       --claude-only  よく聞く質問の表を使わず、全部 Claude に聞く（モデルの比較用）
       --model 名前    質問だけ別のモデルで試す（config は書き換えない）
   python scripts/real_api_check.py --memo      G17 の話6通りを本物の Claude で（聞き違いを直してから）5つに分け、期待と照らす
-  python scripts/real_api_check.py --fix       聞き違いを直す段を、作り直した録音1・2の文字と、副髄→覆髄（抜髄にならない）で確かめる
+  python scripts/real_api_check.py --fix       聞き取りの後の清書を、録音1・2・台本1・生活死・顎補綴の文と、正しい文（何も変えない）で確かめる
+  python scripts/polish_eval.py                清書のモデル比べ（Sonnet と Opus を3回ずつ。docs/清書のモデル比べ.md）
   python scripts/real_api_check.py --combine   G19b 診療回の区切り3つ（同じ話・言い直しを含む架空の話）を、まとめて1つの要約にする
 結果は docs/実API結果.md に追記する。鍵は出力にも記録にも出さない。
 """
@@ -40,6 +41,14 @@ def newest_sonnet(client) -> str:
 def commit_id() -> str:
     r = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"], capture_output=True, text=True)
     return r.stdout.strip() or "不明"
+
+
+def polished_items(talk, sens, gw, context=""):
+    """本番と同じ流れ: 聞き取りの文を清書し、清書から5つに分ける。戻り値: (項目, 清書の結果)。"""
+    from app.ai import fixtalk, memo
+
+    pol = fixtalk.polish(talk, sens, gw, context)
+    return memo.organize(pol["text"], sens, gw), pol
 
 
 def run_questions(claude_only: bool = False, model: str = "") -> int:
@@ -129,7 +138,8 @@ def run_memo() -> int:
     for c in CASES:
         talk = "見本 花子さんの診療です。" + c["transcript"]  # 名前を入れて送り、伏字を確かめる
         try:
-            items, _fixed, _fixes = memo.make_draft(talk, sens, gw)  # 聞き違いを直してから5つに分ける（本番と同じ）
+            items, pol = polished_items(talk, sens, gw)  # 清書してから5つに分ける（本番と同じ）
+            _fixes = pol["fixes"]
         except ClaudeUnavailable as e:
             print(e)
             return 2
@@ -171,6 +181,7 @@ def run_fix() -> int:
     from app.ai.gateway import Gateway, sensitive_from_db
     from app.db import connect
     from tests.test_fixtalk import KAGAKU, REC1, REC2
+    from tests.test_g19i import TALK as TALK1
 
     con = connect()
     sens = sensitive_from_db(con)
@@ -179,22 +190,34 @@ def run_fix() -> int:
     cases = [("録音1", REC1, ["根管充填", "排膿", "支台築造"]), ("録音2", REC2, ["支台築造", "TeC"]),
              ("副髄", "右下の5番は除去と副髄をします。", ["覆髄"]),   # G19d: 覆髄が抜髄にならない
              ("抜髄", "右下の5番は抜髄をします。", ["抜髄"]),        # 抜髄と話したら抜髄のまま
-             ("顎補綴", KAGAKU, ["顎補綴", "補綴を入れ", "義歯", "上顎洞", "欠損"])]   # G19h: 院長の動画用の話（上顎の顎補綴）
+             ("顎補綴", KAGAKU, ["顎補綴", "補綴を入れ", "義歯", "上顎洞", "欠損"]),   # G19h: 院長の動画用の話（上顎の顎補綴）
+             ("台本1", TALK1, ["排膿", "支台築造", "型を取", "降圧剤", "覆髄", "インレー"]),   # G19i: 院長の台本1の聞き取りの結果
+             ("生活死", "左下3番にレントゲンで根尖病変を認めます。なので、こちらは生活死ではなく既に失活しているということです。", ["生活歯"]),
+             ("正しい文", "右下6番の根管充填をしました。降圧剤を飲まれています。生活歯です。", ["根管充填", "降圧剤", "生活歯"])]   # 何も変わらない
     NL, ok_all, rows = chr(10), True, []
     for name, talk, want in cases:
         try:
-            items, fixed, fixes = memo.make_draft("見本 花子さんの診療です。" + talk, sens, gw)
+            items, pol = polished_items("見本 花子さんの診療です。" + talk, sens, gw)
+            fixed, fixes = pol["text"], pol["fixes"]
         except ClaudeUnavailable as e:
             print(e)
             return 2
         body = memo.body_lines(items)
         bad = [w for w in want if w not in fixed]
-        if name != "顎補綴":   # 顎補綴の話は、直した文字に出ればよい（項目には状態と指示の話だけ入る）
+        if not pol["polished"]:
+            bad.append("清書が使われていない: " + pol["note"])
+        if name not in ("顎補綴", "台本1", "生活死"):   # この話は、清書の文に出ればよい（項目には状態と指示の話などだけ入る）
             bad += [f"項目に無い: {w}" for w in want if w not in body]
         bad += [w for w in ("根幹重点", "肺脳", "次第蓄造", "次第地駆動", "TEK") if w in fixed or w in body]
         if name == "顎補綴":
             bad += [w for w in ("顎骨鉄", "お鉄", "疑似", "上顎道", "血損") if w in fixed or w in body]
             bad += [f"{k}が空" for k in ("done", "explained") if not items[k]]   # 状態の確認と患者様への指示が入る
+        if name == "台本1":
+            bad += [w for w in ("肺の", "次第畜造", "肩を取", "高圧剤", "副髄", "陰霊") if w in fixed]
+        if name == "生活死" and "生活死" in fixed:
+            bad.append("生活死が残った")
+        if name == "正しい文" and fixed != "見本 花子さんの診療です。" + talk:
+            bad.append("正しい文が変わった")
         if name == "副髄":
             bad += [w for w in ("抜髄", "副髄") if w in fixed or w in body]
         if digits(fixed) != digits("見本 花子さんの診療です。" + talk):
@@ -245,7 +268,13 @@ def run_combine() -> int:
     gw = Gateway(log_dir=Path(tmp) / "sent_log")
     NL = chr(10)
     try:
-        items, fixed, fixes = memo.make_combined(SEGMENTS, [False] * 3, sensitive_from_db(con), gw)
+        from app.ai import fixtalk
+
+        sens = sensitive_from_db(con)
+        pols = [fixtalk.polish(t, sens, gw) for t in SEGMENTS]   # 区切りごとに、聞き取りのすぐ後で清書する
+        fixed = NL.join(p["text"] for p in pols)
+        fixes = [f for p in pols for f in p["fixes"]]
+        items = memo.organize(fixed, sens, gw, combined=True)
     except ClaudeUnavailable as e:
         print(e)
         return 2

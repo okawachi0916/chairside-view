@@ -97,3 +97,10 @@ body.rec-page[data-page=draft] .draft-left, body.rec-page[data-page=draft] .draf
 body.rec-page[data-page=draft] .plan-block { flex: none; margin-bottom: var(--sp-4); }
 body.rec-page[data-page=draft] .draft-left > *, body.rec-page[data-page=draft] .draft-right > *,
 body.rec-page[data-page=draft] .plan-block > * { zoom: var(--fit, 1); }
+
+/* 清書: 直した言葉は下線、迷う言葉は印。聞き取りのままは押すと開く */
+.pf-fix { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; text-decoration-color: var(--c-doctor); }
+.pf-doubt { background: var(--c-warn-soft); color: var(--c-warn); border-bottom: 2px dotted var(--c-warn); }
+details.seg-raw, details.draft-raw { margin: var(--sp-2) 0; color: var(--c-sub); font-size: var(--fs-2); }
+details.seg-raw summary, details.draft-raw summary { cursor: pointer; }
+.seg-note, .polish-note { color: var(--c-warn); font-size: var(--fs-2); margin: var(--sp-1) 0; }

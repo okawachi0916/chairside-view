@@ -58,7 +58,9 @@ def list_for_visit(con, visit_id):
                 lines = [x for x in d["body"].split("\n") if x]
         out.append({
             "id": r["id"], "rec_no": r["rec_no"], "time": _hm(r["started_at"]), "state": r["state"],
-            "label": LABEL.get(r["state"], r["state"]), "text": r["transcript"], "lines": lines,
+            "label": LABEL.get(r["state"], r["state"]), "text": recpipe.shown_text(r), "raw": r["transcript"],
+            "polished": bool(r["polished"]), "fixes": recpipe.polish_of(r)["fixes"], "doubts": recpipe.polish_of(r)["doubts"],
+            "note": recpipe.polish_of(r)["note"], "lines": lines,
             "error": r["error"], "draft_id": r["draft_id"], "deleted": deleted,
             "date": r["vdate"], "current": r["visit_id"] == visit_id, "role": role_of_row(con, r), "can_delete": r["state"] != recpipe.CONFIRMED,
             "undo_left": undo_left(r["deleted_at"]) if deleted else 0,

@@ -6,7 +6,7 @@
 @font-face { font-family: "Noto Sans JP"; font-weight: 700; font-display: swap; src: url("/static/fonts/NotoSansJP-700.woff2") format("woff2"); }
 
 :root {
-  /* 色は14。少し青みのあるグレー6段階、役割3、注意の赤2、警告の琥珀2、失活歯の歯髄のオレンジ */
+  /* 色は14。少し青みのあるグレー6段階、役割3、注意の赤2、警告の琥珀2、根管のオレンジ（変数の名前は G23 のまま） */
   --c-surface: #ffffff;
   --c-canvas: #f3f5f8;
   --c-line: #e1e6ec;
@@ -431,20 +431,38 @@ body #typed-box input { font-size: var(--fs-2); }
 body .topbar .mic.rec { fill: var(--c-alert-soft); }
 body .topbar .mic.none { fill: var(--c-line-strong); }
 
-/* 歯の状態の絵（tooth_chart.py）。生活歯の歯髄は赤、失活歯はオレンジ、クラウンは灰色、修復物は緑 */
-.tooth-svg { width: 100%; height: 100%; display: block; }
-.tc-root { fill: var(--c-surface); stroke: var(--c-line-strong); stroke-width: 1.5; }
-.tc-crown { fill: var(--c-surface); stroke: var(--c-sub); stroke-width: 1.5; }
-.tc-crown.cap { fill: var(--c-line-strong); stroke: var(--c-sub); }
+/* 歯の状態の絵（tooth_chart.py、G07f）。健全は白抜き（輪郭は墨）、充填は緑、クラウン・ブリッジは灰色、カリエスは黒い点。
+   根管は 失活=黒い線、根治中=オレンジの枠、根充後=オレンジの塗り（生活歯は描かない）。
+   自院で治療済み=薄い四角、自院で治療中=濃い四角。白い歯に墨の輪郭なので、明るい地でも暗い地でも見える */
+.tooth-svg { width: 100%; flex: 1; min-height: 0; display: block; }
+.tc-root { fill: var(--c-surface); stroke: var(--c-sub); stroke-width: 1.5; }
+.tc-crown { fill: var(--c-surface); stroke: var(--c-ink); stroke-width: 2; }
+.tc-crown.cap { fill: var(--c-line-strong); stroke: var(--c-ink); }
 .tc-fill { fill: var(--c-hygienist); }
-.tc-pulp { fill: var(--c-alert); }
-.tc-pulp.dead { fill: var(--c-pulp-dead); }
-.tc-today { fill: none; stroke: var(--c-doctor); stroke-width: 3; }
+.tc-caries { fill: var(--c-ink); }
+.tc-canal.dead { fill: none; stroke: var(--c-ink); stroke-width: 3; stroke-linecap: round; }
+.tc-canal.open { fill: var(--c-surface); stroke: var(--c-pulp-dead); stroke-width: 2.5; }
+.tc-canal.filled { fill: var(--c-pulp-dead); stroke: var(--c-pulp-dead); stroke-width: 1; }
+.tc-box { fill: none; stroke-width: 3; }
+.tc-box.done { stroke: var(--c-line-strong); }
+.tc-box.doing { stroke: var(--c-doctor); stroke-width: 4; }
 .tc-mid { stroke: var(--c-line-strong); stroke-width: 1; }
 .tc-no { font-size: var(--fs-4); font-weight: var(--fw-medium); text-anchor: middle; fill: var(--c-sub); }
-.tc-no.own { fill: var(--c-doctor); font-weight: var(--fw-bold); }
-.tc-no.other { fill: var(--c-warn); font-weight: var(--fw-bold); }
 .tc-no.gone { fill: var(--c-line-strong); }
-.tc-legend { display: flex; gap: var(--sp-4); font-size: var(--fs-2); font-weight: var(--fw-bold); }
-.tc-legend .own { color: var(--c-doctor); }
-.tc-legend .other { color: var(--c-warn); }
+.teeth .frame { flex: 0 0 66%; flex-direction: column; gap: var(--sp-1); }
+.tc-legend { flex: none; display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-2); white-space: nowrap; letter-spacing: var(--ls-head);
+  font-size: var(--fs-1); line-height: var(--lh-tight); color: var(--c-ink); overflow: hidden; }
+.tc-legend span { display: inline-flex; align-items: center; gap: 2px; }
+.tc-legend .grp { margin-left: 0; }
+.tc-legend .lbl { color: var(--c-sub); }
+.tc-legend i { display: inline-block; flex: none; box-sizing: border-box; }
+.tc-legend .sw { width: 14px; height: 12px; border: 1.5px solid var(--c-ink); background: var(--c-surface); }
+.tc-legend .sw.fill { background: var(--c-hygienist); }
+.tc-legend .sw.cap { background: var(--c-line-strong); }
+.tc-legend .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c-ink); }
+.tc-legend .cn { width: 6px; height: 16px; border-radius: var(--r-s); }
+.tc-legend .cn.dead { width: 3px; background: var(--c-ink); }
+.tc-legend .cn.open { border: 2px solid var(--c-pulp-dead); background: var(--c-surface); }
+.tc-legend .cn.filled { background: var(--c-pulp-dead); }
+.tc-legend .bx { width: 14px; height: 16px; border: 3px solid var(--c-line-strong); }
+.tc-legend .bx.doing { border-color: var(--c-doctor); }

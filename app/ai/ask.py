@@ -10,7 +10,7 @@ import re
 from app.ai.gateway import Gateway, sensitive_from_db
 from app.ai.quick import pick_entry, pick_record
 from app.ai.records import build_records
-from app.ai.redact import RedactionFailed
+from app.ai.redact import NAMES_UNREADABLE, NameListUnreadable, RedactionFailed
 from app.ai.settings import ClaudeUnavailable
 from app.voice.interpret import QUESTION, interpret
 
@@ -83,11 +83,13 @@ def answer(text: str, con, patient_id: int, gateway: Gateway, quick: bool = True
                 return {"result": "none", "message": entry["empty"], "sends": 0}
     if not records:
         return {"result": "none", "message": MSG_NONE, "sends": 0}
-    sens = sensitive_from_db(con)
     try:
+        sens = sensitive_from_db(con)
         reply = gateway.send(build_prompt(records, text), sens, system=SYSTEM, max_tokens=1500, purpose="question")
     except ClaudeUnavailable:
         return {"result": "unavailable", "message": MSG_UNAVAILABLE, "sends": 0}
+    except NameListUnreadable:
+        return {"result": "stopped", "message": NAMES_UNREADABLE, "sends": 0}
     except RedactionFailed:
         return {"result": "stopped", "message": MSG_STOPPED, "sends": 0}
     except Exception:  # noqa: BLE001  通信などの失敗。中身は画面に出さない

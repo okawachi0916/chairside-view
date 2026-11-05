@@ -8,6 +8,8 @@ from pathlib import Path
 
 import numpy as np
 
+from app import errlog
+
 CONFIG = Path(__file__).resolve().parents[2] / "config" / "voice.json"
 _models = {}
 
@@ -33,14 +35,22 @@ def to_pcm(data: bytes) -> np.ndarray:
     return np.frombuffer(r.stdout, dtype=np.float32)
 
 
+# 文字起こしの動いている先。状況の画面（/voice-test）に出す
+engine = {"device": "未読み込み", "fallback_reason": ""}
+
+
 def _model(name: str):
     if name not in _models:
         from faster_whisper import WhisperModel
         cache = settings()["cache_dir"]
         try:
             _models[name] = WhisperModel(name, device="cuda", compute_type="float16", download_root=cache)
-        except Exception:
+            engine.update(device="GPU", fallback_reason="")
+        except Exception as e:  # noqa: BLE001  GPU で読めないときは CPU で続ける。遅くなるので、理由を記録と状況の画面に出す
             _models[name] = WhisperModel(name, device="cpu", compute_type="int8", download_root=cache)
+            why = f"{type(e).__name__}: {str(e)[:100]}"
+            engine.update(device="CPU", fallback_reason=why)
+            errlog.record("声", "GPU で読めなかったので CPU に切り替えました（文字起こしが遅くなります）", e)
     return _models[name]
 
 

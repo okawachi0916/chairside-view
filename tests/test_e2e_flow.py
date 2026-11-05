@@ -177,7 +177,7 @@ def flow(server, browser):  # noqa: F811
     assert ap.locator("#rec-win .ok").count() == 0
     ap.wait_for_function("document.getElementById('inner').contentDocument.querySelector('[data-part=spoken-summary]').innerText.includes('根管充填')")
     now = column()
-    assert "右下6番の根管充填" in now[0] and not any("側方加圧" in t for t in now)
+    assert "右下6番の根管充填" in now[0] and any("側方加圧" in t for t in now[1:])  # 新しい順。見本の下書きも同じ扱いで後ろ
     with D.con() as c:
         assert c.execute("SELECT COUNT(*) FROM clinical_notes").fetchone()[0] == notes_before
     ap.locator("#rec-win").click()  # 窓を押すと下書きの画面

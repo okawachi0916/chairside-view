@@ -404,3 +404,24 @@ def test_phone_button_works_inside_recording_parent(server, browser, mobile):  #
     fr.locator('[data-part="intraoral-photos"] [data-action="phone"]').click()
     fr.locator("#phone-modal .qr svg").wait_for()
     pg.close()
+
+
+def test_save_failure_is_told_apart_from_wrong_kind_and_is_logged(tmp_path, monkeypatch):
+    """G21k-3: 画像でないもの（415）と、保存できない失敗（500）を分けて返す。保存できない失敗は記録に残る。"""
+    from fastapi.testclient import TestClient
+
+    from app import errlog
+    from app.mobile import server as ms
+
+    (tmp_path / "photos").write_text("これはフォルダではない")  # 保存先を作れない
+    monkeypatch.setattr(ms, "data_dir", lambda: tmp_path)
+    monkeypatch.setattr(errlog, "data_dir", lambda: tmp_path)
+    c = TestClient(ms.app)
+    t = link()
+    bad = c.post(f"/m/{t}/upload", content=b"\xff\xd8\xff" + b"not really a jpeg", headers={"Content-Type": "image/jpeg"})
+    assert bad.status_code == 415 and "画像" in bad.json()["error"]
+    ng = c.post(f"/m/{t}/upload", content=png(), headers={"Content-Type": "image/png"})
+    assert ng.status_code == 500 and "保存できませんでした" in ng.json()["error"]
+    assert "画像だけ" not in ng.json()["error"]
+    log = (tmp_path / "error_log.txt").read_text(encoding="utf-8")
+    assert "スマホの写真" in log and "保存できませんでした" in log

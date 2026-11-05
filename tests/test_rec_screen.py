@@ -232,7 +232,7 @@ def test_stop_makes_draft_by_itself_and_column_changes(server, browser):  # noqa
     assert pg.locator("#rec-win .ok").count() == 0
     pg.wait_for_function("document.querySelector('#inner').contentDocument.querySelector('[data-part=spoken-summary]').innerText.includes('根管充填')")
     now = summary_items(pg)
-    assert "右下6番の根管充填" in now[0] and not any("側方加圧" in t for t in now)  # 一番新しい下書きが先頭、見本は出ない
+    assert "右下6番の根管充填" in now[0] and any("側方加圧" in t for t in now[1:])  # 一番新しい下書きが先頭。見本の下書きも同じ扱いで、古いので後ろに並ぶ
     assert "根管充填をしました" in inner(pg).evaluate("document.querySelector('template[data-fs=spoken-summary]').innerHTML")
     # 窓を押すと下書きの画面が開く
     pg.locator("#rec-win").click()

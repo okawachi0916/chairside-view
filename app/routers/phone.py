@@ -10,10 +10,12 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
+from app import errlog
 from app.db import data_dir
 from app.mobile import links
 
 router = APIRouter()
+mobile_status = {"error": ""}  # 起動に失敗したときの理由。空なら問題なし
 NAME_RE = re.compile(r"^[0-9]+_[0-9a-f]{16}\.jpg$")
 
 
@@ -41,6 +43,8 @@ def make_link(body: LinkIn):
         con.close()
     if not r:
         raise HTTPException(404, "予約がありません")
+    if mobile_status["error"]:
+        raise HTTPException(503, "スマホ用の受け口が動いていません。院内の担当者にお知らせください")
     token, expires = links.create_link(r["patient_id"])
     url = links.link_url(token)
     return JSONResponse({"svg": _qr_svg(url), "url": url, "chart_no": r["chart_no"], "expires_at": expires,
@@ -85,10 +89,22 @@ def start_mobile_server():
         from app.mobile.server import app as mobile_app
 
         server = uvicorn.Server(uvicorn.Config(mobile_app, host="0.0.0.0", port=links.mobile_port(), log_level="warning"))
-        t = threading.Thread(target=lambda: server.run(), name="mobile-server", daemon=True)
+
+        def run():
+            try:
+                server.run()
+                if not server.started:  # ポートが使えないときは、例外でなく終了で返ってくる
+                    raise OSError(f"ポート {links.mobile_port()} で待ち受けられません")
+            except BaseException as e:  # noqa: BLE001  SystemExit も含めて、止まった理由を残す
+                mobile_status["error"] = f"{type(e).__name__}: {str(e)[:80]}"
+                errlog.record("スマホ用サーバー", "スマホ用の受け口が起動できませんでした（メインは続けます）", e)
+
+        t = threading.Thread(target=run, name="mobile-server", daemon=True)
         t.start()
         return server
-    except Exception:
+    except Exception as e:  # noqa: BLE001  メインは止めない。理由は記録に残し、QR を出すときに画面に出す
+        mobile_status["error"] = f"{type(e).__name__}: {str(e)[:80]}"
+        errlog.record("スマホ用サーバー", "スマホ用の受け口を準備できませんでした（メインは続けます）", e)
         return None
 
 

@@ -7,8 +7,9 @@ from pathlib import Path
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from app import errlog
 from app.voice import transcribe as tr
-from app.voice.interpret import interpret, load_table
+from app.voice.interpret import example, interpret, load_table
 
 router = APIRouter()
 ROOT = Path(__file__).resolve().parents[2]
@@ -18,8 +19,8 @@ def _warm():
     """最初の1回を速くするため、起動時に裏でモデルを読んでおく。読めなくても起動は続ける。"""
     try:
         tr._model(tr.settings()["model"])
-    except Exception:
-        pass
+    except Exception as e:  # noqa: BLE001  読めなくても起動は続ける。理由は記録に残す
+        errlog.record("声", "起動時に文字起こしのモデルを読めませんでした", e)
 
 
 threading.Thread(target=_warm, daemon=True).start()
@@ -33,6 +34,12 @@ def keys():
 @router.get("/voice-test", response_class=HTMLResponse)
 def voice_test():
     return (ROOT / "app" / "voice" / "voice_test.html").read_text(encoding="utf-8")
+
+
+@router.get("/voice/status")
+def status():
+    """文字起こしが GPU か CPU か。CPU に切り替わったときは理由も返す。"""
+    return dict(tr.engine)
 
 
 @router.post("/voice/transcribe")
@@ -58,8 +65,14 @@ async def interpret_text(request: Request):
 @router.get("/voice/commands")
 def commands():
     """「いま言える言葉」の一覧。状態が「使える」の行だけ返す。"""
-    return {"words": [r["言葉"] for r in load_table()
-                      if r["状態"] == "使える" and "(" not in r["言葉"] and r["結果"].get("action") != "part-number"]}
+    words = []
+    for r in load_table():
+        if r["状態"] != "使える" or r["結果"].get("action") == "part-number":
+            continue
+        w = example(r["言葉"])  # 「(を|の|)」のような書き方の行は、言い方を1つに直して出す
+        if w and w not in words:
+            words.append(w)
+    return {"words": words}
 
 
 @router.get("/voice/examples")

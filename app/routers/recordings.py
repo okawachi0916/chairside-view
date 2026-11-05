@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
-from app.ai import memo, recpipe
+from app.ai import fixtalk, memo, recpipe
 from app.ai.recpipe import RecError
 from app.db import connect
 
@@ -169,6 +169,20 @@ def safe_back(back: str) -> str:
     return "/"
 
 
+def _fix_list(d):
+    try:
+        return json.loads(d["fixes"] or "[]")
+    except ValueError:
+        return []
+
+
+def _doubt_list(d):
+    try:
+        return json.loads(d["doubts"] or "[]")
+    except ValueError:
+        return []
+
+
 def _fixes_html(d):
     try:
         fixes = json.loads(d["fixes"] or "[]")
@@ -207,7 +221,12 @@ def _draft_html(d, p, v, rec, fix, back="/"):
         left = (f"{audio}<textarea id='fix-text' class='fix-text'>{h(d['transcript'])}</textarea>"
                 "<button type='button' id='fix-reorg'>この文字で整理し直す</button>")
     else:
-        left = f"<p>{h(d['transcript'])}</p>"
+        shown = d["fixed_transcript"] or d["transcript"]
+        raw = (f"<details class='draft-raw' data-part='draft-raw'><summary>聞き取りのまま</summary><p>{h(d['transcript'])}</p></details>"
+               if d["fixed_transcript"] else "")
+        note = f"<p class='polish-note' data-part='polish-note'>{h(d['polish_note'])}</p>" if d["polish_note"] else ""
+        left = (f"<p class='polished' data-part='draft-polished'>"
+                f"{fixtalk.marked_html(shown, _fix_list(d), _doubt_list(d))}</p>{note}{raw}")
     bar = ("" if done else
            "<span class='draft-actions'><button type='button' id='btn-confirm' data-action='confirm'>カルテに記録する</button> "
            "<button type='button' id='btn-later'>あとで直す</button></span>")
@@ -220,7 +239,7 @@ def _draft_html(d, p, v, rec, fix, back="/"):
         + ("" if done else "<button type='button' id='btn-say' class='say-btn'>言える言葉</button>") + "</header>"
         f"<div class='draft-bar'><span class='draft-mark' data-part='draft-mark'>{mark}</span>{bar}"
         "<span id='msg' class='err' role='status'></span></div>"
-        f"<div class='draft-cols'><div class='draft-left' data-part='draft-transcript'><h3>話したままの文字</h3>{left}"
+        f"<div class='draft-cols'><div class='draft-left' data-part='draft-transcript'><h3>{"話したままの文字（直して整理し直す）" if (fix and not done and not d["combined"]) else "話した文字（清書）"}</h3>{left}"
         f"<h3 class='fx-title'>直した聞き違い（元 → 直し）</h3><div data-part='draft-fixes'>{_fixes_html(d)}</div></div>"
         f"<div class='draft-right' data-part='draft-items'>{cols}</div></div>"
         "<section class='plan-block' id='plan-compare' data-part='plan-compare'><h2>治療計画の変更</h2>"

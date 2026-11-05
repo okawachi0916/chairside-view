@@ -7,10 +7,18 @@ import pytest
 
 from app.ai import memo, recpipe, settings
 from app.ai.fake import ScriptedMouth
+from tests.polish_helper import MISHEAR, fixer
 from tests.test_rec_pipeline import EMPTY, api, appt_of, con_of, env, record, use, wait_state  # noqa: F401
 
 T1 = "今日は右下6番の根幹重点をしました。"
 T2 = "右下6番の根幹重点を行いました。次回は二週間後に土台を立てます。"
+
+
+class MouthFor(ScriptedMouth):
+    """清書の応答は、聞き取りの文に出てくる聞き違い（根幹重点など）を直す。"""
+
+    def __init__(self, reply="", **kw):
+        super().__init__(reply, polish_reply=fixer(MISHEAR), **kw)
 
 
 def reply_for(*pairs):
@@ -49,18 +57,18 @@ def test_auto_summary_default_is_false_in_config():
 
 
 def test_stop_makes_a_segment_without_summary(manual):
-    sent = use(manual, ScriptedMouth(EMPTY), T1)
+    sent = use(manual, MouthFor(EMPTY), T1)
     a = appt_of(manual, "0123")
     rid = segment(manual, a, T1)
     c = con_of(manual)
     r = recpipe.get(c, rid)
     assert r["transcript"] == T1 and r["visit_id"] and r["draft_id"] is None
     assert c.execute("SELECT COUNT(*) FROM drafts WHERE recording_id = ?", (rid,)).fetchone()[0] == 0
-    assert sent.sent == [] and sent.fix_sent == []  # Claude には送っていない
+    assert sent.sent == [] and len(sent.polish_sent) == 1  # 要約のための送信はしていない（聞き取りのすぐ後の清書だけ送った）
 
 
 def test_segments_keep_recorded_order_and_link_to_visit(manual):
-    use(manual, ScriptedMouth(EMPTY), T1)
+    use(manual, MouthFor(EMPTY), T1)
     a = appt_of(manual, "0123")
     r1, r2 = segment(manual, a, T1), segment(manual, a, T2)
     c = con_of(manual)
@@ -72,7 +80,7 @@ def test_segments_keep_recorded_order_and_link_to_visit(manual):
 
 
 def test_summarize_one_segment_uses_only_its_text(manual):
-    mouth = use(manual, ScriptedMouth(reply_for(("右下6番の根管充填。", "根管充填をしました"))), T1)
+    mouth = use(manual, MouthFor(reply_for(("右下6番の根管充填。", "根管充填をしました"))), T1)
     a = appt_of(manual, "0123")
     r1, r2 = segment(manual, a, T1), segment(manual, a, T2)
     assert api(manual, "post", f"/rec/{r1}/summarize")[0] == 200
@@ -83,7 +91,7 @@ def test_summarize_one_segment_uses_only_its_text(manual):
 
 
 def test_combine_makes_one_summary_and_replaces_segment_summaries(manual):
-    mouth = use(manual, ScriptedMouth(reply_for(("右下6番の根管充填。", "根管充填をしました"))), T1)
+    mouth = use(manual, MouthFor(reply_for(("右下6番の根管充填。", "根管充填をしました"))), T1)
     a = appt_of(manual, "0123")
     r1 = segment(manual, a, T1)
     assert api(manual, "post", f"/rec/{r1}/summarize")[0] == 200
@@ -91,7 +99,7 @@ def test_combine_makes_one_summary_and_replaces_segment_summaries(manual):
     first_draft = recpipe.get(con_of(manual), r1)["draft_id"]
     r2 = segment(manual, a, T2)
     mouth.sent.clear()
-    mouth.fix_sent.clear()
+    mouth.polish_sent.clear()
 
     mouth.reply = reply_for(("右下6番の根管充填。", "根管充填を行いました"))
     code, body = api(manual, "post", "/rec/combine", json={"appt": a})
@@ -109,17 +117,17 @@ def test_combine_makes_one_summary_and_replaces_segment_summaries(manual):
     system, user = mouth.sent[0]
     assert "録音した順" in system and "後の言い方" in system
     assert user.index("根管充填をしました") < user.index("二週間後")
-    assert len(mouth.fix_sent) == 1 and T1 in mouth.fix_sent[0][1]  # 直す段にも、つないだ文字を送った
+    assert mouth.polish_sent == []  # まとめるときは清書し直さない（区切りごとに、聞き取りのすぐ後で清書してある）
     assert c.execute("SELECT COUNT(*) FROM drafts WHERE visit_id = ? AND status = 'draft' AND recording_id IS NOT NULL",
                      (recpipe.get(c, r1)["visit_id"],)).fetchone()[0] == 1
 
 
-def test_combined_summary_fixes_mishearings_even_when_claude_misses(manual):
-    """肺脳・次第蓄造・次第地駆動・根幹重点は、Claude が直さなくても決まりで直って要約に出る。"""
+def test_combined_summary_is_made_from_the_polished_segments(manual):
+    """肺脳・次第蓄造・次第地駆動・根幹重点は、区切りの清書で直っていて、要約に出る。"""
     text = "根幹重点をしました。肺脳があり洗浄しました。次第蓄造と次第地駆動の話もしました。"
     fixed = "根管充填をしました。排膿があり洗浄しました。支台築造と支台築造の話もしました。"
     reply = reply_for(("根管充填をした。", "根管充填をしました"), ("排膿があり洗浄した。", "排膿があり洗浄しました"))
-    use(manual, ScriptedMouth(reply), text)
+    use(manual, MouthFor(reply), text)
     a = appt_of(manual, "0123")
     rid = segment(manual, a, text)
     assert api(manual, "post", "/rec/combine", json={"appt": a})[0] == 200
@@ -154,7 +162,7 @@ def test_combine_without_segments_is_refused(manual):
 
 
 def test_confirm_combined_records_once_and_removes_all_audio(manual):
-    use(manual, ScriptedMouth(reply_for(("右下6番の根管充填。", "根管充填をしました"))), T1)
+    use(manual, MouthFor(reply_for(("右下6番の根管充填。", "根管充填をしました"))), T1)
     a = appt_of(manual, "0123")
     r1, r2 = segment(manual, a, T1), segment(manual, a, T2)
     api(manual, "post", "/rec/combine", json={"appt": a})
@@ -175,7 +183,7 @@ def test_confirm_combined_records_once_and_removes_all_audio(manual):
 
 
 def test_delete_is_immediate_undo_works_then_data_is_gone(manual):
-    use(manual, ScriptedMouth(EMPTY), T1)
+    use(manual, MouthFor(EMPTY), T1)
     a = appt_of(manual, "0123")
     r1, r2 = segment(manual, a, T1), segment(manual, a, "言い間違えた区切りです。")
     audio = manual["dir"] / "audio" / f"rec_{r2}.webm"
@@ -203,7 +211,7 @@ def test_delete_is_immediate_undo_works_then_data_is_gone(manual):
 
 
 def test_after_delete_combine_uses_only_remaining_segments(manual):
-    mouth = use(manual, ScriptedMouth(reply_for(("右下6番の根管充填。", "根管充填をしました"))), T1)
+    mouth = use(manual, MouthFor(reply_for(("右下6番の根管充填。", "根管充填をしました"))), T1)
     a = appt_of(manual, "0123")
     r1, r2 = segment(manual, a, T1), segment(manual, a, "言い間違えた区切りです。")
     api(manual, "post", f"/rec/{r2}/delete")
@@ -216,7 +224,7 @@ def test_after_delete_combine_uses_only_remaining_segments(manual):
 
 
 def test_deleting_a_segment_in_a_combined_draft_drops_that_draft_after_purge(manual):
-    use(manual, ScriptedMouth(reply_for(("右下6番の根管充填。", "根管充填をしました"))), T1)
+    use(manual, MouthFor(reply_for(("右下6番の根管充填。", "根管充填をしました"))), T1)
     a = appt_of(manual, "0123")
     r1, r2 = segment(manual, a, T1), segment(manual, a, T2)
     api(manual, "post", "/rec/combine", json={"appt": a})
@@ -233,7 +241,7 @@ def test_deleting_a_segment_in_a_combined_draft_drops_that_draft_after_purge(man
 
 
 def test_cannot_delete_while_working_or_confirmed(manual):
-    use(manual, ScriptedMouth(EMPTY), T1)
+    use(manual, MouthFor(EMPTY), T1)
     a = appt_of(manual, "0123")
     code, r = api(manual, "post", "/rec/start", json={"appt": a})
     code, body = api(manual, "post", f"/rec/{r['id']}/delete")
@@ -241,7 +249,7 @@ def test_cannot_delete_while_working_or_confirmed(manual):
 
 
 def test_fullscreen_html_lists_segments_in_order_with_buttons(manual):
-    use(manual, ScriptedMouth(reply_for(("右下6番の根管充填。", "根管充填をしました"))), T1)
+    use(manual, MouthFor(reply_for(("右下6番の根管充填。", "根管充填をしました"))), T1)
     a = appt_of(manual, "0123")
     r1, r2 = segment(manual, a, T1), segment(manual, a, T2)
     api(manual, "post", f"/rec/{r1}/summarize")
@@ -260,10 +268,10 @@ def test_fullscreen_html_lists_segments_in_order_with_buttons(manual):
 
 
 def test_names_are_redacted_in_combined_send(manual):
-    mouth = use(manual, ScriptedMouth(EMPTY), "見本 花子さん、今日は根管充填をしました。")
+    mouth = use(manual, MouthFor(EMPTY), "見本 花子さん、今日は根管充填をしました。")
     a = appt_of(manual, "0123")
     rid = segment(manual, a, "見本 花子さん、今日は根管充填をしました。")
     api(manual, "post", "/rec/combine", json={"appt": a})
     wait_state(manual, rid, ["下書き", "失敗"])
-    for _, user in mouth.sent + mouth.fix_sent:
+    for _, user in mouth.sent + mouth.polish_sent:
         assert "見本" not in user and "花子" not in user

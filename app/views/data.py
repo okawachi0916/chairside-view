@@ -108,11 +108,9 @@ def unit_data(appt, role):
             "SELECT body FROM treatment_plans WHERE patient_id = ? AND kind = 'policy' ORDER BY seq, id", (pid,))]
         d["mucosal"] = _all(c, "SELECT site, name FROM mucosal_conditions WHERE patient_id = ? ORDER BY id", pid)
         d["dentures"] = _all(c, "SELECT site, kind, made_by, made_on FROM dentures WHERE patient_id = ? ORDER BY id", pid)
-        # 録音の下書きがあれば、一番新しいものを先頭に出し、見本の文は出さない。無いときだけ見本の文を出す
-        base = ("SELECT d.body, d.transcript FROM drafts d JOIN visits v ON v.id = d.visit_id "
-                "WHERE d.patient_id = ? AND v.visit_date = ? AND v.role = ? ")
-        d["drafts"] = (_all(c, base + "AND d.recording_id IS NOT NULL ORDER BY d.id DESC", pid, TODAY, role)
-                       or _all(c, base + "ORDER BY d.id", pid, TODAY, role))
+        # 今日のこの役割の下書きを、新しい順に全部出す（見本データの下書きも録音から作った下書きも同じ扱い）
+        d["drafts"] = _all(c, "SELECT d.body, d.transcript FROM drafts d JOIN visits v ON v.id = d.visit_id "
+                              "WHERE d.patient_id = ? AND v.visit_date = ? AND v.role = ? ORDER BY d.id DESC", pid, TODAY, role)
         d["summary"] = [x for dr in d["drafts"] for x in dr["body"].split("\n") if x]
         d["transcript"] = "\n".join(dr["transcript"] for dr in d["drafts"] if dr["transcript"])
         vrow = c.execute("SELECT id, visit_date FROM visits WHERE appointment_id = ?", (appt["id"],)).fetchone()
@@ -124,8 +122,9 @@ def unit_data(appt, role):
         d["care"] = _all(c, "SELECT item, last_date FROM care_purchases WHERE patient_id = ? ORDER BY last_date DESC, id", pid)
         d["perio_all"] = _perio(c, pid, None)  # 全画面で過去の検査へ遡る。新しい検査から順
         d["perio"] = d["perio_all"][:2]
-        d["teeth"] = {r["tooth"]: r["status"] for r in c.execute(
-            "SELECT tooth, status FROM tooth_status WHERE patient_id = ?", (pid,))}
+        # 歯冠と根があればその2つ、無ければ今までの状態の文字（絵の側で読み替える）
+        d["teeth"] = {r["tooth"]: ((r["crown"], r["root"]) if r["crown"] else r["status"]) for r in c.execute(
+            "SELECT tooth, status, crown, root FROM tooth_status WHERE patient_id = ?", (pid,))}
     return d
 
 

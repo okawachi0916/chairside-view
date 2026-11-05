@@ -12,6 +12,7 @@ from app.ai import fixtalk, memo
 from app.ai.fake import ScriptedMouth
 from app.ai.gateway import Gateway
 from app.ai.redact import Sensitive
+from tests.polish_helper import polish_reply
 
 ROOT = Path(__file__).resolve().parents[1]
 SENS = Sensitive(patients=[], staff=[], clinics=[])
@@ -197,18 +198,19 @@ def test_new_terms_and_rules_in_config():
     for w in ("全身既往", "既往歴", "根尖病変", "服薬"):
         assert w in cfg["terms"]
     assert len(cfg["terms"]) <= 80
-    assert "全身起用" in cfg["readings"]["全身既往"] and "今前病変" in cfg["readings"]["根尖病変"]
+    assert "全身起用" in cfg["readings"]["全身既往"] and "今前病変" in cfg["readings"]["根尖病変"]  # 聞き違いの例として清書へ渡す
     assert "陰霊" in cfg["readings"]["インレー"]
 
 
 def test_doctors_recording_sentences_are_fixed():
-    mouth = ScriptedMouth("{}", fix_reply="[]")
-    gw = Gateway(mouth=mouth, log_dir=Path(os.environ.get("TEMP", ".")) / "g19e_log")
     talk = "全身起用で貧血があります。今前病変はありましたが、左上6番に陰霊を入れました。"
-    text, done = fixtalk.fix_transcript(talk, SENS, gw)
-    assert text == "全身既往で貧血があります。根尖病変はありましたが、左上6番にインレーを入れました。"
-    assert {(d["from"], d["to"]) for d in done} == {("全身起用", "全身既往"), ("今前病変", "根尖病変"), ("陰霊", "インレー")}
-    assert all(d["by"] == "rule" for d in done)
-    # 正しい言葉はそのまま
+    pairs = [("全身起用", "全身既往"), ("今前病変", "根尖病変"), ("陰霊", "インレー")]
+    mouth = ScriptedMouth("{}", polish_reply=polish_reply(talk, pairs))
+    gw = Gateway(mouth=mouth, log_dir=Path(os.environ.get("TEMP", ".")) / "g19e_log")
+    res = fixtalk.polish(talk, SENS, gw)
+    assert res["text"] == "全身既往で貧血があります。根尖病変はありましたが、左上6番にインレーを入れました。"
+    assert {(d["from"], d["to"]) for d in res["fixes"]} == set(pairs)
+    # 正しい言葉はそのまま（偽物の既定: 聞き取りの文をそのまま返す）
     ok = "全身既往と根尖病変とインレーです。"
-    assert fixtalk.fix_transcript(ok, SENS, gw)[0] == ok
+    same = Gateway(mouth=ScriptedMouth("{}"), log_dir=Path(os.environ.get("TEMP", ".")) / "g19e_log")
+    assert fixtalk.polish(ok, SENS, same)["text"] == ok

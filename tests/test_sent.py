@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.ai import ask as ask_mod
-from app.ai import memo
+from app.ai import fixtalk, memo
 from app.ai.fake import ScriptedMouth
 from app.ai.gateway import Gateway, sensitive_from_db
 
@@ -36,7 +36,8 @@ def env(tmp_path_factory):
     talk = f"{NAME}さんの診療です。今日は右下6番の根管充填をしました。"
     reply = json.dumps({**{k: [] for k in memo.KEYS}, "done": [{"text": "右下6番の根管充填", "quote": "右下6番の根管充填をしました"}]},
                        ensure_ascii=False)
-    memo.make_draft(talk, sens, Gateway(mouth=ScriptedMouth(reply, fix_reply="[]")))
+    fixtalk.polish(talk, sens, Gateway(mouth=ScriptedMouth(reply)))
+    memo.organize(talk, sens, Gateway(mouth=ScriptedMouth(reply)))
     yield {"client": TestClient(app), "dir": d, "con": con}
     con.close()
     if old is None:
@@ -49,8 +50,8 @@ def test_question_and_draft_sends_both_appear(env):
     r = env["client"].get("/sent")
     assert r.status_code == 200
     page = r.text
-    assert "data-purpose='question'" in page and "data-purpose='memo'" in page and "data-purpose='fix'" in page
-    assert "質問" in page and "下書き" in page and "聞き違いの直し" in page
+    assert "data-purpose='question'" in page and "data-purpose='memo'" in page and "data-purpose='polish'" in page
+    assert "質問" in page and "下書き" in page and "清書" in page
     assert "ペニシリンの記録は" in page and "右下6番の根管充填をしました" in page  # 送った文の中身
 
 

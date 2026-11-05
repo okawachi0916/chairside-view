@@ -1,7 +1,12 @@
 {
   "model": "claude-sonnet-5-5",
   "purposes": {
-    "question": "claude-haiku-5-5"
+    "question": "claude-haiku-5-5",
+    "polish": "claude-sonnet-5-5"
   },
-  "auto_summary": false
+  "auto_summary": false,
+  "polish_candidates": [
+    "claude-sonnet-5-5",
+    "claude-opus-5-5"
+  ]
 }

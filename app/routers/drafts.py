@@ -61,6 +61,7 @@ def api_draft(draft_id: int):
         return {"id": d["id"], "status": d["status"], "transcript": d["transcript"], "chart_no": p["chart_no"],
                 "items": json.loads(d["items"] or "{}"),
                 "fixed_transcript": d["fixed_transcript"], "fixes": json.loads(d["fixes"] or "[]"),
+                "doubts": json.loads(d["doubts"] or "[]"), "polish_note": d["polish_note"],
                 "plans": confirm.plans_active(con, d["patient_id"]),
                 "rec": dict(rec) if rec else None}
     return _run(go)

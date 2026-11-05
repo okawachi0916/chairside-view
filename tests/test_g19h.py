@@ -1,17 +1,16 @@
-"""G19h: 顎補綴の話の聞き違い（顎骨鉄→顎補綴、お鉄を入れ→補綴を入れ）と、状態の話が「やったこと」「説明したこと」に入る指示。偽物の口。"""
+"""G19h: 顎補綴の話の聞き違いが直る。状態の話は「やったこと」、患者様への指示は「説明したこと」に振り分けられる。偽物の口。
+（結果を見る試験。表に語があるか、指示文に文字があるかだけを見る試験はやめた。）"""
 import json
-from pathlib import Path
 
 from app.ai import fixtalk, memo
 from app.ai.fake import ScriptedMouth
 from app.ai.gateway import Gateway
 from app.ai.redact import Sensitive
-from tests.test_fixtalk import KAGAKU, fx
+from tests.polish_helper import polish_reply
+from tests.test_fixtalk import KAGAKU
 
-ROOT = Path(__file__).resolve().parents[1]
 SENS = Sensitive(patients=[], staff=[], clinics=[])
-# 院長の画面で Claude が直していた3つ（読みは同じ）
-CLAUDE_FIX = [fx("疑似", "義歯", "ぎし", "ぎし"), fx("上顎道", "上顎洞", "じょうがくどう", "じょうがくどう"), fx("血損", "欠損", "けっそん", "けっそん")]
+PAIRS = [("顎骨鉄", "顎補綴"), ("疑似", "義歯"), ("上顎道", "上顎洞"), ("血損", "欠損"), ("お鉄を入れ", "補綴を入れ")]
 FIXED = ("この方は、上顎は顎補綴の義歯が入っていて、4番から7番までは上顎洞まで交通した欠損があります。"
          "インプラントを上顎洞に近いところに打っており、そこに引っ掛ける形で顎補綴、義歯を入れております。"
          "補綴を入れて、義歯を入れて、しゃべる場合は大丈夫なんですが、そうじゃないときには空気が抜ける感じでしゃべることがなかなかできません。"
@@ -19,60 +18,36 @@ FIXED = ("この方は、上顎は顎補綴の義歯が入っていて、4番か
          "今のところ、封鎖も良好で、飲み込みも問題ありません。今後も経過観察をしていきます。")
 
 
-def test_terms_and_rules_added():
-    cfg = json.loads((ROOT / "config" / "dental_terms.json").read_text(encoding="utf-8"))
-    for w in ("顎補綴", "顎義歯", "補綴", "上顎洞", "欠損", "交通", "封鎖"):
-        assert w in cfg["terms"]
-    assert len(cfg["terms"]) <= 80
-    assert "顎骨鉄" in cfg["readings"]["顎補綴"] and "お鉄を入れ" in cfg["readings"]["補綴を入れ"]
-    for w in ("顎補綴", "上顎洞", "封鎖"):  # 文字起こしへ渡すヒントにも入る
-        assert w in fixtalk.initial_prompt()
-
-
-def test_doctors_screen_sentence_is_fixed(tmp_path):
-    mouth = ScriptedMouth("{}", fix_reply=json.dumps(CLAUDE_FIX, ensure_ascii=False))
-    gw = Gateway(mouth=mouth, log_dir=tmp_path / "log")
-    text, done = fixtalk.fix_transcript(KAGAKU, SENS, gw)
-    assert text == FIXED
+def test_doctors_screen_sentence_is_fixed_and_listed(tmp_path):
+    gw = Gateway(mouth=ScriptedMouth("{}", polish_reply=polish_reply(KAGAKU, PAIRS)), log_dir=tmp_path / "log")
+    res = fixtalk.polish(KAGAKU, SENS, gw)
+    assert res["text"] == FIXED  # 「噛むことながらが」は文のつながりの崩れ。直せなければそのまま
     for w in ("顎補綴", "補綴", "義歯", "上顎洞", "欠損"):
-        assert w in text
+        assert w in res["text"]
     for w in ("顎骨鉄", "お鉄", "疑似", "上顎道", "血損"):
-        assert w not in text
-    pairs = {(d["from"], d["to"]) for d in done}
-    # 「直した聞き違い（元 → 直し）」の欄に、足した分も出る
-    assert ("顎骨鉄", "顎補綴") in pairs and ("お鉄を入れ", "補綴を入れ") in pairs
-    assert {("疑似", "義歯"), ("上顎道", "上顎洞"), ("血損", "欠損")} <= pairs
+        assert w not in res["text"]
+    # 「直した聞き違い（元 → 直し）」の欄に、直した分が出る
+    assert {(d["from"], d["to"]) for d in res["fixes"]} == set(PAIRS)
 
 
-def test_rules_work_without_claude(tmp_path):
-    """Claude が何も直さなくても、足した2つの決まりは効く。「お鉄」は「お鉄を入れ」の形のときだけ。"""
-    mouth = ScriptedMouth("{}", fix_reply="[]")
-    gw = Gateway(mouth=mouth, log_dir=tmp_path / "log")
-    text, _ = fixtalk.fix_transcript("顎骨鉄を入れて、お鉄を入れました。お鉄のことは別です。", SENS, gw)
-    assert text == "顎補綴を入れて、補綴を入れました。お鉄のことは別です。"
-
-
-def test_correct_words_are_left_alone(tmp_path):
-    mouth = ScriptedMouth("{}", fix_reply="[]")
-    gw = Gateway(mouth=mouth, log_dir=tmp_path / "log")
-    ok = "顎補綴の義歯を入れて、補綴を入れました。上顎洞まで交通した欠損です。"
-    assert fixtalk.fix_transcript(ok, SENS, gw)[0] == ok
-
-
-def test_prompt_puts_status_talk_in_done_and_instructions_in_explained():
-    assert "封鎖は良好" in memo.SYSTEM and "反対側で噛んでもらう" in memo.SYSTEM
-    assert "話していない言葉は足しません" in memo.SYSTEM
-
-
-def test_status_items_are_kept_when_quotes_are_in_the_talk():
-    """Claude が返した「やったこと」「説明したこと」は、抜き出しが話の中にあれば残る（作った話は残らない）。"""
+def test_status_goes_to_done_and_instruction_to_explained(tmp_path):
+    """整理は清書から作る。Claude が返した振り分けのとおりに、やったこと・説明したことの欄に入り、作った話は入らない。"""
     reply = json.dumps({
         "done": [{"text": "封鎖は良好、飲み込みは問題ない。", "quote": "封鎖も良好で、飲み込みも問題ありません"}],
         "explained": [{"text": "反対側で噛んでもらうようにしている。", "quote": "反対側で噛んでもらうようになっております"},
                       {"text": "作った話。", "quote": "話に無い抜き出し"}],
         "next_plan": [], "future_plan": [],
         "future_policy": [{"text": "経過観察をしていく。", "quote": "今後も経過観察をしていきます"}]}, ensure_ascii=False)
-    items = memo.parse_items(reply, FIXED)
-    assert len(items["done"]) == 1 and len(items["explained"]) == 1 and not items["next_plan"]
+    items = memo.organize(FIXED, SENS, Gateway(mouth=ScriptedMouth(reply), log_dir=tmp_path / "log"))
+    assert [r["text"] for r in items["done"]] == ["封鎖は良好、飲み込みは問題ない。"]
+    assert [r["text"] for r in items["explained"]] == ["反対側で噛んでもらうようにしている。"]
+    assert not items["next_plan"] and "作った話" not in memo.body_lines(items)
     body = memo.body_lines(items, "2026-11-06")
-    assert "2026年11月6日にやったこと: 封鎖は良好" in body
+    assert "2026年11月6日にやったこと: 封鎖は良好" in body and "説明したこと: 反対側で噛んでもらう" in body
+
+
+def test_organize_prompt_is_general_not_one_case():
+    """整理の指示は、特定の症例の言葉ではなく、一般の言い方にしてある。"""
+    for case_word in ("封鎖", "飲み込み", "反対側で噛"):
+        assert case_word not in memo.SYSTEM
+    assert "所見" in memo.SYSTEM and "explained" in memo.SYSTEM

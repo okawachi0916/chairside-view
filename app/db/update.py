@@ -22,10 +22,16 @@ def update(path=None) -> dict:
             inserted[table] = n
             # 今回足した列には、初期データの行にも値を入れる (足した列だけ。ほかは触らない)
             for t, col in added:
-                if t == table:
+                if t == table and table != "tooth_status":
                     for row in rows:
                         if col in row:
                             con.execute(f"UPDATE {table} SET {col} = ? WHERE id = ?", (row[col], row["id"]))
+        # G07f: 歯の状態は歯冠と根の2つで持つ。まだ入っていない歯には、患者様と歯番で合わせて見本の値を入れる
+        for row in data.get("tooth_status", []):
+            if row.get("crown"):
+                con.execute("UPDATE tooth_status SET crown = ?, root = ?, status = ? "
+                            "WHERE patient_id = ? AND tooth = ? AND crown IS NULL",
+                            (row["crown"], row["root"], row["status"], row["patient_id"], row["tooth"]))
         # G21d/G21e: 見本データの担当者の名前を替える（歯科医師は院長の「大川内」、衛生士は架空の「佐藤」）（すでに入っているデータベースにも効かせる）
         for t in schema.TABLES:
             cols = [r[1] for r in con.execute(f"PRAGMA table_info({t})")]
