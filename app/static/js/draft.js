@@ -197,7 +197,7 @@
     function add(key, el) {
       if (!el || el.disabled) return;
       if (!NT.inView(el)) { hidden++; return; }
-      out.push({ n: out.length + 1, key: key, el: el });
+      out.push({ n: window.CVNumRule.label(out.length + 1), key: key, el: el });
       targets[key] = el;
     }
     add("confirm", document.getElementById("btn-confirm"));

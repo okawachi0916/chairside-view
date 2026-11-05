@@ -185,7 +185,7 @@
     var m = modalEl(), out = [];
     if (!m) return out;
     m.querySelectorAll("button").forEach(function (b) {
-      if (inView(b)) out.push({ n: out.length + 1, key: "modal:" + (b.dataset.act || "btn"), el: b });
+      if (inView(b)) out.push({ n: window.CVNumRule.label(out.length + 1), key: "modal:" + (b.dataset.act || "btn"), el: b });
     });
     return out;
   }
@@ -211,7 +211,7 @@
       .filter(function (b) { return !b.disabled && !b.hidden && visibleInList(b); });
     var main = all.filter(function (b) { return b.dataset.action !== "fs-close"; });
     var close = all.filter(function (b) { return b.dataset.action === "fs-close"; });
-    main.concat(close).forEach(function (b, i) { out.push({ n: i + 1, key: "sel:" + selOf(b), el: b }); });
+    main.concat(close).forEach(function (b, i) { out.push({ n: window.CVNumRule.label(i + 1), key: "sel:" + selOf(b), el: b }); });
     return out;
   }
   function numberTargets() {

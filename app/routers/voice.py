@@ -8,6 +8,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from app import errlog
+from app.numbering import label as num_label
 from app.voice import transcribe as tr
 from app.voice.interpret import example, interpret, load_table
 
@@ -83,8 +84,9 @@ def examples():
 
 @router.get("/voice/numbers")
 def numbers():
-    """画面の丸の番号。部品ごとに固定（config/numbers.json）。"""
-    return json.loads((ROOT / "config" / "numbers.json").read_text(encoding="utf-8"))
+    """画面の丸の番号。config/numbers.json は部品の「何番目か」。声で呼ぶ番号は app/numbering.py の決まりで作る（5 と 8 は飛ばす）。"""
+    order = json.loads((ROOT / "config" / "numbers.json").read_text(encoding="utf-8"))["parts"]
+    return {"parts": {part: num_label(seq) for part, seq in order.items()}}
 
 
 LOG = logging.getLogger("uvicorn.error")

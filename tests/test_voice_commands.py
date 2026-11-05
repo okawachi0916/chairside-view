@@ -165,7 +165,7 @@ def test_say_list_button(server, browser):  # noqa: F811
     pg.wait_for_selector('[data-fs-panel="say-list"]')
     assert pg.locator("#say-list").count() == 0
     text = pg.inner_text('[data-fs-panel="say-list"]')
-    assert "1番と3番を並べて" in text and "前回は何をした？" in text and "8番 言える言葉" in text
+    assert "1番と3番を並べて" in text and "前回は何をした？" in text and "10番 言える言葉" in text
     pg.evaluate("window.cvTyped('戻して')")
     pg.wait_for_function("document.querySelectorAll('[data-fs-panel]').length === 0")
 

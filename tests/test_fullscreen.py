@@ -61,7 +61,7 @@ def test_photos_fullscreen_select(server, browser):  # noqa: F811
     open_fs(pg, "intraoral-photos")
     panel = pg.locator('[data-fs-panel="intraoral-photos"]')
     assert panel.locator(".fs-item").count() == 17
-    assert "写真 17" in panel.locator(".fs-big").inner_text()  # 一番新しい写真から
+    assert "写真 19" in panel.locator(".fs-big").inner_text()  # 一番新しい写真から
     # 左が選んだ写真、右が一覧
     big, lst = panel.locator(".fs-big").bounding_box(), panel.locator(".fs-list").bounding_box()
     assert big["x"] < lst["x"]
@@ -235,19 +235,19 @@ def test_paging_buttons_and_wheel(server, browser):  # noqa: F811
 def test_hide_and_restore_returns_to_fullscreen(server, browser):  # noqa: F811
     pg = open_unit(browser, server, H_DOC, "doctor")
     open_fs(pg, "intraoral-photos")
-    pg.locator('.fs-item[data-n="5"]').click()
+    pg.locator('.fs-item[data-n="6"]').click()
     pg.keyboard.press(KEY3)
     time.sleep(0.15)
     pg.keyboard.press(KEY3)
     pg.wait_for_selector('[data-part="hidden-screen"]')
     text = pg.inner_text("body")
-    assert "写真 5" not in text and "見本 花子" not in text and PEN not in text
+    assert "写真 6" not in text and "見本 花子" not in text and PEN not in text
     pg.keyboard.press(KEY3)
     time.sleep(0.15)
     pg.keyboard.press(KEY3)
     pg.wait_for_selector('[data-fs-panel="intraoral-photos"]')
-    assert "写真 5" in pg.locator(".fs-big").inner_text()
-    assert pg.locator(".fs-item.sel").get_attribute("data-n") == "5"
+    assert "写真 6" in pg.locator(".fs-big").inner_text()
+    assert pg.locator(".fs-item.sel").get_attribute("data-n") == "6"
     assert not pg.locator('[data-part="today-treatment"]').is_visible()
     pg.close()
 

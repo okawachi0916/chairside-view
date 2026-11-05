@@ -92,7 +92,7 @@ def test_number_18_is_the_woman_with_the_stamp(server, browser):  # noqa: F811
     pg.wait_for_function("!!(window.cvNumbers && window.cvTyped && document.body.dataset.numbersReady)")
     pg.click('[data-part="intraoral-photos"] [data-action="fullscreen"]')
     pg.wait_for_selector('[data-fs-panel="intraoral-photos"]')
-    pg.evaluate("window.cvTyped('写真の16番を拡大して')")
+    pg.evaluate("window.cvTyped('写真の18番を拡大して')")
     pg.wait_for_function("document.querySelector('.fs-fig img')")
     assert pg.evaluate("document.querySelector('.fs-fig img').getAttribute('src')") == "/photo-files/photo16.jpg"
     pg.close()

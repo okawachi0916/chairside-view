@@ -5,6 +5,7 @@ import pytest
 
 from app.ai import recpipe
 from app.views import data as D
+from app.numbering import label
 from tests.screen_helper import browser, open_page, server  # noqa: F401
 
 APPT = [r for r in D.today_list() if r["patient_id"] == 1][0]["id"]
@@ -52,7 +53,7 @@ def test_every_button_gets_a_number_and_bright_hole(server, browser, segs):  # n
     pg = open_panel(browser, server)
     pg.evaluate("window.cvNumbers(true)")
     m = badge_map(pg)
-    kinds = [kind_of(m[str(i)]) for i in range(1, len(m) + 1)]
+    kinds = [kind_of(m[str(label(i))]) for i in range(1, len(m) + 1)]  # 札は 5・8 を飛ばす（G14n）
     assert kinds == ["combine", "delete", "delete", "delete", "close"]  # もとに戻すは最後
     for n, key in m.items():  # 札はボタンに重ならず、穴はボタンの所にある
         btn = pg.locator(key[4:]).bounding_box()

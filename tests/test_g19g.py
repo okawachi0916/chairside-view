@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from app.numbering import label
 from tests.screen_helper import browser, server  # noqa: F401
 from tests.test_confirm_screen import clean, db_one, home, make_rec, open_draft, ready  # noqa: F401
 
@@ -33,7 +34,7 @@ def test_button2_shows_numbers_on_every_button(server, browser):  # noqa: F811
     assert keys[0] == "confirm" and keys[1] == "later" and keys[-1] == "back"  # 戻るは最後の番号
     assert [k for k in keys if k.startswith("del:")], "各行の消すに番号が出る"
     assert [k for k in keys if k.startswith("plan:")], "計画の削除するに番号が出る"
-    assert [int(n) for n in m] == list(range(1, len(m) + 1))
+    assert [int(n) for n in m] == [label(i) for i in range(1, len(m) + 1)]  # 札は 5・8 を飛ばす（G14n）
     # 消すの数 = 行の数（画面に見えている分）、削除するの数 = 今の計画の数
     assert len([k for k in keys if k.startswith("del:")]) == pg.locator(".draft-sec li.row .del").count()
     assert len([k for k in keys if k.startswith("plan:")]) == pg.locator("#plan-rows input[data-key^=d]").count()

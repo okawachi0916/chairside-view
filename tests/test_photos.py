@@ -3,6 +3,7 @@ import json
 import urllib.error
 import urllib.request
 
+from app.numbering import label
 from app.views import data as D
 from app.views import photos as P
 from tests.screen_helper import ROOT, browser, open_page, server  # noqa: F401
@@ -58,7 +59,7 @@ def test_normal_screen_grouped_by_day_newest_first(server, browser):  # noqa: F8
     dates = groups.locator(".pg-date").all_inner_texts()
     assert dates == ["2026年8月7日", "2026年2月6日", "2025年11月25日"]
     first = pg.locator('[data-part="intraoral-photos"] .pg').first.locator(".ph .no").all_inner_texts()
-    assert first == [str(i) for i in range(9, 18)]  # 13番からは最後の日に足した（G18）
+    assert first == [str(label(i)) for i in range(9, 18)]  # 13番からは最後の日に足した（G18）
     lst = pg.locator('[data-part="photo-list"]')
     assert lst.evaluate("e => e.scrollHeight > e.clientHeight + 1")  # 古い日はスクロールで遡る
     lst.evaluate("e => { e.scrollTop = e.scrollHeight }")
@@ -85,25 +86,25 @@ def test_enlarge_words(server, browser):  # noqa: F811
     assert figs(pg) == [3]
     assert "写真 3 2025年11月25日" in pg.inner_text(".fs-big")
     assert pg.locator(".fs-item.sel").count() == 1
-    say(pg, "1番と5番を大きく")
+    say(pg, "1番と6番を大きく")  # 通し番号 1 と 5（5番は飛ばすので札は6）
     pg.wait_for_function("document.querySelectorAll('.fs-fig').length === 2")
-    assert figs(pg) == [1, 5] and pg.locator(".fs-item.sel").count() == 2
+    assert figs(pg) == [1, 6] and pg.locator(".fs-item.sel").count() == 2
     boxes = pg.locator(".fs-fig img").evaluate_all("els => els.map(e => [e.width, e.height])")
     assert boxes[0] == boxes[1]
-    say(pg, "1番と5番と10番を大きく")
+    say(pg, "1番と6番と12番を大きく")
     pg.wait_for_function("document.querySelectorAll('.fs-fig').length === 3")
-    assert figs(pg) == [1, 5, 10]
+    assert figs(pg) == [1, 6, 12]
     boxes = pg.locator(".fs-fig img").evaluate_all("els => els.map(e => [e.width, e.height])")
     assert boxes[0] == boxes[1] == boxes[2]
-    say(pg, "7番を拡大する")
+    say(pg, "9番を拡大する")  # 通し番号 7
     pg.wait_for_function("document.querySelectorAll('.fs-fig').length === 1")
-    assert figs(pg) == [7]
+    assert figs(pg) == [9]
 
 
 def test_back_to_list_and_pages(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
     pg.set_viewport_size({"width": 1200, "height": 470})  # 一覧が1画面に入らない大きさ
-    say(pg, "17番を拡大して")  # 一覧の先頭（新しい順）。開いたとき一覧は一番上にある
+    say(pg, "19番を拡大して")  # 通し番号17 = 札19。一覧の先頭（新しい順）。開いたとき一覧は一番上にある
     pg.wait_for_selector('[data-fs-panel="intraoral-photos"]')
     lst = pg.locator(".fs-list")
     assert lst.evaluate("e => e.scrollHeight > e.clientHeight + 1")
@@ -130,28 +131,28 @@ def test_missing_number_says_so_and_changes_nothing(server, browser):  # noqa: F
 
 def test_enlarged_state_survives_hide_and_restore(server, browser):  # noqa: F811
     pg = open_unit(browser, server)
-    say(pg, "1番と5番を大きく")
+    say(pg, "1番と6番を大きく")
     pg.wait_for_function("document.querySelectorAll('.fs-fig').length === 2")
     pg.evaluate("CVActions.run('hide-toggle')")
     assert pg.locator(".fs-fig").count() == 0 and pg.locator("img").count() == 0
     pg.evaluate("CVActions.run('hide-toggle')")
-    assert figs(pg) == [1, 5]
+    assert figs(pg) == [1, 6]
     assert pg.locator(".fs-item.sel").count() == 2
 
 
 def test_click_on_list_picks_one(server, browser):  # noqa: F811
     pg = open_unit(browser, server, f"/unit?appt={H_DOC}&role=doctor&typed=1&hide=1")
-    say(pg, "1番と5番を大きく")
+    say(pg, "1番と6番を大きく")
     pg.wait_for_function("document.querySelectorAll('.fs-fig').length === 2")
-    pg.locator('.fs-item[data-n="8"]').click()
-    assert figs(pg) == [8]
+    pg.locator('.fs-item[data-n="10"]').click()  # 通し番号8
+    assert figs(pg) == [10]
 
 
 def test_fewer_photos_patient(server, browser):  # noqa: F811
     ichiro = [r for r in D.today_list() if r["patient_id"] == 2][0]["id"]
     pg = open_unit(browser, server, f"/unit?appt={ichiro}&typed=1&hide=1")
-    say(pg, "10番を拡大して")
+    say(pg, "12番を拡大して")  # 通し番号10（この患者様には無い）
     pg.wait_for_function("document.getElementById('heard').textContent.includes('その番号はありません')")
-    say(pg, "5番を拡大して")
+    say(pg, "6番を拡大して")  # 通し番号5
     pg.wait_for_selector(".fs-fig")
-    assert figs(pg) == [5]
+    assert figs(pg) == [6]

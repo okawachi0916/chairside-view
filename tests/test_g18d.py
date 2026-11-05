@@ -55,7 +55,7 @@ def test_stamp_corner_not_cut_on_screen(server, browser):  # noqa: F811
     pg.wait_for_function("!!(window.cvTyped)")
     pg.click('[data-part="intraoral-photos"] [data-action="fullscreen"]')
     pg.wait_for_selector('[data-fs-panel="intraoral-photos"]')
-    pg.evaluate("window.cvTyped('7番を拡大して')")
+    pg.evaluate("window.cvTyped('9番を拡大して')")  # 通し番号7（札は9）
     pg.wait_for_function("document.querySelectorAll('.fs-fig').length === 1")
     assert pg.evaluate("document.querySelector('.fs-fig img').getAttribute('src')") == "/photo-files/photo07.jpg"
     big = pg.locator(".fs-fig img").bounding_box()
