@@ -64,7 +64,7 @@ def test_candidates_are_shown_unchecked_and_voice_picks_and_records(server, brow
     rows = pg.locator("#tooth-rows tr")
     assert rows.count() == 1
     text = rows.first.inner_text()
-    assert "右下6番" in text and "根管充填" in text and "健全、根治中 → 健全、根充済" in text
+    assert "右下6番 根管充填" in text and "健全、根治中 → 健全、根充済" in text
     assert not pg.locator("#tooth-rows input").first.is_checked()          # 初めは「反映しない」
     shoot(pg, "下書き_選ぶ欄.png")
     # ボタン2 → 番号 → 声: 候補の「反映する」にも番号が出る（記録する・あとで直す・各行の消す・計画の削除するの次）

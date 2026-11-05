@@ -242,15 +242,15 @@ def _draft_html(d, p, v, rec, fix, back="/"):
         f"<div class='draft-cols'><div class='draft-left' data-part='draft-transcript'><h3>{"話したままの文字（直して整理し直す）" if (fix and not done and not d["combined"]) else "話した文字（清書）"}</h3>{left}"
         f"<h3 class='fx-title'>直した聞き違い（元 → 直し）</h3><div data-part='draft-fixes'>{_fixes_html(d)}</div></div>"
         f"<div class='draft-right' data-part='draft-items'>{cols}</div></div>"
-        "<section class='plan-block' id='plan-compare' data-part='plan-compare'><h2>治療計画の変更</h2>"
+        "<div class='plan-row'><section class='plan-block' id='plan-compare' data-part='plan-compare'><h2>治療計画の変更</h2>"
         "<p class='plan-hint'>話に出ていない計画は、そのまま残します。変えたいものだけ印を付けてください。</p>"
         "<table class='rtab plan-table'><thead><tr><th>今の計画</th><th>新しい計画</th><th>操作</th></tr></thead>"
         "<tbody id='plan-rows'></tbody></table></section>"
         + ("" if done else
-           "<section class='plan-block' id='tooth-compare'><h2>歯ごとの処置（歯の絵と治療歴に反映）</h2>"
+           "<section class='plan-block' id='tooth-compare' hidden><h2>歯ごとの処置（歯の絵と治療歴に反映）</h2>"
            "<p class='plan-hint' id='tooth-hint'>「やったこと」の中で、歯が1本に決まり、処置の言葉が決まっているものだけ出ます。反映したいものに印を付けてください。</p>"
-           "<table class='rtab plan-table'><thead><tr><th>歯</th><th>やったこと</th><th>歯の状態（今 → 記録後）</th><th>操作</th></tr></thead>"
-           "<tbody id='tooth-rows'></tbody></table></section>") +
+           "<table class='rtab plan-table'><thead><tr><th>歯と処置</th><th>歯の状態（今 → 記録後）</th><th>操作</th></tr></thead>"
+           "<tbody id='tooth-rows'></tbody></table></section>") + "</div>"
         "<script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script>"
         "<script src='/static/js/numrule.js'></script><script src='/static/js/numtags.js'></script><script src='/static/js/draft.js'></script><script src='/static/js/actions/look.js'></script></body></html>"
     )

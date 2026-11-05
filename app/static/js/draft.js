@@ -129,8 +129,7 @@
     toothCands.forEach(function (c) {
       var tr = document.createElement("tr");
       tr.dataset.toothKey = c.key;
-      tr.appendChild(cell(c.site));
-      tr.appendChild(cell(c.row));
+      tr.appendChild(cell(c.site + " " + c.word));
       tr.appendChild(cell(c.before + " → " + c.after));
       var td = document.createElement("td");
       var l = document.createElement("label"), box = document.createElement("input");
@@ -140,7 +139,7 @@
       box.disabled = confirmed;
       box.addEventListener("change", function () { toothPicked[c.key] = box.checked; });
       l.appendChild(box);
-      l.appendChild(document.createTextNode(" " + c.word + "を反映する"));
+      l.appendChild(document.createTextNode(" 反映する"));
       td.appendChild(l);
       tr.appendChild(td);
       rows.appendChild(tr);
