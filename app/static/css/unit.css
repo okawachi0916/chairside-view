@@ -104,9 +104,9 @@ body.fs-mode .bands, body.fs-mode main.body { display: none; }
 .perio-editing .perio-top { display: none; } /* 入力のあいだは上の数字（前の検査のもの）を隠し、種類の切り替えを出す */
 .perio-editing table.perio td.todo, .perio-editing table.perio span.todo { outline-width: 1px; }
 .perio-kind { display: flex; flex: none; }
-.perio-bar .perio-kind button { border-color: var(--c-alert); color: var(--c-alert); border-radius: 0; padding: var(--sp-1) var(--sp-5); }
-.perio-bar .perio-kind button:first-child { border-radius: var(--r-s) 0 0 var(--r-s); border-right-width: 1px; }
-.perio-bar .perio-kind button:last-child { border-radius: 0 var(--r-s) var(--r-s) 0; border-left-width: 1px; }
+.perio-bar .perio-kind button { border-color: var(--c-alert); color: var(--c-alert); padding: var(--sp-1) var(--sp-5); }
+.perio-bar .perio-kind button:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right-width: 1px; }
+.perio-bar .perio-kind button:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left-width: 1px; }
 .perio-bar .perio-kind button.on { background: var(--c-alert); color: var(--c-surface); }
 .perio-bar { flex: none; display: flex; align-items: center; gap: var(--sp-3); margin: 0 0 var(--sp-1); }
 .perio-bar .msg { flex: 1; font-size: var(--fs-2); color: var(--c-sub); }
@@ -175,9 +175,10 @@ details.seg-raw summary, details.draft-raw summary { cursor: pointer; }
 .perio-fs .perio-stats b, .perio-fs .pdate b { font-size: var(--fs-7); }
 .perio-fs .pdate .wd { font-size: var(--fs-6); }
 .perio-fs .perio-stats small, .perio-fs .perio-stats i, .perio-fs .pdate .tm { font-size: var(--fs-3); }
-.perio-fs table.perio td, .perio-fs table.perio th.row { font-size: var(--fs-6); }
+.perio-fs table.perio td { font-size: var(--fs-5); }
 .perio-fs table.perio th.row { font-size: var(--fs-3); }
-.perio-fs table.perio td.bop, .perio-fs table.perio span.bop { font-size: 40px; }
-.perio-fs table.perio td.p3 span { font-size: var(--fs-5); }
+.perio-fs table.perio td.bop, .perio-fs table.perio span.bop { font-size: var(--fs-6); }
+.perio-fs table.perio td.p3 span { font-size: var(--fs-4); }
+.perio-fs table.perio td.p3 span.bop { font-size: var(--fs-5); }
 .perio-fs .perio-legend, .perio-fs .perio-lr { font-size: var(--fs-3); }
 .perio-fs .perio-lr { padding-top: var(--sp-3); }
