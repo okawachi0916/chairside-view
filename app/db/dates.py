@@ -26,6 +26,7 @@ SHIFT = {
     "treatment_history": ["done_date"],
     "photos": ["taken_on"],
     "treatment_plans": ["superseded_on"],
+    "tooth_status_history": ["superseded_on"],  # G19l: 変わる前の歯の状態を残した日（診療回の日）。診療メモ・治療歴の日付と同じだけ動く
     "dentures": ["made_on"],
     "perio_exams": ["exam_date"],
     "maintenance_intervals": ["last_date"],

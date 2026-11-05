@@ -142,6 +142,19 @@ TABLES = {
         ],
         "extra": [_PATIENT_FK, "UNIQUE (patient_id, tooth)"],
     },
+    # G19l: 「カルテに記録する」で歯の状態が変わるとき、変わる前の状態を日付を付けて残す（治療計画の superseded_on と同じ考え）
+    "tooth_status_history": {
+        "cols": [
+            ("patient_id", "INTEGER", None, True),
+            ("tooth", "INTEGER", None, True),
+            ("status", "TEXT", None, False),
+            ("crown", "TEXT", None, False),
+            ("root", "TEXT", None, False),
+            ("caries", "INTEGER", "0", False),
+            ("superseded_on", "TEXT", None, True),  # この日の診療で、次の状態に変わった
+        ],
+        "extra": [_PATIENT_FK],
+    },
     "mucosal_conditions": {
         "cols": [
             ("patient_id", "INTEGER", None, True),

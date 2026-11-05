@@ -3,13 +3,15 @@
 - 確定すると、下書きが過去の診療メモ (clinical_notes) に入る。
 - 治療計画は、人が選んだ「追加・変更・削除」だけ反映する。選ばれなかった計画（話に出ていない歯の計画など）はそのまま残す。
   変更・削除された古い計画は superseded_on に日付を付けて残す。
+- 歯ごとの処置（G19l）も、人が選んだものだけ。歯の状態の表と治療歴の表へ、診療メモと同じ取引の中で書く（app/ai/toothtx.py）。
+  書けなかったら確定ごと止める。
 - 確定したら音声を消す。
 """
 import json
 import re
 from pathlib import Path
 
-from app.ai import memo, recpipe
+from app.ai import memo, recpipe, toothtx
 from app.ai.recpipe import RecError, audio_dir, now
 
 TOOTH = re.compile(r"(?:右上|右下|左上|左下)\s*[1-8]\s*番")
@@ -60,7 +62,7 @@ def save_items(con, draft_id: int, items) -> dict:
     return {"saved": True}
 
 
-def confirm(con, draft_id: int, items, plan=None) -> dict:
+def confirm(con, draft_id: int, items, plan=None, teeth=None) -> dict:
     plan = plan or {}
     items = check_items(items)
     if not any(items[k] for k in memo.KEYS):
@@ -102,6 +104,8 @@ def confirm(con, draft_id: int, items, plan=None) -> dict:
         for t in adds:
             seq += 1
             con.execute("INSERT INTO treatment_plans (patient_id, seq, kind, body) VALUES (?, ?, 'plan', ?)", (pid, seq, t))
+
+        toothtx.apply(con, pid, day, items, teeth or [])  # 歯の状態と治療歴（選んだものだけ。書けなければ取引ごと戻る）
 
         body = memo.body_lines(items, day)
         con.execute("INSERT INTO clinical_notes (patient_id, visit_id, note_date, author_role, body) VALUES (?, ?, ?, ?, ?)",
