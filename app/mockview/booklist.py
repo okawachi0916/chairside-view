@@ -1,4 +1,4 @@
-from app.mockview.parts import DATE
+from app.mockview.parts import date_text
 
 ROWS = [
     ("14:30〜15:30", "0123", "見本 花子", "RCT"),
@@ -27,7 +27,7 @@ def render():
         "<!doctype html><html lang='ja'><head><meta charset='utf-8'><title>予約一覧（見本）</title>"
         "<link rel='stylesheet' href='/static/css/mock.css'>"
         "<link rel='stylesheet' href='/static/css/booklist.css'></head><body class='role-list'>"
-        f'<header class="topbar"><span class="role-tag">予約一覧</span><span class="date">{DATE}</span></header>'
+        f'<header class="topbar"><span class="role-tag">予約一覧</span><span class="date">{date_text()}</span></header>'
         '<main class="list" data-part="appointment-list"><table class="book">'
         "<thead><tr><th>時間</th><th>カルテ番号</th><th>氏名 "
         '<button type="button" class="mini" data-action="reveal-all">すべて表示</button></th>'

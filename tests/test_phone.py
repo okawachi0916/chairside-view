@@ -11,7 +11,7 @@ import urllib.request
 
 import pytest
 
-from app.db import TODAY
+from app.today import today
 from app.mobile import links
 from app.views import data as D
 from tests.screen_helper import ROOT, browser, open_page, server  # noqa: F401
@@ -186,7 +186,7 @@ def test_upload_goes_into_photo_list_with_number_and_is_logged(mobile, server): 
         con.close()
     assert [e["kind"] for e in ev] == ["入れた", "入れた"] and ev[0]["photo_number"] == before + 1
     assert len(ev[0]["at"]) == 19 and ev[0]["at"][4] == "-" and "T" in ev[0]["at"]  # 入れた時刻
-    assert row["taken_on"] == TODAY and row["kind"] == "intraoral"
+    assert row["taken_on"] == today() and row["kind"] == "intraoral"
     # 保存した画像は main からも見られる
     name = page.split("/photo-up/")[1].split('"')[0]
     assert http("GET", server, f"/photo-up/{name}")[0] == 200

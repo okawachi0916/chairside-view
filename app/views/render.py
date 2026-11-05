@@ -2,7 +2,7 @@
 from html import escape as h
 
 from app.ai import fixtalk, segview
-from app.db import TODAY
+from app.today import today as app_today
 from app.mockview.parts import FULL, MIC, PHONE, band, card
 from app.views import photos as PH
 from app.numbering import label as num_label
@@ -22,7 +22,7 @@ def topbar(tag, patient, appt, buttons, mic=True):
         '<header class="topbar">'
         f'<span class="role-tag">{tag}</span>'
         f'<span class="patient">{patient}</span>'
-        f'<span class="date">{D.ja_date(TODAY, week=True)}</span>'
+        f'<span class="date">{D.ja_date(app_today(), week=True)}</span>'
         f'<span class="appt" data-part="today-appointment">{appt}</span>'
         f'<span class="spacer"></span>{right}</header>'
     )
@@ -207,7 +207,7 @@ def _fs_medical(d):
 
 def _treat_title(a):
     """今日の診療回だけ「今日の処置」。過去・先の診療回は、その年月日で出す。"""
-    return "今日の処置" if a["appt_date"] == TODAY else f"{D.ja_date(a['appt_date'])}の処置"
+    return "今日の処置" if a["appt_date"] == app_today() else f"{D.ja_date(a['appt_date'])}の処置"
 
 
 def _fs_doctor(d):
@@ -257,7 +257,7 @@ def _fs_memo(d):
 # ---------- 歯科医師 ----------
 def _months_since(s):
     """経過した月数。日数から四捨五入する (2026年5月8日から6か月)。"""
-    days = (D.date.fromisoformat(TODAY) - D.date.fromisoformat(s)).days
+    days = (D.date.fromisoformat(app_today()) - D.date.fromisoformat(s)).days
     return round(days / 30.4375)
 
 
@@ -363,7 +363,7 @@ def _reserve(d):
     start, end = (t[0]["start_time"], t[-1]["end_time"]) if t else ("", "")
     dur = D.duration(D.minutes(start, end)) if t else ""
     recent = [(D.ja_date(r["visit_date"]), r["treatment"] or "") for r in d["recent"]]
-    return reserve_card(D.ja_date(TODAY, week=True), f"{start}〜{end}（{dur}）", recent)
+    return reserve_card(D.ja_date(app_today(), week=True), f"{start}〜{end}（{dur}）", recent)
 
 
 def _heat(d):
@@ -484,7 +484,7 @@ def reception_chooser(rows):
             f'<td class="time">{t}</td></tr>'
         )
     top = ('<header class="topbar"><span class="role-tag">受付用</span>'
-           f'<span class="date">{D.ja_date(TODAY, week=True)}</span></header>')
+           f'<span class="date">{D.ja_date(app_today(), week=True)}</span></header>')
     return (
         top + '<main class="list" data-part="appointment-list"><table class="book">'
         "<thead><tr><th>カルテ番号</th><th>氏名</th><th>今日の予約</th></tr></thead>"
@@ -508,7 +508,7 @@ def list_page(rows):
         "<!doctype html><html lang='ja'><head><meta charset='utf-8'><title>予約一覧</title>"
         "<link rel='stylesheet' href='/static/css/mock.css'>"
         "<link rel='stylesheet' href='/static/css/booklist.css'></head><body class='role-list'>"
-        f'<header class="topbar"><span class="role-tag">予約一覧</span><span class="date">{D.ja_date(TODAY, week=True)}</span></header>'
+        f'<header class="topbar"><span class="role-tag">予約一覧</span><span class="date">{D.ja_date(app_today(), week=True)}</span></header>'
         '<main class="list" data-part="appointment-list"><table class="book">'
         "<thead><tr><th>時間</th><th>カルテ番号</th><th>氏名 "
         '<button type="button" class="mini" data-action="reveal-all">すべて表示</button></th>'

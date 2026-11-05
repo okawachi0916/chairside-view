@@ -293,6 +293,14 @@ TABLES = {
         "extra": [_PATIENT_FK],
     },
     # 声の聞き取りで後から直したいもの。患者様が決まっていない録音もあるので、診療回は空でもよい。
+    # アプリ自身の印（見本の日付を何日に合わせたか、など）。1つの印は1行（key で決まる）
+    "app_meta": {
+        "cols": [
+            ("key", "TEXT", None, True),
+            ("value", "TEXT", "''", True),
+        ],
+        "extra": ["UNIQUE (key)"],
+    },
     "voice_fixes": {
         "cols": [
             ("patient_id", "INTEGER", None, False),

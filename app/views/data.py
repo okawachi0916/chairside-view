@@ -2,8 +2,9 @@
 from datetime import date
 
 from app.ai import segview
-from app.db import TODAY, age_on, connect, db_path
+from app.db import age_on, connect, db_path
 from app.db.update import update
+from app.today import today as app_today
 
 WEEK = "月火水木金土日"
 ROLE_NAME = {"doctor": "歯科医師", "hygienist": "歯科衛生士"}
@@ -52,7 +53,7 @@ def today_list():
             "SELECT a.id, a.start_time, a.end_time, a.treatment, a.role, p.id AS patient_id, "
             "p.chart_no, p.name FROM appointments a JOIN patients p ON p.id = a.patient_id "
             "WHERE a.appt_date = ? AND a.status = 'booked' ORDER BY a.start_time, p.chart_no, a.id",
-            (TODAY,))]
+            (app_today(),))]
 
 
 def appointment(appt_id: int):
@@ -110,7 +111,7 @@ def unit_data(appt, role):
         d["dentures"] = _all(c, "SELECT site, kind, made_by, made_on FROM dentures WHERE patient_id = ? ORDER BY id", pid)
         # 今日のこの役割の下書きを、新しい順に全部出す（見本データの下書きも録音から作った下書きも同じ扱い）
         d["drafts"] = _all(c, "SELECT d.body, d.transcript FROM drafts d JOIN visits v ON v.id = d.visit_id "
-                              "WHERE d.patient_id = ? AND v.visit_date = ? AND v.role = ? ORDER BY d.id DESC", pid, TODAY, role)
+                              "WHERE d.patient_id = ? AND v.visit_date = ? AND v.role = ? ORDER BY d.id DESC", pid, app_today(), role)
         d["summary"] = [x for dr in d["drafts"] for x in dr["body"].split("\n") if x]
         d["transcript"] = "\n".join(dr["transcript"] for dr in d["drafts"] if dr["transcript"])
         vrow = c.execute("SELECT id, visit_date FROM visits WHERE appointment_id = ?", (appt["id"],)).fetchone()
@@ -174,13 +175,13 @@ def reception_data(pid):
     with con() as c:
         d = common(c, pid)
         d["today"] = _all(c, "SELECT * FROM appointments WHERE patient_id = ? AND appt_date = ? AND status = 'booked' "
-                             "ORDER BY start_time, id", pid, TODAY)
+                             "ORDER BY start_time, id", pid, app_today())
         d["recent"] = _all(c, "SELECT v.visit_date, a.treatment FROM visits v LEFT JOIN appointments a ON a.id = v.appointment_id "
                               "WHERE v.patient_id = ? AND v.visit_date < ? ORDER BY v.visit_date DESC, v.id DESC LIMIT 4",
-                           pid, TODAY)
+                           pid, app_today())
         d["visits"] = [r["visit_date"] + " " + r["start_time"] for r in c.execute(
             "SELECT visit_date, start_time FROM visits WHERE patient_id = ? AND visit_date < ? AND visit_date >= ?",
-            (pid, TODAY, _year_ago()))]
+            (pid, app_today(), _year_ago()))]
         d["cancels"] = _all(c, "SELECT cancel_date, no_show, reason FROM cancellations WHERE patient_id = ? "
                                "ORDER BY cancel_date DESC", pid)
         d["appt_count"] = c.execute("SELECT COUNT(*) FROM appointments WHERE patient_id = ? AND status IN ('done','cancelled')",
@@ -189,14 +190,14 @@ def reception_data(pid):
                               "WHERE patient_id = ? AND kind = 'next' ORDER BY id", (pid,)).fetchone()
         d["booked"] = _all(c, "SELECT appt_date, start_time, role, staff_name, reception_text FROM appointments "
                               "WHERE patient_id = ? AND appt_date > ? AND status = 'booked' ORDER BY appt_date, start_time",
-                           pid, TODAY)
+                           pid, app_today())
         d["goods"] = _all(c, "SELECT bought_on, item, qty FROM goods_purchases WHERE patient_id = ? ORDER BY bought_on DESC, id", pid)
         d["rx"] = _all(c, "SELECT prescribed_on, drug, amount FROM prescriptions WHERE patient_id = ? ORDER BY prescribed_on DESC, id", pid)
     return d
 
 
 def _year_ago():
-    t = date.fromisoformat(TODAY)
+    t = date.fromisoformat(app_today())
     return t.replace(year=t.year - 1).isoformat()
 
 
@@ -205,8 +206,8 @@ def reception_patients():
     with con() as c:
         rows = _all(c, "SELECT p.id, p.chart_no, p.name FROM patients p WHERE p.id IN "
                        "(SELECT patient_id FROM appointments WHERE appt_date = ? AND status = 'booked') "
-                       "ORDER BY p.chart_no", TODAY)
+                       "ORDER BY p.chart_no", app_today())
         for r in rows:
             r["today"] = _all(c, "SELECT start_time, end_time, treatment FROM appointments WHERE patient_id = ? "
-                                 "AND appt_date = ? AND status = 'booked' ORDER BY start_time", r["id"], TODAY)
+                                 "AND appt_date = ? AND status = 'booked' ORDER BY start_time", r["id"], app_today())
         return rows

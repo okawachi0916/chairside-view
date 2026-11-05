@@ -1,13 +1,19 @@
 """データベースを作る、または足りない分だけ足す。scripts/seed.py と scripts/update_db.py が使う。"""
-from app.db import connect, initial, schema
+from datetime import date
+
+from app.db import connect, dates, db_path, initial, schema
+from app.today import BASE
 
 
 def update(path=None) -> dict:
     """無ければ初期の状態で作る。あれば足りない表・列・初期データの行だけ足し、あるデータは消さない。"""
-    con = connect(path)
+    con = connect(path, align=False)
     try:
         added = schema.migrate(con)
-        data = initial.build()
+        # 見本の行は BASE の日付で書いてある。いまのデータベースがすでにずれている分（印、無ければ見本の1行から決める）だけ
+        # ずらして足す。足したあと、データベース全体を今日へ合わせる（日付の決まりは app/db/dates.py の1か所）
+        mark = dates.get_marker(con) or dates.detect(con)
+        data = dates.shift_rows(initial.build(), (date.fromisoformat(mark) - date.fromisoformat(BASE)).days)
         inserted = {}
         for table in schema.TABLES:  # 親の表から順に入れる
             rows = data.get(table, [])
@@ -40,7 +46,11 @@ def update(path=None) -> dict:
                     con.execute(f"UPDATE {t} SET staff_name = ? WHERE staff_name = ?", (new, old))
         # G21j: 美咲様のラテックスアレルギーの「詳しく」は空にする（かゆみ程度の話は重要事項に載せない）
         con.execute("UPDATE important_notes SET detail = '' WHERE body = 'ラテックスアレルギー' AND detail LIKE '%かゆ%'")
+        if dates.get_marker(con) is None:
+            dates.set_marker(con, mark)
         con.commit()
+        dates.align(con)  # 今日へ合わせる（起動・restore のどちらもここを通る）
+        dates.mark_checked(path or db_path())
         return {"added_columns": added, "inserted": inserted}
     finally:
         con.close()

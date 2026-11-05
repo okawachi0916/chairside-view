@@ -22,7 +22,11 @@ PATIENT = (
 )
 from app.today import ja_date as _ja, today as _today  # noqa: E402
 
-DATE = _ja(_today(), week=True)
+
+
+def date_text():
+    """画面の上の「今日」の日付。読み込んだ時の日付で固めず、使うたびに今日を聞く（夜をまたいでも古いまま残らない）。"""
+    return _ja(_today(), week=True)
 
 
 def page(role, title, topbar, bands, body):
@@ -44,7 +48,7 @@ def topbar(tag, appt_html, buttons, unit=True, mic=True):
         '<header class="topbar">'
         f'<span class="role-tag">{tag}</span>'
         f'<span class="patient">{PATIENT}{unit_s}</span>'
-        f'<span class="date">{DATE}</span>'
+        f'<span class="date">{date_text()}</span>'
         f'<span class="appt" data-part="today-appointment">{appt_html}</span>'
         f'<span class="spacer"></span>{right}</header>'
     )

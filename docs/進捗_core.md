@@ -1,11 +1,12 @@
 # 進捗 core
-- 動く版: G24b 完了（歯周検査の欄に精密検査。見出し「歯周検査」。表は app/mockview/perio_parts.py の1つ、入力は基本｜精密の切り替え、/api/perio/blank・save）。G24 完了（歯周基本検査の入力。app/routers/perio.py、actions/perio.js）。G22 完了（残りの全画面）。G20-r2 完了（録音を止めたら自動で下書き、窓と欄が変わる）。G20 完了（G12・G14・G16・G19 を取り込んだ上）。最小版の通しの試験と、動画の撮影用の道具。
+- 動く版: G21l 完了（見本の日付が日付変更・起動・restore で今日へ合う。決まりは app/db/dates.py、印は app_meta）。G24b 完了（歯周検査の欄に精密検査。見出し「歯周検査」。表は app/mockview/perio_parts.py の1つ、入力は基本｜精密の切り替え、/api/perio/blank・save）。G24 完了（歯周基本検査の入力。app/routers/perio.py、actions/perio.js）。G22 完了（残りの全画面）。G20-r2 完了（録音を止めたら自動で下書き、窓と欄が変わる）。G20 完了（G12・G14・G16・G19 を取り込んだ上）。最小版の通しの試験と、動画の撮影用の道具。
   - 通しの試験: tests/test_e2e_flow.py。seed → 予約一覧で 0123 の RCT → 重要事項の全画面 → 3番の拡大と一覧 → 「前回は何をした？」→ 下書きを作って確定 → ボタン3で隠して戻す → 0456 の SPT で前の人が残らない。偽物の口と文字の口（cvTyped）。3回続けて通した。終わりにもう一度 seed を動かし、ほかの試験に確定した診療メモを残さない。
   - 院長の手順: docs/通しの手順.md（17行）。
   - scripts/demo_state.py: `save 名前` で data/runtime（データベース・音声・下書き・追記必要の印）を C:\hackathon\demo_states\名前（環境変数 CV_DEMO_DIR で変更）へ写す。`restore 名前` で全部を戻し、update_db.py を動かす。サーバーが動いたままでよい（データベースは SQLite の backup で入れ替える）。試験は tests/test_demo_state.py。
   - seed.py: サーバーがデータベースを開いたままで消せないとき（Windows）は、中の表を捨てて空にしてから初期の行を入れる。audio も初期化する。
   - G20-r2: ボタン1で止めると OK なしで自動転送→文字起こし→下書き。窓は「下書きにしています…」→「下書きができました」（押すか「下書きを開いて」で開く）。患者様なしは転送待ち。話した内容の欄は録音の下書きを新しい順に出し、見本の下書きも同じ扱いで後ろに並ぶ（G21k）。view.js の refreshSummary がその欄だけ読み直す（隠している間は戻したとき）。
   - G22: 全身既往（病名・薬・いつから・通院先の表）、今日の処置（処置・計画・方針・過去メモを同時）、治療歴（全行で遡る）、歯周基本検査（前回と今回を前後、ページ送りで過去へ）、受付メモ（書いた時期つき、受付でマウス）。commands.json の未実装の行は無くなり、歯周基本検査の言葉を足した。データは medical_histories に since・clinic、reception_memos に written_on、治療方針は kind='policy'。
+  - G21l: 日付を欄ごとにずらす（SHIFT）／ずらさない（KEEP＋理由）。connect() が開くたびに通す（同じ日の2回目は調べない）、起動は app/routers/startup.py、restore は update_db 経由。TODAY・DATE は today() を毎回聞く。印の無い古い DB は見本の1行から印を決める。試験 tests/test_g21l.py。
   - G24b: 欄は最新の検査1つ（基本＝PD 1行、精密＝3マス×2行）。上の帯は PCR・BOP率・動揺・検査した歯＋日付。全画面は1ページ1回分。時刻は exam_time（無ければその日の診療回の開始）。同じ日の検査は1つまで。試験 tests/test_perio_input.py。写真は docs/画面/G24b。
   - G24: 「入力」で表が入力状態に。数字・BOP は同じ一覧、プラークは面を押す、動揺度は 0〜3。保存は今日の新しい検査（過去は不変）、未入力の歯があれば止める。パーセントは四捨五入（data.percent）。試験 tests/test_perio_input.py。
   - G25b: スマホ用の QR を画面の高さの約6割で出す（viewBox 付き）。ボタンは写真の欄の右上と全画面の枠の中（G25c で上の行の固定ボタンはやめた）。試験 tests/test_phone.py。
