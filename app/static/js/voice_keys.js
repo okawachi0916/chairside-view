@@ -184,7 +184,7 @@
 
   // 使うマイクは、/voice-test で選んだ機器（このブラウザの localStorage に機器の ID だけ保存）。選んでいなければブラウザの既定。
   // 選んだ機器が見つからないときは既定に戻す。どの画面も、マイクはここから開く（機器の名前は決め打ちしない）。
-  var KEY = "cv.micId";
+  var KEY = "cv.pref.micId"; // 「cv.pref.」の設定は、患者様を切り替えるときの一時情報の消去（actions.js）でも残る
   function chosen() { try { return localStorage.getItem(KEY) || ""; } catch (e) { return ""; } }
   function choose(id) { try { if (id) localStorage.setItem(KEY, id); else localStorage.removeItem(KEY); } catch (e) { /* 保存できなくても動く */ } }
   function open() {

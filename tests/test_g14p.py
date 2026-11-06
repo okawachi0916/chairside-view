@@ -147,7 +147,7 @@ def test_voice_test_picker_chooses_device_for_all_screens(silent_ctx):
     pg.goto(f"http://127.0.0.1:{port}/voice-test")
     pg.wait_for_function("window.CVMicError")
     out = pg.evaluate("""async () => {
-      localStorage.removeItem('cv.micId');
+      localStorage.removeItem('cv.pref.micId');
       const calls = [];
       const orig = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
       navigator.mediaDevices.getUserMedia = (c) => { calls.push(JSON.stringify(c)); return c.audio === true ? orig(c) : Promise.reject(new DOMException('x', 'OverconstrainedError')); };
@@ -160,3 +160,23 @@ def test_voice_test_picker_chooses_device_for_all_screens(silent_ctx):
     assert len(out["calls"]) == 2 and out["calls"][1] == '{"audio":true}'  # 見つからなければ既定に戻す
     assert out["after"] == ""
     assert pg.locator("#mic-select").count() == 1
+
+
+def test_mic_choice_survives_patient_switch_but_patient_info_is_cleared(ctx_page):
+    """患者様を開き直す・変えるときの一時情報の消去で、使うマイクの選択は消えない。ほかの一時情報は今までどおり消える。"""
+    ctx, port = ctx_page
+    pg = ctx.new_page()
+    pg.goto(f"http://127.0.0.1:{port}{UNIT}")
+    pg.wait_for_selector('[data-part="important"]')
+    pg.wait_for_function("window.CVMicError && window.CVActions")
+    out = pg.evaluate("""() => {
+      CVMicError.choose('dev-abc');
+      localStorage.setItem('patient-note', 'x'); sessionStorage.setItem('tmp', 'y');
+      CVActions.run('clear-transient');
+      return [CVMicError.chosen(), localStorage.getItem('patient-note'), sessionStorage.length, localStorage.length];
+    }""")
+    assert out == ["dev-abc", None, 0, 1]
+    pg.reload()
+    pg.wait_for_function("window.CVMicError")
+    assert pg.evaluate("CVMicError.chosen()") == "dev-abc"
+    pg.evaluate("CVMicError.choose('')")

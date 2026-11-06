@@ -140,7 +140,14 @@
   function clearTransient() {
     hidden = null;
     fsClose();
-    try { sessionStorage.clear(); localStorage.clear(); } catch (e) { /* 使えなくてもよい */ }
+    try {
+      // 患者様の情報は残さない。ただし「cv.pref.」で始まる端末の設定（使うマイクなど。患者様の情報ではない）は残す。
+      // これを一緒に消すと、患者様を開くたびにマイクの選択が消えて既定の機器に戻る（G14p）。
+      var keep = {};
+      for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k.indexOf("cv.pref.") === 0) keep[k] = localStorage.getItem(k); }
+      sessionStorage.clear(); localStorage.clear();
+      Object.keys(keep).forEach(function (k) { localStorage.setItem(k, keep[k]); });
+    } catch (e) { /* 使えなくてもよい */ }
   }
 
   register("hide-toggle", function () { if (hidden) restore(); else hide(); });
