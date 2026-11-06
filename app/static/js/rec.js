@@ -87,7 +87,7 @@
   }
 
   function start() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return toast("この接続ではマイクを使えません");
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return toast(window.CVMicError.unsupported(), 6000);
     var appt = context(); // 押した瞬間の画面で固定する
     var role = currentRole();
     var from = origin();
@@ -103,7 +103,10 @@
         clearInterval(tick); tick = setInterval(paint, 250);
         paint();
       }).catch(function (e) { stream.getTracks().forEach(function (t) { t.stop(); }); throw e; });
-    }).catch(function (e) { toast("録音を始められません（" + (e.name || e.message) + "）", 4000); });
+    }).catch(function (e) {
+      if (e && e.name) window.CVMicError.explain(e).then(function (why) { toast("録音を始められません: " + why, 7000); });
+      else toast("録音を始められません（" + ((e && e.message) || "原因不明") + "）", 5000); // マイク以外（保存先との通信など）
+    });
   }
 
   function stop() {

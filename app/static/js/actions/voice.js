@@ -459,7 +459,7 @@
   function startRec() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setMic("none");
-      return fail("機器", "この接続ではマイクを使えません。https で開いてください");
+      return fail("マイク", window.CVMicError.unsupported());
     }
     var tPress = performance.now();
     getStream().then(function (stream) {
@@ -476,14 +476,17 @@
         showNumbers();
         setMic("rec");
         say("聞いています…");
+        setTimeout(function () { // つないだのに音が来ない（ミュート・無効）なら、黙らずに知らせる
+          var why = rec && rec.stream === stream ? window.CVMicError.silent(stream) : "";
+          if (why) say("聞いています…（" + why + "）");
+        }, 800);
       } catch (e) {
         stream.getTracks().forEach(function (t) { t.stop(); });
         fail("録音", e.name || String(e));
       }
     }).catch(function (e) {
-      if (e.name === "NotAllowedError" || e.name === "SecurityError") return fail("マイクの許可", "ブラウザでマイクを許可してください");
       setMic("none");
-      fail("機器", e.name);
+      window.CVMicError.explain(e).then(function (why) { fail("マイク", why); });
     });
   }
 

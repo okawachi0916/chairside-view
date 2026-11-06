@@ -348,7 +348,7 @@
   function voice() {
     if (confirmed) return;
     if (rec) { clearTimeout(rec.timer); if (rec.recorder.state !== "inactive") rec.recorder.stop(); return; }
-    if (!navigator.mediaDevices) return say("この接続ではマイクを使えません");
+    if (!navigator.mediaDevices) return say(window.CVMicError.unsupported());
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
       var chunks = [], recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
       recorder.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
@@ -366,7 +366,7 @@
       holdRec(true);
       showNumbers();
       say("聞いています…");
-    }).catch(function () { hideNumbers(); say("マイクを使えません"); });
+    }).catch(function (e) { hideNumbers(); window.CVMicError.explain(e).then(say); });
   }
   window.CVKeyHooks = { 2: voice };
   window.CVActive = { 2: function () { return !!rec; } };

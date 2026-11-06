@@ -16,7 +16,7 @@
   async function checkDevices() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
       setMic("none", "マイクにつながっていません");
-      return fail("機器", "この接続ではマイクを使えません。https で開いてください");
+      return fail("マイク", window.CVMicError.unsupported());
     }
     const list = await navigator.mediaDevices.enumerateDevices();
     if (!list.some((d) => d.kind === "audioinput")) {
@@ -36,9 +36,8 @@
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (e) {
-      if (e.name === "NotAllowedError" || e.name === "SecurityError") return fail("マイクの許可", "ブラウザでマイクを許可してください");
       setMic("none", "マイクにつながっていません");
-      return fail("機器", e.name);
+      return window.CVMicError.explain(e).then(function (why) { fail("マイク", why); });
     }
     try {
       const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });

@@ -542,7 +542,7 @@ def list_page(rows):
         '<button type="button" class="mini" data-action="reveal-all">すべて表示</button></th>'
         f"<th>処置</th></tr></thead><tbody>{body}</tbody></table></main>"
         "<script src='/static/js/mock_nav.js'></script>"
-        "<script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script></body></html>"
+        "<script src='/static/js/mic_error.js'></script><script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script></body></html>"
     )
 
 
@@ -557,7 +557,7 @@ def shell(kind, title):
         f"<body class='role-{'reception' if kind == 'reception' else 'doctor'}' data-kind='{kind}'>"
         "<div id='view' style='display:contents'></div>"
         + ("<div id='band' data-part='key-band' hidden><span data-band-text></span><span data-band-left></span></div>"
-           "<script src='/static/js/voice_keys.js'></script>" if kind == "unit" else "")
+           "<script src='/static/js/mic_error.js'></script><script src='/static/js/voice_keys.js'></script>" if kind == "unit" else "")
         + "<script src='/static/js/actions.js'></script><script src='/static/js/actions/look.js'></script>"
         + ("<script src='/static/js/numrule.js'></script><script src='/static/js/numtags.js'></script><script src='/static/js/actions/voice.js'></script><script src='/static/js/actions/ai.js'></script><script src='/static/js/actions/rec.js'></script><script src='/static/js/actions/phone.js'></script><script src='/static/js/actions/perio.js'></script><script src='/static/js/segments.js'></script>"
            if kind == "unit" else "")

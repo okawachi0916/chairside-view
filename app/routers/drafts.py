@@ -222,5 +222,5 @@ def today_page():
         "<main class='list' data-part='today-list'><table class='book'>"
         "<thead><tr><th>時間</th><th>カルテ番号</th><th>氏名</th><th>処置</th><th>状態</th></tr></thead>"
         "<tbody id='today-rows'></tbody></table></main>"
-        "<script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script>"
+        "<script src='/static/js/mic_error.js'></script><script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script>"
         "<script src='/static/js/today.js'></script></body></html>", headers=NO_STORE)
