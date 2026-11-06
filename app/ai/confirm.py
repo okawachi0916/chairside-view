@@ -3,13 +3,16 @@
 - 確定すると、下書きが過去の診療メモ (clinical_notes) に入る。
 - 治療計画は、人が選んだ「追加・変更・削除」だけ反映する。選ばれなかった計画（話に出ていない歯の計画など）はそのまま残す。
   変更・削除された古い計画は superseded_on に日付を付けて残す。
+- 「他の画面にも入れる」（歯ごとの処置・次回の予定・治療方針。app/ai/reflect.py）も、人が選んだものだけ、診療メモと同じ取引の中で書く。
+  変えた所は app/ai/journal.py が1行ずつ残し、その日のうちは cancel_record で全部戻せる。書けなかったら確定ごと止める。
 - 確定したら音声を消す。
 """
 import json
 import re
 from pathlib import Path
 
-from app.ai import memo, recpipe
+from app.ai import memo, recpipe, reflect
+from app.ai.journal import Journal, undo
 from app.ai.recpipe import RecError, audio_dir, now
 
 TOOTH = re.compile(r"(?:右上|右下|左上|左下)\s*[1-8]\s*番")
@@ -60,7 +63,10 @@ def save_items(con, draft_id: int, items) -> dict:
     return {"saved": True}
 
 
-def confirm(con, draft_id: int, items, plan=None) -> dict:
+def confirm(con, draft_id: int, items, plan=None, picks=None) -> dict:
+    """記録する。診療メモ・治療計画・「他の画面にも入れる」で選んだもの（歯の状態・治療歴・次回の予定・治療方針）・予約の「済み」を、
+    全部同じ1つの取引で書く。変えた所は Journal が1行ずつ残し、その日のうちの取り消し（cancel_record）に使う。
+    どこか1つでも書けなければ、記録ごと止める（RecError）。"""
     plan = plan or {}
     items = check_items(items)
     if not any(items[k] for k in memo.KEYS):
@@ -80,6 +86,7 @@ def confirm(con, draft_id: int, items, plan=None) -> dict:
         if not v:
             raise RecError("診療回が見つかりません", 409)
         pid, day = d["patient_id"], v["visit_date"]
+        j = Journal(con, draft_id, pid)
 
         # 治療計画: 人が選んだものだけ
         active = {p["id"]: p for p in plans_active(con, pid)}
@@ -94,27 +101,30 @@ def confirm(con, draft_id: int, items, plan=None) -> dict:
             text = str(c.get("text") or "").strip()
             if not text:
                 raise RecError("新しい計画の文字が空です")
-            con.execute("UPDATE treatment_plans SET superseded_on = ? WHERE id = ?", (day, int(c["old_id"])))
-            seq += 1
-            con.execute("INSERT INTO treatment_plans (patient_id, seq, kind, body) VALUES (?, ?, 'plan', ?)", (pid, seq, text))
+            old = active[int(c["old_id"])]
+            j.update("treatment_plans", old["id"], superseded_on=day)
+            j.insert("treatment_plans", patient_id=pid, seq=old["seq"], kind="plan", body=text)  # 変えた計画は、古い計画の順番を引き継ぐ
         for i in deletes:
-            con.execute("UPDATE treatment_plans SET superseded_on = ? WHERE id = ?", (day, i))
+            j.update("treatment_plans", i, superseded_on=day)
         for t in adds:
             seq += 1
-            con.execute("INSERT INTO treatment_plans (patient_id, seq, kind, body) VALUES (?, ?, 'plan', ?)", (pid, seq, t))
+            j.insert("treatment_plans", patient_id=pid, seq=seq, kind="plan", body=t)
+
+        # 他の画面にも入れる（歯の状態・治療歴・次回の予定・治療方針）: 人が選んだものだけ
+        reflect.apply(j, day, items, picks)
 
         body = memo.body_lines(items, day)
-        con.execute("INSERT INTO clinical_notes (patient_id, visit_id, note_date, author_role, body) VALUES (?, ?, ?, ?, ?)",
-                    (pid, d["visit_id"], day, v["role"] or "doctor", body))
-        con.execute("UPDATE drafts SET status = 'confirmed', confirmed_at = ?, items = ?, body = ? WHERE id = ?",
-                    (now(), json.dumps(items, ensure_ascii=False), body, draft_id))
+        j.insert("clinical_notes", patient_id=pid, visit_id=d["visit_id"], note_date=day, author_role=v["role"] or "doctor", body=body)
+        j.update("drafts", draft_id, status="confirmed", confirmed_at=now(), items=json.dumps(items, ensure_ascii=False), body=body)
+        if v["appointment_id"]:  # その診療回の予約を「済み」にする（取り消せば「予約中」へ戻る）
+            j.update("appointments", v["appointment_id"], status="done")
         audios = []
         for rec in recs:
             if rec["state"] == recpipe.DELETED:
                 continue
             audios.append(rec["audio_file"])
-            con.execute("UPDATE recordings SET state = ?, audio_file = '', updated_at = ? WHERE id = ?",
-                        (recpipe.CONFIRMED, now(), rec["id"]))
+            j.update("recordings", rec["id"], state=recpipe.CONFIRMED, updated_at=now())
+            con.execute("UPDATE recordings SET audio_file = '' WHERE id = ?", (rec["id"],))  # 音声は消す。取り消しても戻せない（戻さない）
         con.commit()
     except Exception:
         con.rollback()
@@ -124,6 +134,48 @@ def confirm(con, draft_id: int, items, plan=None) -> dict:
             continue
         recpipe.remove_audio(audio, "確定した録音")
     return {"confirmed": True, "draft_id": draft_id}
+
+
+NOT_TODAY = "その日のうちだけ取り消せます"
+
+
+def cancel_record(con, draft_id: int) -> dict:
+    """記録を取り消す。その記録で変わった所を全部、記録する前に戻し、下書きに戻す。
+    取り消せるのは、記録した日（パソコンの今日）のうち。あとの記録が同じ患者様にあるときは、先にそちらから取り消す。"""
+    from app.today import today as app_today
+
+    con.execute("BEGIN IMMEDIATE")
+    try:
+        d = con.execute("SELECT * FROM drafts WHERE id = ?", (draft_id,)).fetchone()
+        if not d:
+            raise RecError("その下書きが見つかりません", 404)
+        if d["status"] != "confirmed":
+            raise RecError("取り消せる記録がありません", 409)
+        rows = con.execute("SELECT recorded_on FROM record_changes WHERE draft_id = ? LIMIT 1", (draft_id,)).fetchone()
+        if not rows:
+            raise RecError("この記録には、取り消すための記録がありません（取り消せません）", 409)
+        if rows["recorded_on"] != app_today():
+            raise RecError(NOT_TODAY, 409)
+        later = con.execute("SELECT 1 FROM record_changes WHERE patient_id = ? AND draft_id <> ? AND id > "
+                            "(SELECT MAX(id) FROM record_changes WHERE draft_id = ?) LIMIT 1", (d["patient_id"], draft_id, draft_id)).fetchone()
+        if later:
+            raise RecError("あとの記録があります。先にそちらを取り消してください", 409)
+        n = undo(con, draft_id)
+        con.commit()
+    except Exception:
+        con.rollback()
+        raise
+    return {"cancelled": True, "draft_id": draft_id, "changes": n}
+
+
+def last_cancellable(con, appt_id: int) -> int:
+    """この予約の診療回で、いちばん新しく記録した下書き。無ければ RecError。"""
+    row = con.execute(
+        "SELECT d.id FROM drafts d JOIN visits v ON v.id = d.visit_id WHERE v.appointment_id = ? AND d.status = 'confirmed' "
+        "ORDER BY d.id DESC LIMIT 1", (appt_id,)).fetchone()
+    if not row:
+        raise RecError("取り消せる記録がありません", 409)
+    return row["id"]
 
 
 # ---- 追記が必要な患者様 ----

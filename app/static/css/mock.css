@@ -295,11 +295,9 @@ table.t td.n, table.t th.n { text-align: center; }
 }
 
 /* 歯の状態 */
-.teeth { flex: 1; min-height: 0; display: flex; gap: var(--sp-4); }
-.teeth .frame { flex: 0 0 62%; min-width: 0; background: var(--c-canvas); border-radius: var(--r-s); padding: var(--sp-2); display: flex; }
-.teeth .side { flex: 1; display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
-.teeth .side b { font-size: var(--fs-1); font-weight: var(--fw-medium); color: var(--c-sub); margin-right: var(--sp-2); }
-.teeth .side span { font-size: var(--fs-3); }
+.teeth { flex: 1; min-height: 0; display: flex; }
+.teeth .frame { flex: 1; min-width: 0; background: var(--c-canvas); border-radius: var(--r-s); padding: var(--sp-1) var(--sp-3);
+  display: flex; gap: var(--sp-3); }
 
 /* 話した内容と録音の小窓 */
 .summary { flex: 1; min-height: 0; margin: 0; padding-left: var(--sp-5); font-size: var(--fs-3); line-height: var(--lh-text); }
@@ -449,38 +447,64 @@ body #typed-box input { font-size: var(--fs-2); }
 body .topbar .mic.rec { fill: var(--c-alert-soft); }
 body .topbar .mic.none { fill: var(--c-line-strong); }
 
-/* 歯の状態の絵（tooth_chart.py、G07f）。健全は白抜き（輪郭は墨）、充填は緑、クラウン・ブリッジは灰色、カリエスは黒い点。
-   根管は 失活=黒い線、根治中=オレンジの枠、根充後=オレンジの塗り（生活歯は描かない）。
-   自院で治療済み=薄い四角、自院で治療中=濃い四角。白い歯に墨の輪郭なので、明るい地でも暗い地でも見える */
-.tooth-svg { width: 100%; flex: 1; min-height: 0; display: block; }
-.tc-root { fill: var(--c-surface); stroke: var(--c-sub); stroke-width: 1.5; }
-.tc-crown { fill: var(--c-surface); stroke: var(--c-ink); stroke-width: 2; }
+/* 歯の状態の絵（tooth_chart.py、G07f・G07g）。診療室の40インチのテレビで離れて見るので、線・印・字は太く大きく。
+   健全は白抜き（輪郭は墨）、充填は緑、クラウン・ブリッジ（支台・ポンティック）は灰色、カリエスは黒い点。
+   根管は 失活=黒い線、根治中=オレンジの枠、根充済=オレンジの塗り（生活歯は描かない）。インプラントは斜線のねじ。
+   自院で治療済み=点線の四角、自院で治療中=濃い四角 */
+.tooth-svg { flex: 1; min-width: 0; min-height: 0; height: 100%; display: block; }
+.tc-root { fill: var(--c-surface); stroke: var(--c-sub); stroke-width: 2; }
+.tc-crown { fill: var(--c-surface); stroke: var(--c-ink); stroke-width: 2.5; }
 .tc-crown.cap { fill: var(--c-line-strong); stroke: var(--c-ink); }
 .tc-fill { fill: var(--c-hygienist); }
 .tc-caries { fill: var(--c-ink); }
-.tc-canal.dead { fill: none; stroke: var(--c-ink); stroke-width: 3; stroke-linecap: round; }
-.tc-canal.open { fill: var(--c-surface); stroke: var(--c-pulp-dead); stroke-width: 2.5; }
+.tc-fixture { fill: var(--c-surface); stroke: var(--c-ink); stroke-width: 2.5; stroke-linejoin: round; }
+.tc-thread { stroke: var(--c-ink); stroke-width: 2.5; stroke-linecap: round; }
+.tc-canal.dead { fill: none; stroke: var(--c-ink); stroke-width: 3.5; stroke-linecap: round; }
+.tc-canal.open { fill: var(--c-surface); stroke: var(--c-pulp-dead); stroke-width: 3; }
 .tc-canal.filled { fill: var(--c-pulp-dead); stroke: var(--c-pulp-dead); stroke-width: 1; }
-.tc-box { fill: none; stroke-width: 3; }
-.tc-box.done { stroke: var(--c-line-strong); }
-.tc-box.doing { stroke: var(--c-doctor); stroke-width: 4; }
-.tc-mid { stroke: var(--c-line-strong); stroke-width: 1; }
-.tc-no { font-size: var(--fs-4); font-weight: var(--fw-medium); text-anchor: middle; fill: var(--c-sub); }
-.tc-no.gone { fill: var(--c-line-strong); }
-.teeth .frame { flex: 0 0 66%; flex-direction: column; gap: var(--sp-1); }
-.tc-legend { flex: none; display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-2); white-space: nowrap; letter-spacing: var(--ls-head);
-  font-size: var(--fs-1); line-height: var(--lh-tight); color: var(--c-ink); overflow: hidden; }
-.tc-legend span { display: inline-flex; align-items: center; gap: 2px; }
-.tc-legend .grp { margin-left: 0; }
-.tc-legend .lbl { color: var(--c-sub); }
+.tc-box { fill: none; stroke-width: 3.5; }
+.tc-box.done { stroke: var(--c-sub); stroke-dasharray: 9 6; }
+.tc-box.doing { stroke: var(--c-doctor); stroke-width: 5; }
+.tc-mid { stroke: var(--c-line-strong); stroke-width: 1.5; }
+.tc-no { font-size: var(--fs-5); font-weight: var(--fw-bold); text-anchor: middle; fill: var(--c-sub); }
+.tc-no.gone { fill: var(--c-line-strong); font-weight: var(--fw-medium); }
+
+/* 左の列: 凡例（縦）と、有床義歯・粘膜の表示。字の大きさと太さはそろえる */
+.tc-left { flex: none; width: 344px; display: flex; flex-direction: column; gap: var(--sp-2); min-height: 0; }
+.tc-legend { display: flex; flex-direction: column; gap: var(--sp-1); white-space: nowrap; letter-spacing: var(--ls-head);
+  font-size: var(--fs-3); font-weight: var(--fw-medium); line-height: var(--lh-tight); color: var(--c-ink); }
+.tc-legend > div { display: flex; align-items: center; gap: var(--sp-3); }
+.tc-legend > div.gap { margin-top: var(--sp-1); }
+.tc-legend span { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.tc-legend .cn-row { gap: var(--sp-2); }
+.tc-legend .cn-lbl { color: var(--c-sub); }
 .tc-legend i { display: inline-block; flex: none; box-sizing: border-box; }
-.tc-legend .sw { width: 14px; height: 12px; border: 1.5px solid var(--c-ink); background: var(--c-surface); }
+.tc-legend .sw { width: 18px; height: 16px; border: 2px solid var(--c-ink); background: var(--c-surface); }
 .tc-legend .sw.fill { background: var(--c-hygienist); }
 .tc-legend .sw.cap { background: var(--c-line-strong); }
-.tc-legend .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c-ink); }
-.tc-legend .cn { width: 6px; height: 16px; border-radius: var(--r-s); }
-.tc-legend .cn.dead { width: 3px; background: var(--c-ink); }
-.tc-legend .cn.open { border: 2px solid var(--c-pulp-dead); background: var(--c-surface); }
+.tc-legend .dot { width: 13px; height: 13px; border-radius: 50%; background: var(--c-ink); margin: 0 3px 0 2px; }
+.tc-legend .cn { width: 8px; height: 20px; }
+.tc-legend .cn.dead { width: 4px; background: var(--c-ink); margin: 0 2px; }
+.tc-legend .cn.open { border: 2.5px solid var(--c-pulp-dead); background: var(--c-surface); }
 .tc-legend .cn.filled { background: var(--c-pulp-dead); }
-.tc-legend .bx { width: 14px; height: 16px; border: 3px solid var(--c-line-strong); }
-.tc-legend .bx.doing { border-color: var(--c-doctor); }
+.tc-legend .imp { width: 14px; height: 22px; border: 2px solid var(--c-ink); background: var(--c-surface)
+  repeating-linear-gradient(-35deg, transparent 0 4px, var(--c-ink) 4px 6px); clip-path: polygon(0 0, 100% 0, 75% 100%, 25% 100%); margin: 0 2px; }
+.tc-legend .bx { width: 18px; height: 20px; border: 3px dashed var(--c-sub); }
+.tc-legend .bx.doing { border: 3px solid var(--c-doctor); }
+
+/* 有床義歯 あり／なし と作成元。あり=墨の札、なし=淡い字。自院作成=青の札、他院作成=琥珀の枠 */
+.tc-notes { display: flex; flex-direction: column; gap: var(--sp-1); padding-top: var(--sp-2); border-top: 1.5px solid var(--c-line-strong);
+  font-size: var(--fs-3); line-height: var(--lh-tight); min-height: 0; }
+.tc-dent { display: flex; flex-direction: column; gap: var(--sp-1); }
+.tc-dent-head { display: flex; align-items: center; gap: var(--sp-2); }
+.tc-dent-head b, .tc-muc b { font-weight: var(--fw-medium); color: var(--c-sub); }
+.tc-has { padding: 1px var(--sp-2); border-radius: var(--r-s); font-weight: var(--fw-bold); }
+.tc-has.yes { background: var(--c-ink); color: var(--c-surface); }
+.tc-has.no { color: var(--c-sub); border: 1.5px dashed var(--c-line-strong); font-weight: var(--fw-regular); }
+.tc-dent-row { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--sp-2); row-gap: 2px; }
+.tc-dent-what { font-weight: var(--fw-bold); }
+.tc-tag { padding: 1px var(--sp-2); border-radius: var(--r-s); font-size: var(--fs-2); font-weight: var(--fw-bold); }
+.tc-tag.own { background: var(--c-doctor); color: var(--c-surface); }
+.tc-tag.other { color: var(--c-warn); background: var(--c-warn-soft); border: 1.5px solid var(--c-warn); }
+.tc-date { font-size: var(--fs-2); color: var(--c-sub); }
+.tc-muc b { margin-right: var(--sp-2); }

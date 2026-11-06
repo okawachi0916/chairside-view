@@ -26,6 +26,7 @@ SHIFT = {
     "treatment_history": ["done_date"],
     "photos": ["taken_on"],
     "treatment_plans": ["superseded_on"],
+    "tooth_status_history": ["superseded_on"],  # G19l: 変わる前の歯の状態を残した日（診療回の日）。診療メモ・治療歴の日付と同じだけ動く
     "dentures": ["made_on"],
     "perio_exams": ["exam_date"],
     "maintenance_intervals": ["last_date"],
@@ -53,6 +54,7 @@ KEEP = {
     ("phone_links", "created_at"): "QR の有効期限を測る秒の数",
     ("phone_links", "expires_at"): "QR の有効期限を測る秒の数",
     ("phone_events", "at"): "スマホの写真の合図を、時刻の順に拾うための時刻",
+    ("record_changes", "recorded_on"): "記録した日。「その日のうちだけ取り消せる」を測るので、ずらすと次の日になっても取り消せてしまう",
     ("voice_fixes", "created_at"): "聞き違いの記録の時刻（機械の記録）",
 }
 

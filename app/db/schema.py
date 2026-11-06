@@ -134,12 +134,40 @@ TABLES = {
             ("patient_id", "INTEGER", None, True),
             ("tooth", "INTEGER", None, True),  # FDI の歯番 (11〜48)
             ("status", "TEXT", None, True),  # 今までの1つの状態の文字（欠損の見分けにも使う）
-            # G07f: 歯冠（健全/カリエス/CR/インレー/充填/クラウン/ブリッジ支台/残根/欠損。+ でつなげる）と
-            # 根（生活/失活/根治中/根充後）。空なら status を読み替える（app/mockview/tooth_chart.py の parts）
+            # G07f: 歯冠（健全/CR/インレー/充填/クラウン/ブリッジ支台/残根/欠損/なし）と
+            # 根（生活/失活/根治中/根充済/インプラント）。空なら status を読み替える（app/mockview/tooth_chart.py の parts）
             ("crown", "TEXT", None, False),
             ("root", "TEXT", None, False),
+            ("caries", "INTEGER", "0", False),  # G07g: カリエスは歯冠とは別の印（1=あり）
         ],
         "extra": [_PATIENT_FK, "UNIQUE (patient_id, tooth)"],
+    },
+    # G19l: 「カルテに記録する」で歯の状態が変わるとき、変わる前の状態を日付を付けて残す（治療計画の superseded_on と同じ考え）
+    "tooth_status_history": {
+        "cols": [
+            ("patient_id", "INTEGER", None, True),
+            ("tooth", "INTEGER", None, True),
+            ("status", "TEXT", None, False),
+            ("crown", "TEXT", None, False),
+            ("root", "TEXT", None, False),
+            ("caries", "INTEGER", "0", False),
+            ("superseded_on", "TEXT", None, True),  # この日の診療で、次の状態に変わった
+        ],
+        "extra": [_PATIENT_FK],
+    },
+    # G19m: 「カルテに記録する」で変えた所を1行ずつ残す（どの表のどの行をどう変えたか）。その日のうちの「記録を取り消す」は、これを逆にたどって戻す
+    "record_changes": {
+        "cols": [
+            ("draft_id", "INTEGER", None, True),
+            ("patient_id", "INTEGER", None, True),
+            ("seq", "INTEGER", None, True),  # 変えた順。取り消すときは大きい方から戻す
+            ("tbl", "TEXT", None, True),
+            ("row_id", "INTEGER", None, True),
+            ("op", "TEXT", None, True),  # insert=足した（戻すときは消す） / update=書き替えた（戻すときは before の値へ）
+            ("before", "TEXT", "'{}'", True),  # update の、変える前の値 (JSON)
+            ("recorded_on", "TEXT", None, True),  # 記録した日（パソコンの今日）。「その日のうち」を測る
+        ],
+        "extra": [_PATIENT_FK],
     },
     "mucosal_conditions": {
         "cols": [

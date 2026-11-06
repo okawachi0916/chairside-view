@@ -158,7 +158,7 @@ def test_claude_path_without_table(db, hanako, tmp_path, case):
 QUICK = [("前回は何をした？", "note:2026-10-23"), ("前回は？", "note:2026-10-23"), ("この前は何をしましたか", "note:2026-10-23"),
          ("アレルギーは？", "important:1"), ("アレルギーはありますか", "important:1"), ("アレルギーを教えて", "important:1"),
          ("飲んでいる薬は？", "medical"), ("お薬は？", "medical"), ("薬は何を飲んでいますか", "medical"),
-         ("次回は何をする予定？", "plan:1"), ("次は何をする予定？", "plan:1"), ("次回は？", "plan:1"), ("今後の予定は？", "plan:1")]
+         ("次回は何をする予定？", "next:1"), ("次は何をする予定？", "next:1"), ("次回は？", "next:1"), ("今後の予定は？", "next:1")]
 
 
 @pytest.mark.parametrize("text,ref", QUICK)

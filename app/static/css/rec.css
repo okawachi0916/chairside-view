@@ -77,6 +77,14 @@ table.rtab .st-転送待ち { color: var(--c-warn); font-weight: var(--fw-bold);
 #plan-compare tr.add td { background: var(--c-canvas); }
 #plan-compare label { display: inline-block; margin-right: var(--sp-3); font-size: var(--fs-3); }
 
+/* G19l: 治療計画の変更と歯ごとの処置は横に並べる（下書きの画面を1画面に収めるため） */
+.plan-row { display: flex; align-items: flex-start; gap: var(--sp-5); margin: 0 var(--sp-6) var(--sp-8); }
+.plan-row .plan-block { flex: 1 1 0; min-width: 0; margin: 0; }
+.plan-row .plan-block[hidden] { display: none; }
+#tooth-compare table.rtab td { font-size: var(--fs-3); }
+#tooth-compare label { display: inline-block; font-size: var(--fs-3); }
+#tooth-compare .plan-table th:nth-child(1), #tooth-compare .plan-table th:nth-child(2) { width: auto; }
+
 .rec-head a.back { font-size: var(--fs-3); font-weight: var(--fw-bold); padding: var(--sp-1) var(--sp-4); border: 2px solid var(--c-surface);
   border-radius: var(--r-s); text-decoration: none; }
 .rec-head .say-btn { margin-left: auto; font: inherit; font-size: var(--fs-2); color: var(--c-surface); background: transparent;
@@ -94,7 +102,8 @@ table.rtab .st-転送待ち { color: var(--c-warn); font-weight: var(--fw-bold);
 body.rec-page[data-page=draft] { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 body.rec-page[data-page=draft] .draft-cols { flex: 1; min-height: 0; align-items: stretch; padding-bottom: var(--sp-4); }
 body.rec-page[data-page=draft] .draft-left, body.rec-page[data-page=draft] .draft-right { min-height: 0; overflow-y: auto; align-self: flex-start; max-height: 100%; box-sizing: border-box; }
-body.rec-page[data-page=draft] .plan-block { flex: none; margin-bottom: var(--sp-4); }
+body.rec-page[data-page=draft] .plan-row { flex: none; margin-bottom: var(--sp-4); }
+body.rec-page[data-page=draft] .plan-block { flex: 1 1 0; margin-bottom: 0; }
 body.rec-page[data-page=draft] .draft-left > *, body.rec-page[data-page=draft] .draft-right > *,
 body.rec-page[data-page=draft] .plan-block > * { zoom: var(--fit, 1); }
 

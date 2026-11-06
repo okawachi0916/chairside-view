@@ -1,0 +1,14 @@
+{
+  "_説明": "G19l: 下書きの「やったこと」の行にある処置の言葉 → 歯の状態の変わり方。この表に無い言葉は、歯の状態の候補に出さない。crown=歯冠、root=根、caries=カリエスの印（false は外す）。書いていない所は今のまま。値は app/mockview/tooth_chart.py の CROWNS と ROOTS_STATE の言葉。",
+  "treatments": [
+    {"label": "根管充填", "words": ["根管充填", "根充"], "set": {"root": "根充済"}},
+    {"label": "抜髄", "words": ["抜髄"], "set": {"root": "根治中"}},
+    {"label": "感染根管治療", "words": ["感染根管治療", "感根治"], "set": {"root": "根治中"}},
+    {"label": "根管貼薬", "words": ["根管貼薬", "根管形成"], "set": {"root": "根治中"}},
+    {"label": "抜歯", "words": ["抜歯"], "set": {"crown": "欠損", "root": "", "caries": false}},
+    {"label": "CR充填", "words": ["CR充填", "コンポジットレジン充填"], "set": {"crown": "CR", "caries": false}},
+    {"label": "インレー装着", "words": ["インレー装着", "インレー合着", "インレーセット"], "set": {"crown": "インレー", "caries": false}},
+    {"label": "クラウン装着", "words": ["クラウン装着", "クラウン合着", "クラウンセット"], "set": {"crown": "クラウン", "caries": false}},
+    {"label": "インプラント埋入", "words": ["インプラント埋入", "インプラント体埋入"], "set": {"crown": "なし", "root": "インプラント", "caries": false}}
+  ]
+}

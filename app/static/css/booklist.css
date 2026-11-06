@@ -29,3 +29,6 @@ table.book td.name { font-size: var(--fs-5); font-weight: var(--fw-bold); white-
 table.book td.nxt, table.book td.heat { white-space: nowrap; }
 table.book td.memo { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-3); }
 [data-part="reception-list"] table.book td.no { font-size: var(--fs-6); }
+
+/* G19m: 記録を済ませた予約の印 */
+.book .done-tag { margin-left: var(--sp-3); padding: 0 var(--sp-3); border: 1px solid var(--c-line-strong); border-radius: var(--r-s); font-size: var(--fs-2); color: var(--c-sub); }

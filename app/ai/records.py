@@ -23,6 +23,22 @@ def jp_date(iso: str) -> str:
     return f"{int(m[1])}年{int(m[2])}月{int(m[3])}日" if m else (iso or "")
 
 
+def _site(tooth: int) -> str:
+    return {1: "右上", 2: "左上", 3: "左下", 4: "右下"}[tooth // 10] + f"{tooth % 10}番"
+
+
+def perio_lines(ex: dict) -> list:
+    """検査1回分の数字の行。4mm以上の歯と深さ、出血（BOP）の割合、PCR、動揺のある歯。数字は perio_exam()（歯科衛生士の画面と同じ計算）のもの。"""
+    deep = sorted((t, v["pocket"]) for t, v in ex["teeth"].items() if v["pocket"] >= 4)
+    loose = sorted(t for t, v in ex["teeth"].items() if v["mobility"] > 0)
+    return [
+        "4mm以上の歯: " + ("、".join(f"{_site(t)} {p}mm" for t, p in deep) + f"（{len(deep)}本）" if deep else "なし（0本）"),
+        f"出血（BOP）: {ex['bop']}%",
+        f"PCR: {ex['pcr']}%",
+        "動揺のある歯: " + ("、".join(_site(t) for t in loose) + f"（{len(loose)}本）" if loose else "なし（0本）"),
+    ]
+
+
 def build_records(con, patient_id: int) -> list:
     q = lambda sql: con.execute(sql, (patient_id,)).fetchall()  # noqa: E731
     out = []
@@ -41,9 +57,14 @@ def build_records(con, patient_id: int) -> list:
         lines = [m["condition"] + ("、" + m["medication"] if m["medication"] else "") for m in med]
         add("medical", "全身既往・服薬", "medical-history", lines, "出どころ: 全身既往・服薬")
 
-    # 次回の予約 (kind='next') は治療計画の1番目と同じ内容なので、番号を付けない
     for r in q("SELECT seq, body FROM treatment_plans WHERE patient_id=? AND kind='plan' AND superseded_on IS NULL ORDER BY seq"):
         add(f"plan:{r['seq']}", "治療計画", "treatment-plan", [r["body"]], "出どころ: 治療計画")
+    # G19m: 次回の予定（記録で入る。「次回は？」はここから答える）と、今の治療方針
+    nx = [r["body"] for r in q("SELECT body FROM treatment_plans WHERE patient_id=? AND kind='next' AND superseded_on IS NULL ORDER BY id")]
+    if nx:
+        add("next:1", "次回の予定", "next-appointment", ["、".join(nx)], "出どころ: 次回の予定")
+    for i, r in enumerate(q("SELECT body FROM treatment_plans WHERE patient_id=? AND kind='policy' AND superseded_on IS NULL ORDER BY seq, id"), 1):
+        add(f"policy:{i}", "治療方針", "", [r["body"]], "出どころ: 治療方針")
 
     note_dates = set()
     for r in q("SELECT note_date, author_role, body FROM clinical_notes WHERE patient_id=? ORDER BY note_date DESC, id DESC"):
@@ -58,8 +79,15 @@ def build_records(con, patient_id: int) -> list:
         add(f"history:{r['done_date']}", "治療歴", "treatment-history", [f"{r['site']} {r['content']}"],
             f"出どころ: {jp_date(r['done_date'])}の治療歴", r["done_date"])
 
+    from app.views import data as views  # 数字の出し方（割合の計算）は画面と同じ perio_exam() を使う。別に作らない
+
+    newest = views._perio(con, patient_id, 1)
     for r in q("SELECT exam_date FROM perio_exams WHERE patient_id=? ORDER BY exam_date DESC"):
-        add(f"perio:{r['exam_date']}", "歯周検査", "perio-exam", ["歯周検査", f"検査日 {jp_date(r['exam_date'])}"],
+        lines = ["歯周検査", f"検査日 {jp_date(r['exam_date'])}"]
+        if newest and newest[0]["date"] == r["exam_date"]:
+            lines += perio_lines(newest[0])  # 新しい検査だけ、数字をデータベースのまま渡す
+            newest = []
+        add(f"perio:{r['exam_date']}", "歯周検査", "perio-exam", lines,
             f"出どころ: {jp_date(r['exam_date'])}の歯周検査", r["exam_date"])
 
     for r in q("SELECT body FROM handovers WHERE patient_id=?"):

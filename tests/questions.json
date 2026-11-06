@@ -9,7 +9,7 @@
     {"id": 3, "text": "飲んでいる薬は？", "kind": "質問", "sends": 0, "claude_sends": 1,
      "expect": {"result": "found", "ref": "medical", "source": "出どころ: 全身既往・服薬"}},
     {"id": 4, "text": "次は何をする予定？", "kind": "質問", "sends": 0, "claude_sends": 1,
-     "expect": {"result": "found", "ref": "plan:1", "source": "出どころ: 治療計画", "contains": "右下6番"}},
+     "expect": {"result": "found", "ref": "next:1", "source": "出どころ: 次回の予定", "contains": "支台築造"}},  
     {"id": 5, "text": "右下6番の根管治療を始めたのはいつ？", "kind": "質問", "sends": 1,
      "expect": {"result": "found", "ref": "note:2026-10-09", "source": "出どころ: 2026年10月9日の診療記録"}},
     {"id": 6, "text": "最後の歯周検査はいつ？", "kind": "質問", "sends": 1,
