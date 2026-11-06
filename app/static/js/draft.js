@@ -12,7 +12,7 @@
   var plans = [];                 // 今の治療計画
   var picked = {};                // 反映の選び方 { "c3": true, "d4": true, "a:文字": false }
   var armed = 0;                  // 「確定する」と言った時刻。もう一度「確定」を待つ
-  var back = body.dataset.back || "/";   // 来た画面（?back=）。診療の画面・録音の一覧・今日の診療一覧のどれか
+  var back = body.dataset.back || "/clinic";   // 来た画面（?back=）。診療の画面・録音の一覧・今日の診療一覧のどれか
   var saveTimer = null, saving = Promise.resolve();
 
   function say(t) { msg.textContent = t; body.dataset.msg = t; }

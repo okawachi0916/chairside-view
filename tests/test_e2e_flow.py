@@ -101,7 +101,7 @@ def flow(server, browser):  # noqa: F811
         last_ref = next(x for x in last_note if x.ref.startswith("note:"))
 
     # 2. 予約一覧で 0123 の RCT の行を選ぶ
-    pg = open_page(browser, server, "/")
+    pg = open_page(browser, server, "/clinic")
     pg.wait_for_selector("tr.row")
     appt = pick(pg, "0123", "RCT")
     assert "role=doctor" in pg.url
@@ -216,7 +216,7 @@ def flow(server, browser):  # noqa: F811
 
     # 8. 次の患者様 0456 の SPT の行を開く。前の人が残っていない
     pg.click("[data-action=change-patient]")
-    pg.wait_for_url(base + "/")  # 確定済みなので止められない
+    pg.wait_for_url(base + "/clinic")  # 確定済みなので止められない
     pg.wait_for_selector("tr.row")
     appt2 = pick(pg, "0456", "SPT")
     pg.wait_for_selector('[data-part="important"]')

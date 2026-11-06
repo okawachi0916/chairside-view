@@ -38,7 +38,7 @@ page = c.get("/api/view/unit", params={"appt": cur}).json()
 out["today_page_text"] = re.sub(r"<[^>]+>", "", page["html"])
 m = re.search(r'data-part="past-notes".*?</div></section>', page["html"], re.S) or re.search(r'data-part="past-notes".*', page["html"], re.S)
 out["past_notes_text"] = re.sub(r"<[^>]+>", "", m.group(0)) if m else ""
-out["list"] = re.sub(r"<[^>]+>", "", c.get("/").text)
+out["list"] = re.sub(r"<[^>]+>", "", c.get("/clinic").text)
 out["reception"] = re.sub(r"<[^>]+>", "", c.get("/api/view/reception", params={"patient": pid}).json()["html"])
 print(json.dumps(out, ensure_ascii=False))
 '''

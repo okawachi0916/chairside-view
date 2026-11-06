@@ -84,7 +84,7 @@
     var r = rec();
     if (r && r.locked()) { r.toast("録音中は次の患者様へ進めません。先に録音を止めてください", 4000); return; }
     var appt = new URLSearchParams(location.search).get("appt");
-    function leave() { CVActions.run("clear-transient"); location.href = "/"; }
+    function leave() { CVActions.run("clear-transient"); location.href = "/clinic"; }
     if (!appt) return leave();
     fetch("/api/pending-memo?appt=" + appt, { cache: "no-store" }).then(function (x) { return x.json(); }).then(function (d) {
       if (d.memos && d.memos.length) blockDialog(d.memos, appt, leave);

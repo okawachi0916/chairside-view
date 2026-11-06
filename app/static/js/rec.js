@@ -75,7 +75,7 @@
       if (inner.contentWindow.CVReturn) return inner.contentWindow.CVReturn.here();
       var l = inner.contentWindow.location;
       return l.pathname + l.search;
-    } catch (e) { return "/"; }
+    } catch (e) { return "/clinic"; }
   }
 
   // いま中の画面で選んでいる役割（9番で切り替える）。分からなければ空で、サーバーが診療回の担当にする
@@ -171,7 +171,7 @@
 
   function openDraft() {
     if (!ready) return false;
-    var id = ready.draftId, from = ready.origin || "/";
+    var id = ready.draftId, from = ready.origin || "/clinic";
     ready = null;
     paint();
     inner.src = "/drafts/" + id + "?back=" + encodeURIComponent(from);

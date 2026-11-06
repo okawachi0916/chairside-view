@@ -145,7 +145,7 @@
 
   register("hide-toggle", function () { if (hidden) restore(); else hide(); });
   register("clear-transient", clearTransient);
-  register("pick-patient", function () { clearTransient(); location.href = "/"; });
+  register("pick-patient", function () { clearTransient(); location.href = "/clinic"; });
 
   // ボタン3は隠す・戻す。ボタン1・2は、録音と声の窓が register("button1") などで足す。
   register("button3", function () { run("hide-toggle"); });

@@ -1,10 +1,12 @@
-"""本物の画面の入口。/ が予約一覧、/unit がユニットの画面、/reception が受付の画面。
+"""本物の画面の入口。/ が入口の画面、/clinic が臨床モードの予約一覧、/unit がユニットの画面、
+/reception が受付用の患者様一覧と受付の画面。
 画面の中身は毎回データベースから読み、ブラウザには保存させない。"""
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from app.views import data as D
 from app.views import render as R
+from app.views.entrance import entrance_page
 
 router = APIRouter()
 NO_STORE = {"Cache-Control": "no-store"}
@@ -19,7 +21,14 @@ def _json(html, role, title, chart_no=""):
 
 
 @router.get("/", response_class=HTMLResponse)
+def entrance():
+    """作品を開いたとき最初に出る画面。受付モードと臨床モードに分ける。"""
+    return _html(entrance_page())
+
+
+@router.get("/clinic", response_class=HTMLResponse)
 def appointment_list():
+    """臨床モードの予約一覧 (氏名は伏せ字)。"""
     return _html(R.list_page(D.today_list()))
 
 
@@ -49,7 +58,7 @@ def unit_view(appt: int, role: str = ""):
 @router.get("/api/view/reception")
 def reception_view(patient: int = 0):
     if not patient:
-        return _json(R.reception_chooser(D.reception_patients()), "reception", "受付の画面")
+        return _json(R.reception_chooser(D.reception_list()), "reception", "受付の画面")
     ids = {p["id"] for p in D.reception_patients()}
     if patient not in ids:
         raise HTTPException(404)

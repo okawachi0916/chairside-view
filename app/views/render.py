@@ -366,7 +366,8 @@ def _reserve(d):
     return reserve_card(D.ja_date(app_today(), week=True), f"{start}〜{end}（{dur}）", recent)
 
 
-def _heat(d):
+def heat_best(d):
+    """来院しやすい曜日・時間帯 (診療回から数える)。受付の画面と一覧が同じ数え方を使う。(格子, 表示の文字)"""
     grid = [[0] * 6 for _ in range(3)]
     for v in d["visits"]:
         day, hm = v.split(" ")
@@ -375,6 +376,11 @@ def _heat(d):
             grid[_band_of(hm)][wd] += 1
     best = max(((grid[b][w], b, w) for b in range(3) for w in range(6)), key=lambda x: (x[0], -x[1], -x[2]))
     big = f"{D.WEEK[best[2]]}曜の{BANDS[best[1]]}" if best[0] else "―"
+    return grid, big
+
+
+def _heat(d):
+    grid, big = heat_best(d)
     return heat_card(grid, BANDS, big, len(d["visits"]))
 
 
@@ -473,21 +479,34 @@ def _reception_templates(d):
 
 
 def reception_chooser(rows):
+    """受付用の患者様一覧。受付の端末は患者様に見せないので、氏名は伏せない。
+    数字は受付の画面と同じ出どころ (reception_data と heat_best) から読む。rows は D.reception_list()。"""
     body = ""
     for p in rows:
-        t = "　".join(f"{a['start_time']}〜{a['end_time']} {h(a['treatment'])}" for a in p["today"])
+        d = p["d"]
+        t = "　".join(f"{a['start_time']}〜{a['end_time']}" for a in d["today"])
+        proc = "　".join(h(a["treatment"]) for a in d["today"])
+        if d["booked"]:
+            dt = D.date.fromisoformat(d["booked"][0]["appt_date"])
+            nxt = f"{dt.month}/{dt.day}（{D.WEEK[dt.weekday()]}）"
+        else:
+            nxt = "未定"
+        memo = d["memo_latest"]
         body += (
             f'<tr class="row" tabindex="0" role="button" data-patient="{p["id"]}">'
-            f'<td class="no">{h(p["chart_no"])}</td>'
-            f'<td class="name"><span class="nm" data-name="{h(p["name"])}">●● ●●</span>'
-            '<button type="button" class="mini reveal" data-action="reveal">表示</button></td>'
-            f'<td class="time">{t}</td></tr>'
+            f'<td class="time">{t}</td><td class="no">{h(p["chart_no"])}</td>'
+            f'<td class="name">{h(p["name"])} 様</td><td class="proc">{proc}</td>'
+            f'<td class="nxt">{nxt}</td><td class="heat">{h(heat_best(d)[1])}</td>'
+            f'<td class="memo" title="{h(memo, quote=True)}">{h(memo) if memo else "—"}</td></tr>'
         )
     top = ('<header class="topbar"><span class="role-tag">受付用</span>'
-           f'<span class="date">{D.ja_date(app_today(), week=True)}</span></header>')
+           '<span class="patient">患者様一覧</span>'
+           f'<span class="date">{D.ja_date(app_today(), week=True)}</span><span class="spacer"></span>'
+           '<a class="to-entrance" href="/">← 入口へ戻る</a></header>')
     return (
-        top + '<main class="list" data-part="appointment-list"><table class="book">'
-        "<thead><tr><th>カルテ番号</th><th>氏名</th><th>今日の予約</th></tr></thead>"
+        top + '<main class="list" data-part="reception-list"><table class="book">'
+        "<thead><tr><th>時間</th><th>カルテ番号</th><th>氏名</th><th>今日の処置</th><th>次回の予約</th>"
+        "<th>来院しやすい曜日</th><th>受付メモ</th></tr></thead>"
         f"<tbody>{body}</tbody></table></main>"
     )
 
@@ -508,7 +527,8 @@ def list_page(rows):
         "<!doctype html><html lang='ja'><head><meta charset='utf-8'><title>予約一覧</title>"
         "<link rel='stylesheet' href='/static/css/mock.css'>"
         "<link rel='stylesheet' href='/static/css/booklist.css'></head><body class='role-list'>"
-        f'<header class="topbar"><span class="role-tag">予約一覧</span><span class="date">{D.ja_date(app_today(), week=True)}</span></header>'
+        f'<header class="topbar"><span class="role-tag">予約一覧</span><span class="date">{D.ja_date(app_today(), week=True)}</span>'
+        '<span class="spacer"></span><a class="to-entrance" href="/">← 入口へ戻る</a></header>'
         '<main class="list" data-part="appointment-list"><table class="book">'
         "<thead><tr><th>時間</th><th>カルテ番号</th><th>氏名 "
         '<button type="button" class="mini" data-action="reveal-all">すべて表示</button></th>'

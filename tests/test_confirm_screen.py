@@ -201,7 +201,7 @@ def test_back_button_and_voice_keep_draft_and_go_back(server, browser):  # noqa:
 def test_back_never_leaves_the_server(server, back):  # noqa: F811
     s = make_rec(server)
     r = httpx.get(f"http://127.0.0.1:{server}/drafts/{s['draft_id']}", params={"back": back})
-    assert r.status_code == 200 and "data-back='/'" in r.text and "example.com" not in r.text.split("<body")[1]
+    assert r.status_code == 200 and "data-back='/clinic'" in r.text and "example.com" not in r.text.split("<body")[1]
 
 
 def test_polished_text_is_the_body_and_original_is_kept(server, browser):  # noqa: F811
@@ -288,7 +288,7 @@ def test_leaving_patient_with_draft_is_stopped(server, browser):  # noqa: F811
     pg.click("[data-action=change-patient]")
     pg.wait_for_selector("#memo-block")
     pg.click("#memo-block [data-action=memo-later]")
-    pg.wait_for_url(f"http://127.0.0.1:{server}/")
+    pg.wait_for_url(f"http://127.0.0.1:{server}/clinic")
     assert db_one("SELECT state FROM recordings WHERE id = ?", s["id"])[0] == "後で直す"
     pg.close()
 
@@ -303,7 +303,7 @@ def test_failed_goes_later_then_fix_by_fixing_transcript(server, browser):  # no
     pg.click("[data-action=change-patient]")
     pg.wait_for_selector("#memo-block")  # 失敗でも、音声と診療回を残して進める
     pg.click("#memo-block [data-action=memo-later]")
-    pg.wait_for_url(f"http://127.0.0.1:{server}/")
+    pg.wait_for_url(f"http://127.0.0.1:{server}/clinic")
     row = db_one("SELECT * FROM recordings WHERE id = ?", s["id"])
     assert row["state"] == "後で直す" and row["audio_file"] and row["visit_id"] and row["patient_id"]
     set_fake(reply=GOOD, transcript=TALK)  # あとで直す。その場では話し直さない
@@ -319,7 +319,7 @@ def test_failed_goes_later_then_fix_by_fixing_transcript(server, browser):  # no
     assert "直した文字" in f.inner_text("[data-part=draft-transcript]") or "直した文字" in f.locator("[data-part=draft-transcript]").inner_html()
     assert db_one("SELECT fix_off FROM recordings WHERE id = ?", s["id"])[0] == 1  # 人が直した文字は、自動の直しをしない
     f.click("#btn-confirm")
-    f.wait_for_url(home(server, "/"))
+    f.wait_for_url(home(server, "/clinic"))
     assert db_one("SELECT state FROM recordings WHERE id = ?", s["id"])[0] == "確定"
     pg.close()
     f.close()

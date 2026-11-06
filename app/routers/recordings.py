@@ -151,7 +151,7 @@ def recordings_page():
     return HTMLResponse(
         "<!doctype html><html lang='ja'><head><meta charset='utf-8'><title>録音の一覧</title>"
         f"{CSS}</head><body class='rec-page' data-page='recordings'>"
-        "<header class='rec-head'><span>録音の一覧</span><a href='/'>予約一覧へ</a></header><main class='rec-main'>"
+        "<header class='rec-head'><span>録音の一覧</span><a href='/clinic'>予約一覧へ</a></header><main class='rec-main'>"
         "<table class='rtab' data-part='recording-list'><thead><tr><th>時間</th><th>長さ</th><th>カルテ番号</th><th>状態</th><th>操作</th></tr></thead>"
         "<tbody id='rows'></tbody></table>"
         "<div id='paste'><b>文字を貼り付けて下書きにする</b>（録音が使えないとき・試験用）<br>"
@@ -166,7 +166,7 @@ def safe_back(back: str) -> str:
     b = (back or "").strip()
     if b.startswith("/") and not b.startswith("//") and not any(c in b for c in ("\\", "\r", "\n", "\t", " ")):
         return b
-    return "/"
+    return "/clinic"
 
 
 def _fix_list(d):
@@ -195,7 +195,7 @@ def _fixes_html(d):
     return f"<ul class='fixes'>{rows}</ul>"
 
 
-def _draft_html(d, p, v, rec, fix, back="/"):
+def _draft_html(d, p, v, rec, fix, back="/clinic"):
     items = json.loads(d["items"] or "{}")
     done = d["status"] == "confirmed"
     dis = " disabled" if done else ""

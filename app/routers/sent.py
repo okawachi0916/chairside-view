@@ -84,7 +84,7 @@ def sent_page(n: int = MAX_SHOWN):
         "<!doctype html><html lang='ja'><head><meta charset='utf-8'><title>Claude へ送った文</title>"
         "<link rel='stylesheet' href='/static/css/mock.css'><link rel='stylesheet' href='/static/css/sent.css'></head>"
         "<body class='sent-page' data-page='sent'>"
-        "<header class='sent-head'><a class='back' href='/'>戻る</a><span>Claude へ送った文（新しい順）</span></header>"
+        "<header class='sent-head'><a class='back' href='/clinic'>戻る</a><span>Claude へ送った文（新しい順）</span></header>"
         "<main class='sent-main' data-part='sent-log'>"
         "<p class='sent-note'>名前・カルテ番号・生年月日などは伏せ字にして送っています。<mark class='masked'>色が付いた所</mark>が伏字です。元の名前はここにも出しません。</p>"
         f"{cards}</main><script src='/static/js/actions/look.js'></script></body></html>",

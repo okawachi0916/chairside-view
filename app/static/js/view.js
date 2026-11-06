@@ -144,7 +144,7 @@
       },
     });
     if (q.get("appt")) openUnit(q.get("appt"), q.get("role"), reopenFullscreen(q.get("fs"), q.get("ph")));
-    else location.href = "/";
+    else location.href = "/clinic";
   } else {
     openReception(q.get("patient"));
   }

@@ -1,4 +1,5 @@
 """画面に出すデータをデータベースから読む。毎回読み直し、どこにも保存しない。"""
+import re
 from datetime import date
 
 from app.ai import segview
@@ -191,9 +192,21 @@ def reception_data(pid):
         d["booked"] = _all(c, "SELECT appt_date, start_time, role, staff_name, reception_text FROM appointments "
                               "WHERE patient_id = ? AND appt_date > ? AND status = 'booked' ORDER BY appt_date, start_time",
                            pid, app_today())
+        d["memo_latest"] = latest_memo(d["memo_full"])
         d["goods"] = _all(c, "SELECT bought_on, item, qty FROM goods_purchases WHERE patient_id = ? ORDER BY bought_on DESC, id", pid)
         d["rx"] = _all(c, "SELECT prescribed_on, drug, amount FROM prescriptions WHERE patient_id = ? ORDER BY prescribed_on DESC, id", pid)
     return d
+
+
+def latest_memo(memo_full):
+    """いちばん新しい受付メモ1件の文。書いた時期（「2026年9月」）で比べ、読めなければ入れた順。無ければ空。"""
+    def key(ix_m):
+        ix, m = ix_m
+        hit = re.match(r"\s*(\d{4})年(?:(\d{1,2})月)?", m.get("written_on") or "")
+        return ((int(hit.group(1)), int(hit.group(2) or 0)) if hit else (0, 0), ix)
+    if not memo_full:
+        return ""
+    return max(enumerate(memo_full), key=key)[1]["body"]
 
 
 def _year_ago():
@@ -211,3 +224,12 @@ def reception_patients():
             r["today"] = _all(c, "SELECT start_time, end_time, treatment FROM appointments WHERE patient_id = ? "
                                  "AND appt_date = ? AND status = 'booked' ORDER BY start_time", r["id"], app_today())
         return rows
+
+
+def reception_list():
+    """受付用の患者様一覧の元。今日の予約の時間の順。1人ずつ受付の画面と同じ reception_data を読む。"""
+    out = []
+    for p in reception_patients():
+        p["d"] = reception_data(p["id"])
+        out.append(p)
+    return sorted(out, key=lambda p: (p["d"]["today"][0]["start_time"] if p["d"]["today"] else "99:99", p["chart_no"]))

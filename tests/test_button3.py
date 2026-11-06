@@ -104,7 +104,7 @@ def test_pick_patient_clears_and_goes_to_list(pg, server):  # noqa: F811
     pg.keyboard.press(KEY3)
     pg.wait_for_selector('[data-part="hidden-screen"]')
     pg.locator("text=予約一覧から選ぶ").click()
-    pg.wait_for_url(f"http://127.0.0.1:{server}/")
+    pg.wait_for_url(f"http://127.0.0.1:{server}/clinic")
     assert pg.locator("tr.row").count() == 6
     text = pg.inner_text("body")
     assert "見本 花子" not in text and "ペニシリン" not in text

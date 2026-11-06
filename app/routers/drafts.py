@@ -190,7 +190,7 @@ def today_page():
         "<!doctype html><html lang='ja'><head><meta charset='utf-8'><title>今日の診療一覧</title>"
         "<link rel='stylesheet' href='/static/css/mock.css'><link rel='stylesheet' href='/static/css/booklist.css'>"
         "<link rel='stylesheet' href='/static/css/rec.css'></head><body class='role-list' data-page='today'>"
-        "<header class='topbar'><span class='role-tag'>今日の診療一覧</span><a class='today-link' href='/'>予約一覧へ</a></header>"
+        "<header class='topbar'><span class='role-tag'>今日の診療一覧</span><a class='today-link' href='/clinic'>予約一覧へ</a></header>"
         "<main class='list' data-part='today-list'><table class='book'>"
         "<thead><tr><th>時間</th><th>カルテ番号</th><th>氏名</th><th>処置</th><th>状態</th></tr></thead>"
         "<tbody id='today-rows'></tbody></table></main>"

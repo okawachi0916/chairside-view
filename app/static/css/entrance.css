@@ -1,0 +1,31 @@
+/* 入口の画面。変数は mock.css の :root だけを使う */
+body.entrance { display: block; padding: 0; overflow: auto; }
+.entrance-main { max-width: 1400px; margin: 0 auto; padding: var(--sp-8) var(--sp-8) var(--sp-10); text-align: center; }
+.e-date { margin: 0; font-size: var(--fs-3); color: var(--c-sub); }
+.entrance h1 { margin: var(--sp-2) 0 0; font-size: var(--fs-7); line-height: var(--lh-tight); letter-spacing: var(--ls-head); }
+.e-en { margin: var(--sp-1) 0 var(--sp-8); font-size: var(--fs-2); letter-spacing: var(--ls-head); color: var(--c-sub); }
+.doors { display: flex; gap: var(--sp-8); align-items: stretch; text-align: left; }
+.door {
+  flex: 1; display: flex; flex-direction: column; gap: var(--sp-3);
+  padding: var(--sp-8); border-radius: var(--r-l);
+  color: var(--c-surface); text-decoration: none; cursor: pointer;
+}
+.door-reception { background: var(--c-reception); }
+.door-clinic { background: var(--c-doctor); }
+.door:hover, .door:focus { outline: var(--sp-1) solid var(--c-line-strong); outline-offset: var(--sp-1); }
+.door h2 { margin: 0; font-size: var(--fs-6); line-height: var(--lh-tight); }
+.door-sub { margin: 0; font-size: var(--fs-4); font-weight: var(--fw-medium); }
+.door dl { margin: var(--sp-3) 0 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.door-row { display: flex; gap: var(--sp-4); }
+.door dt { flex: none; width: 5.5em; font-size: var(--fs-2); font-weight: var(--fw-bold); }
+.door dd { margin: 0; font-size: var(--fs-3); line-height: var(--lh-text); }
+.door-note { margin: var(--sp-3) 0 0; font-size: var(--fs-2); line-height: var(--lh-text); flex: 1; }
+.chip { display: inline-block; padding: 0 var(--sp-2); border-radius: var(--r-s); font-size: var(--fs-1); font-weight: var(--fw-bold); background: var(--c-surface); }
+.chip-doctor { color: var(--c-doctor); }
+.chip-hygienist { color: var(--c-hygienist); }
+.door-go {
+  align-self: flex-start; margin-top: var(--sp-4); padding: var(--sp-3) var(--sp-6);
+  background: var(--c-surface); border-radius: var(--r-s); font-size: var(--fs-4); font-weight: var(--fw-bold);
+}
+.door-reception .door-go { color: var(--c-reception); }
+.door-clinic .door-go { color: var(--c-doctor); }

@@ -75,7 +75,7 @@ def wait_db(pred, sec=15):
 def open_app(browser, server):  # noqa: F811
     ctx = browser.new_context(viewport={"width": 1920, "height": 1030}, permissions=["microphone"])
     pg = ctx.new_page()
-    pg.goto(f"http://127.0.0.1:{server}/app")
+    pg.goto(f"http://127.0.0.1:{server}/app?go=/clinic")
     pg.wait_for_function("document.body.dataset.rec === 'idle'")
     pg.wait_for_function("document.getElementById('inner').contentDocument.querySelector('[data-part=appointment-list]')")
     return pg
@@ -208,7 +208,7 @@ def test_fixed_recording_blocks_next_patient_until_stopped(server, browser):  # 
                          "!!document.getElementById('inner').contentDocument.getElementById('memo-block')")
     if inner(pg).locator("#memo-block").count():
         inner(pg).click("#memo-block [data-action=memo-later]")
-        pg.wait_for_function("document.getElementById('inner').contentWindow.location.pathname === '/'")
+        pg.wait_for_function("document.getElementById('inner').contentWindow.location.pathname === '/clinic'")
     rows = wait_db(lambda r: r and r[0]["state"] in ("下書き", "後で直す"))
     c = connect()
     assert c.execute("SELECT chart_no FROM patients WHERE id = ?", (rows[0]["patient_id"],)).fetchone()[0] == "0123"

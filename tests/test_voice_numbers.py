@@ -519,7 +519,7 @@ def test_side_by_side_in_photo_fullscreen(server, browser):  # noqa: F811
 def test_outside_app_opens_same_screen_inside_app(server, browser):  # noqa: F811
     import time
 
-    for path, sel in [("/", "[data-part=appointment-list]"), ("/recordings", "body")]:
+    for path, sel in [("/clinic", "[data-part=appointment-list]"), ("/recordings", "body")]:
         pg = open_page(browser, server, path)
         pg.wait_for_selector(sel)
         time.sleep(0.4)
