@@ -55,7 +55,7 @@ def test_type_scale_weights_and_line_heights():
     sizes = {val for k, val in v.items() if k.startswith("--fs-")}
     weights = {val for k, val in v.items() if k.startswith("--fw-")}
     lhs = {val for k, val in v.items() if k.startswith("--lh-")}
-    assert len(sizes) <= 7 and min(int(s[:-2]) for s in sizes) >= 14, sizes
+    assert len(sizes) <= 8 and min(int(s[:-2]) for s in sizes) >= 14, sizes
     assert weights == {"400", "500", "700"}, weights
     assert len(lhs) == 3, lhs
     for name, text in _css().items():
@@ -64,7 +64,8 @@ def test_type_scale_weights_and_line_heights():
                           ("line-height", r"var\(--lh-\w+\)"), ("letter-spacing", r"var\(--ls-\w+\)")]:
             for val in re.findall(rf"(?<![-\w]){prop}\s*:\s*([^;}}]+)", body):
                 assert re.fullmatch(pat, val.strip()), f"{name}: {prop}: {val}"
-        assert not re.search(r"box-shadow", body), f"{name}: 影は使わない"
+        for val in re.findall(r"box-shadow\s*:\s*([^;}]+)", body):  # G21p: 影は :root の1つだけ
+            assert val.strip() == "var(--shadow-card)", f"{name}: 影は var(--shadow-card) だけ: {val}"
         for val in re.findall(r"border-radius\s*:\s*([^;}]+)", body):
             assert val.strip() in ("var(--r-s)", "var(--r-l)", "50%"), f"{name}: {val}"
 

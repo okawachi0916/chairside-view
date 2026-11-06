@@ -22,7 +22,7 @@
   --c-warn-soft: #fbe8cc;
   --c-pulp-dead: #e8892c;
 
-  /* 文字。大きさ7段階、太さ3つ、行間3段階 */
+  /* 文字。大きさ8段階（8 は入口の題だけ。G21p）、太さ3つ、行間3段階 */
   --font: "Noto Sans JP", sans-serif;
   --fs-1: 14px;
   --fs-2: 16px;
@@ -31,6 +31,7 @@
   --fs-5: 28px;
   --fs-6: 36px;
   --fs-7: 56px;
+  --fs-8: 84px;
   --fw-regular: 400;
   --fw-medium: 500;
   --fw-bold: 700;
@@ -40,10 +41,13 @@
   --ls-head: 0.02em;
   --ls-text: 0.03em;
   --ls-num: 0.04em;
+  --ls-wide: 0.3em;
 
   /* 角丸2つ、余白は4の倍数 */
   --r-s: 8px;
   --r-l: 12px;
+  /* 影は1つだけ。白いカードを地から浮かせる薄い影（G21p 入口のカード） */
+  --shadow-card: 0 2px 10px rgba(27, 34, 43, 0.08);
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
