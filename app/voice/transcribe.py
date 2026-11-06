@@ -41,6 +41,16 @@ def to_pcm(data: bytes) -> np.ndarray:
 engine = {"device": "未読み込み", "fallback_reason": ""}
 
 
+def model_is_cached(name: str) -> bool:
+    """モデルが置き場にすでにあるか（取得はしない）。起動時の先読みを、あるときだけにするために使う。"""
+    try:
+        from faster_whisper.utils import download_model
+        download_model(name, local_files_only=True, cache_dir=settings()["cache_dir"])
+        return True
+    except Exception:  # noqa: BLE001  無い・読めない = 先読みしない（使うときに取得する。ここでは握りつぶしでなく「無い」の答え）
+        return False
+
+
 def _model(name: str):
     if name not in _models:
         from faster_whisper import WhisperModel

@@ -19,6 +19,9 @@ ROOT = Path(__file__).resolve().parents[2]
 def _warm():
     """最初の1回を速くするため、起動時に裏でモデルを読んでおく。読めなくても起動は続ける。"""
     try:
+        # モデルがまだ手元に無いときは、起動のたびに数GBを裏で取りにいかない。最初に声を使うときに取得する
+        if not tr.model_is_cached(tr.settings()["model"]):
+            return
         tr._model(tr.settings()["model"])
     except Exception as e:  # noqa: BLE001  読めなくても起動は続ける。理由は記録に残す
         errlog.record("声", "起動時に文字起こしのモデルを読めませんでした", e)
