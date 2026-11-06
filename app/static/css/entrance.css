@@ -1,31 +1,67 @@
-/* 入口の画面。変数は mock.css の :root だけを使う */
-body.entrance { display: block; padding: 0; overflow: auto; }
-.entrance-main { max-width: 1400px; margin: 0 auto; padding: var(--sp-8) var(--sp-8) var(--sp-10); text-align: center; }
-.e-date { margin: 0; font-size: var(--fs-3); color: var(--c-sub); }
-.entrance h1 { margin: var(--sp-2) 0 0; font-size: var(--fs-7); line-height: var(--lh-tight); letter-spacing: var(--ls-head); }
-.e-en { margin: var(--sp-1) 0 var(--sp-8); font-size: var(--fs-2); letter-spacing: var(--ls-head); color: var(--c-sub); }
+/* 入口の画面（G21p）。変数は mock.css の :root だけを使う。新しい色の名前は作らず、薄い色は役割の色と白を混ぜて作る */
+body.entrance { display: flex; flex-direction: column; padding: 0; overflow: auto; background: var(--c-canvas); }
+
+/* いちばん上の細い帯と今日の日付 */
+.e-bar {
+  flex: none; display: flex; align-items: center; padding: var(--sp-3) var(--sp-8);
+  background: color-mix(in srgb, var(--c-ink) 45%, var(--c-sub));
+}
+.e-date { font-size: var(--fs-3); font-weight: var(--fw-bold); color: var(--c-surface); }
+
+.entrance-main {
+  flex: 1; width: 100%; max-width: 1360px; margin: 0 auto;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: var(--sp-8) var(--sp-8) var(--sp-10); text-align: center;
+}
+.entrance h1 { margin: 0; font-size: var(--fs-8); font-weight: var(--fw-bold); line-height: var(--lh-tight); letter-spacing: var(--ls-head); }
+.e-en { margin: var(--sp-2) 0 var(--sp-10); font-size: var(--fs-2); font-weight: var(--fw-medium); letter-spacing: var(--ls-wide); color: var(--c-sub); }
+
+/* 2つのカード。同じ高さで横に並ぶ。カードの地の色は役割の色で、上の帯にだけ見える */
 .doors { display: flex; gap: var(--sp-8); align-items: stretch; text-align: left; }
 .door {
-  flex: 1; display: flex; flex-direction: column; gap: var(--sp-3);
-  padding: var(--sp-8); border-radius: var(--r-l);
-  color: var(--c-surface); text-decoration: none; cursor: pointer;
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  border-radius: var(--r-l); box-shadow: var(--shadow-card);
+  color: var(--c-ink); text-decoration: none; cursor: pointer;
 }
 .door-reception { background: var(--c-reception); }
-.door-clinic { background: var(--c-doctor); }
+.door-clinic { background-color: var(--c-doctor); background-image: linear-gradient(90deg, var(--c-doctor), var(--c-hygienist)); }
 .door:hover, .door:focus { outline: var(--sp-1) solid var(--c-line-strong); outline-offset: var(--sp-1); }
-.door h2 { margin: 0; font-size: var(--fs-6); line-height: var(--lh-tight); }
-.door-sub { margin: 0; font-size: var(--fs-4); font-weight: var(--fw-medium); }
-.door dl { margin: var(--sp-3) 0 0; display: flex; flex-direction: column; gap: var(--sp-3); }
-.door-row { display: flex; gap: var(--sp-4); }
-.door dt { flex: none; width: 5.5em; font-size: var(--fs-2); font-weight: var(--fw-bold); }
-.door dd { margin: 0; font-size: var(--fs-3); line-height: var(--lh-text); }
-.door-note { margin: var(--sp-3) 0 0; font-size: var(--fs-2); line-height: var(--lh-text); flex: 1; }
-.chip { display: inline-block; padding: 0 var(--sp-2); border-radius: var(--r-s); font-size: var(--fs-1); font-weight: var(--fw-bold); background: var(--c-surface); }
-.chip-doctor { color: var(--c-doctor); }
-.chip-hygienist { color: var(--c-hygienist); }
-.door-go {
-  align-self: flex-start; margin-top: var(--sp-4); padding: var(--sp-3) var(--sp-6);
-  background: var(--c-surface); border-radius: var(--r-s); font-size: var(--fs-4); font-weight: var(--fw-bold);
+
+.door-head { padding: var(--sp-6) var(--sp-8); color: var(--c-surface); }
+.door h2 { margin: 0; font-size: var(--fs-6); font-weight: var(--fw-bold); line-height: var(--lh-tight); }
+.door-sub { margin: var(--sp-2) 0 0; font-size: var(--fs-3); font-weight: var(--fw-bold); }
+
+.door-body { flex: 1; display: flex; flex-direction: column; gap: var(--sp-6); padding: var(--sp-8); background: var(--c-surface); }
+.door dl { margin: 0; display: flex; flex-direction: column; gap: var(--sp-5); }
+.door-row { display: flex; align-items: baseline; gap: var(--sp-4); }
+.door dt { flex: none; width: 5em; font-size: var(--fs-1); font-weight: var(--fw-medium); color: var(--c-sub); }
+.door dd { margin: 0; }
+.door-see { font-size: var(--fs-4); font-weight: var(--fw-medium); line-height: var(--lh-text); }
+/* 札は行の中に並べる（flex にすると文が行に分かれて写しが崩れる） */
+.door-ops .tag + .paren + .tag { margin-left: var(--sp-2); }
+
+/* 文の括弧は残し、見た目では札に置き換える（幅0。読み上げと写しでは元の文のまま） */
+.paren { display: inline-block; width: 0; overflow: hidden; vertical-align: bottom; }
+
+/* 操作の丸い小さな札 */
+.tag { display: inline-block; padding: var(--sp-1) var(--sp-4); border-radius: var(--r-l); font-size: var(--fs-2); font-weight: var(--fw-bold); line-height: var(--lh-tight); }
+.tag-reception { background: color-mix(in srgb, var(--c-reception) 12%, var(--c-surface)); color: var(--c-reception); }
+.tag-plain { background: var(--c-canvas); color: var(--c-ink); }
+.tag-clinic { background: color-mix(in srgb, var(--c-doctor) 12%, var(--c-surface)); color: var(--c-doctor); }
+
+/* 一言は左に細い縦線の引用の形 */
+.door-note {
+  flex: 1; margin: 0; padding-left: var(--sp-4); border-left: var(--sp-1) solid var(--c-line-strong);
+  font-size: var(--fs-2); line-height: var(--lh-text); color: var(--c-sub);
 }
-.door-reception .door-go { color: var(--c-reception); }
-.door-clinic .door-go { color: var(--c-doctor); }
+.chip { display: inline-block; margin: 0 var(--sp-1); padding: 0 var(--sp-2); border-radius: var(--r-s); font-size: var(--fs-1); font-weight: var(--fw-bold); color: var(--c-surface); }
+.chip-doctor { background: var(--c-doctor); }
+.chip-hygienist { background: var(--c-hygienist); }
+
+/* カードの幅いっぱいの塗りのボタン。2つのカードは同じ高さなので、下の端でそろう */
+.door-go {
+  display: block; padding: var(--sp-4) var(--sp-6); border-radius: var(--r-s); text-align: center;
+  font-size: var(--fs-4); font-weight: var(--fw-bold); color: var(--c-surface);
+}
+.door-reception .door-go { background: var(--c-reception); }
+.door-clinic .door-go { background: var(--c-doctor); }

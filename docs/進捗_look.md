@@ -1,11 +1,12 @@
 # 進捗 look
+- G21p 完了: 入口の画面の見た目（文・行き先は G21n のまま）。上に濃い灰色の帯と日付、題は 84px（--fs-8。入口の題だけ）、英字は字間 --ls-wide。2つの札は白いカードで上だけ色の帯（受付は紫、臨床は紺→緑）。カードの影は :root の --shadow-card の1つだけ（決まりを「影なし」から変えた。test_design_tokens も）。括弧（「」（））は文の中に残し、見た目は幅0（.paren）で札に置き換える。薄い色は役割の色と白の color-mix で作り、色の名前は足していない。試験は tests/test_g21p.py、画像は docs/画面/G21p（before／after。1920×1080 と 1920×1030）。開始時のコミット: 59eba2b。
 - G07g 完了: 歯の絵を院長の見本に合わせた。凡例は絵の左に縦（tooth_chart.py の LEGEND、panel）、絵は右寄せで大きく（1本の幅 44.9px → 51.7px、絵 745×291 → 849×310。1920×1080）。カリエスは歯冠と別の印（tooth_status.caries）。根にインプラント（斜線のねじ。上部構造が無ければ冠なし）。ポンティックは灰色の冠と横の棒。根管充填の済んだ歯の呼び名は「根充済」にそろえた（古い DB の呼び名は update.py が直す）。有床義歯の あり／なし と 自院作成／他院作成 は絵の左下（appliance_html）。治療済みの枠は点線。花子様にインプラントは入れない（AI の見本の質問「インプラントの記録は？」と食い違うため。院長の決定 11/5）。インプラントは一郎様（上部構造あり）と美咲様（なし）。花子様の有床義歯は右上（左下5番はブリッジにした）。試験は tests/test_tooth_chart.py。画像は docs/画面/G07g（before／after）。開始時のコミット: 82d23e4。
 - G07f 完了: 歯の状態の絵を歯冠と根の2つで描く（app/mockview/tooth_chart.py の parts で今までの文字も読み替える）。tooth_status に crown・root の列。囲みは 自院で治療済み=薄い四角（tc-box done）、治療中=濃い四角（tc-box doing。今日の処置の歯でも囲む）。凡例は絵の下に1行（mock.css の .tc-legend）。赤い歯髄・今日の処置の枠・他院の字は無くした。試験は tests/test_tooth_chart.py。開始時のコミット: 31e85c4。
 - G07e 完了: 全画面と答えの画面にスクロールを出さない。収め方は app/static/js/actions/look.js（2列 fit-2col → 字を小さく --fit → ページ送り）、形は unit.css。答えの枠は幅いっぱい（ai.js は触らず unit.css で上書き）。下書きの画面と /sent も1画面に（rec.css、sent.css）。試験は tests/test_no_scroll.py、画像は docs/画面/G07e。開始時のコミット: c4f3b3e。
 - G12-r2 完了: 全画面の見た目の直し。全画面では上の行だけ残し、帯（重要事項も）と本体を隠す（AI の答えだけは重要事項の帯を残す）。題の札と「もとに戻す」などのボタンは枠線に載せる。重要事項は1件ずつ題（赤の太字）と中身を2行に分けた。写真は左の幅を出す枚数で決め、残りの幅は全部一覧に使う。CSS は unit.css と photos.css。画像は C:\hackathon\shots\fullscreen。
 - G23 完了: 歯の状態の絵（app/mockview/tooth_chart.py、SVG）。データは tooth_status（app/views/data.py に読み込みを1つ足した）。自院・他院は治療歴の1本の歯と、義歯・ブリッジの作成元から決める。今日の処置の歯は予約の detail から。試験は tests/test_tooth_chart.py。
 - G07d 完了（見た目の仕上げ）。色・文字・行間・字間・角丸・余白は app/static/css/mock.css の :root に集めた。書体は Noto Sans JP（app/static/fonts に同梱）。
-- 決まり: 色13（グレー6、役割3、赤2、琥珀2）、大きさ7段階（14〜56px）、太さ 400/500/700、行間 1.25/1.4/1.7、角丸 8/12px、影なし。試験は tests/test_design_tokens.py。
+- 決まり: 色13（グレー6、役割3、赤2、琥珀2）、大きさ8段階（14〜84px。84 は入口の題だけ）、太さ 400/500/700、行間 1.25/1.4/1.7、角丸 8/12px、影は --shadow-card の1つだけ（入口のカード）。試験は tests/test_design_tokens.py。
 - 部品は app/mockview/（歯周は perio_parts.py、受付は reception_parts.py）。
 - 開始時のコミット: 9dc3e98（main を取り込み済み）
 - 前と後の画像: C:\hackathon\shots\G07d\前、後

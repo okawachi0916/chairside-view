@@ -43,8 +43,9 @@ def test_two_doors_are_whole_cards_with_role_colors(server, browser):  # noqa: F
     assert rb["x"] < cb["x"] and abs(rb["y"] - cb["y"]) < 2  # 横に並ぶ
     assert rec.evaluate("e => getComputedStyle(e).backgroundColor") == "rgb(99, 70, 153)"  # 受付の紫
     assert cli.evaluate("e => getComputedStyle(e).backgroundColor") == "rgb(45, 79, 134)"  # 歯科医師の紺
-    assert pg.locator(".chip-doctor").evaluate("e => getComputedStyle(e).color") == "rgb(45, 79, 134)"
-    assert pg.locator(".chip-hygienist").evaluate("e => getComputedStyle(e).color") == "rgb(38, 105, 74)"
+    # G21p: 札は紺と緑の塗りに白い字になった
+    assert pg.locator(".chip-doctor").evaluate("e => getComputedStyle(e).backgroundColor") == "rgb(45, 79, 134)"
+    assert pg.locator(".chip-hygienist").evaluate("e => getComputedStyle(e).backgroundColor") == "rgb(38, 105, 74)"
     pg.close()
 
 
