@@ -221,6 +221,23 @@
     main.concat(close).forEach(function (b, i) { out.push({ n: window.CVNumRule.label(i + 1), key: "sel:" + selOf(b), el: b }); });
     return out;
   }
+  // ボタンにも番号を付ける全画面（config/examples.json の screens.<名前>.numbered_buttons）。G14q: 歯周検査。
+  // いま押せる「次のページ」「前のページ」と、最後に「もとに戻す」。順番と番号は話した内容の整理と同じ決まり（numrule.js）。
+  // 画面の名前で分けず、表に書いた画面ならどこでも同じ。押すのはマウスと同じ道（view.js の click → data-action）
+  function pageTargets(key) {
+    var p = document.querySelector('[data-fs-panel="' + key + '"]'), out = [];
+    if (!p) return out;
+    var pick = function (a) {
+      var b = p.querySelector('[data-action="' + a + '"]');
+      return b && !b.disabled && !b.hidden && inView(b) ? b : null;
+    };
+    var list = ["fs-next", "fs-prev"].map(pick).filter(Boolean), close = pick("fs-close");
+    if (close) list.push(close);
+    list.forEach(function (b, i) {
+      out.push({ n: window.CVNumRule.label(i + 1), key: "sel:[data-fs-panel=\"" + key + "\"] [data-action=\"" + b.dataset.action + "\"]", el: b });
+    });
+    return out;
+  }
   function numberTargets() {
     if (!numCfg || window.CVActions.isHidden() || document.querySelector(".fs-panel")) return [];
     var out = [];
@@ -252,7 +269,13 @@
     var words = [];
     var panel = document.querySelector(".fs-panel");
     var next = panel && panel.querySelector('[data-action="fs-next"]');
-    if (sc.pages && next && !next.hidden) words = words.concat(ex.page_words || []);
+    var prev = panel && panel.querySelector('[data-action="fs-prev"]');
+    if (sc.pages && next && !next.hidden) { // 押せない方の言葉は出さない（最初のページの「前のページ」など）
+      (ex.page_words || []).forEach(function (w) {
+        var b = w === "次のページ" ? next : w === "前のページ" ? prev : null;
+        if (!b || !b.disabled) words.push(w);
+      });
+    }
     return { words: words.concat(sc.words || []), message: sc.message || "" };
   }
   function showNumbers() {
@@ -278,7 +301,8 @@
       if (bw.message) chip(band, bw.message, "ex-msg");
       document.body.appendChild(band);
       document.body.dataset.guide = key;
-      var st = key === "spoken-summary" ? segTargets() : [];
+      var scr = (exCfg && exCfg.screens && exCfg.screens[key]) || {};
+      var st = key === "spoken-summary" ? segTargets() : scr.numbered_buttons ? pageTargets(key) : [];
       if (st.length) { // ボタンにも番号。ボタンは明るいまま、まわりを暗くする
         dimWithHoles(st);
         addBadges(st);

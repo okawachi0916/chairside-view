@@ -1,4 +1,5 @@
 # 進捗 voice
+- G14q: 歯周検査の全画面でも、声を待つとき少し暗くして、押せるボタンに番号（次のページ・前のページ・もとに戻す）と言える言葉を出す。決め打ちをやめ、config/examples.json の numbered_buttons に書いた画面ならどこでも同じ（pageTargets）。押せない方の言葉は出さない。言い方の揺れは mishear.json に予想9行。
 - G14p: マイクの選択は cv.pref.micId（患者様切り替えの一時情報消去でも残す）。無音のときは機器名と対処を出す。/voice-test でマイクを選べる（選んだ機器は全画面で使う）。マイクが使えないとき、理由と次にすることを日本語で出す（mic_error.js）。AI デスクの本物のマイクは localhost で動くことを確認。院長のブラウザで何と出るかの確認待ち（ブラウザの許可の可能性）。
 - G14o 完了: 声の操作の聞き違いの表 config/mishear.json（予想84・実測85行）。interpret.py の照合の直前だけで使い、録音の文字起こし等には混ぜない。実測の声と結果は tests/mishear_measure（measure.py で取り直し、analyze.py で数える）。表の足し方は docs/仕様.md。
 - G14n 完了: 声で呼ぶ番号は 5 と 8 を飛ばす（決まりは app/numbering.py と numrule.js の1か所）。重要事項1 全身既往2 今日の処置3 治療歴4 写真6 話した内容7 歯周9 言える言葉10 役割11 スマホ12。写真の札も同じ並び（photos.number は変えない）。前後の画面は docs/画面/G14n。
