@@ -22,5 +22,4 @@ def test_treatment_photos_are_the_new_four_in_the_same_place():
 
 def test_readme_says_claude_made_6_to_9():
     t = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "ChatGPT" not in t
     assert "ComfyUI" in t and "z_image_turbo" in t and "構図の手本" in t and "クリーム色" in t

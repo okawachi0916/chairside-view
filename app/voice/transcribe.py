@@ -15,7 +15,9 @@ _models = {}
 
 
 def settings():
-    d = {"model": "large-v3", "cache_dir": os.environ.get("CV_CACHE", r"C:\hackathon\work\_cache") + "\\whisper"}
+    # モデルの置き場: 環境変数 CV_CACHE、無ければ作品のフォルダの隣の _cache（この PC では C:\hackathon\work\_cache と同じ）
+    cache = os.environ.get("CV_CACHE") or str(Path(__file__).resolve().parents[2].parent / "_cache")
+    d = {"model": "large-v3", "cache_dir": str(Path(cache) / "whisper")}
     if CONFIG.exists():
         d.update(json.loads(CONFIG.read_text(encoding="utf-8")))
     return d
