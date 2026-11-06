@@ -150,9 +150,10 @@ def test_confirmed_segment_has_no_delete_button_and_cannot_be_deleted(manual):
 
 def test_seed_sample_segments_are_dated_before_today():
     from app.db import initial
+    from app.today import BASE  # 見本は BASE を「今日」として書いてある（今日へずらすのは dates.py）
 
     built = initial.build()
     rows = built["recordings"]
     visits = {v["id"]: v["visit_date"] for v in built["visits"]}
-    assert rows and all(r["started_at"][:10] == visits[r["visit_id"]] < initial.TODAY for r in rows)  # 前の診療回の日付
+    assert rows and all(r["started_at"][:10] == visits[r["visit_id"]] < BASE for r in rows)  # 前の診療回の日付
     assert {r["role"] for r in rows} == {"doctor", "hygienist"} and all(r["state"] == "確定" for r in rows)

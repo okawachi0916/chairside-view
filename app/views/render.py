@@ -2,12 +2,12 @@
 from html import escape as h
 
 from app.ai import fixtalk, segview
-from app.db import TODAY
+from app.today import today as app_today
 from app.mockview.parts import FULL, MIC, PHONE, band, card
 from app.views import photos as PH
 from app.numbering import label as num_label
 from app.mockview.reception_parts import heat_card, next_card, reserve_card
-from app.mockview.perio_parts import perio_card
+from app.mockview.perio_parts import TITLE as PERIO_TITLE, perio_body, perio_card
 from app.mockview import tooth_chart as TC
 from app.views import data as D
 
@@ -22,7 +22,7 @@ def topbar(tag, patient, appt, buttons, mic=True):
         '<header class="topbar">'
         f'<span class="role-tag">{tag}</span>'
         f'<span class="patient">{patient}</span>'
-        f'<span class="date">{D.ja_date(TODAY, week=True)}</span>'
+        f'<span class="date">{D.ja_date(app_today(), week=True)}</span>'
         f'<span class="appt" data-part="today-appointment">{appt}</span>'
         f'<span class="spacer"></span>{right}</header>'
     )
@@ -207,7 +207,7 @@ def _fs_medical(d):
 
 def _treat_title(a):
     """今日の診療回だけ「今日の処置」。過去・先の診療回は、その年月日で出す。"""
-    return "今日の処置" if a["appt_date"] == TODAY else f"{D.ja_date(a['appt_date'])}の処置"
+    return "今日の処置" if a["appt_date"] == app_today() else f"{D.ja_date(a['appt_date'])}の処置"
 
 
 def _fs_doctor(d):
@@ -215,13 +215,17 @@ def _fs_doctor(d):
     a = d["appt"]
     plan = "".join(f"<li>{h(x)}</li>" for x in d["plan"])
     policy = "".join(f"<p>{h(x)}</p>" for x in d["policy"])
+    old = "".join(f'<p class="old-policy"><small>{D.slash_date(x["superseded_on"])}まで</small> {h(x["body"])}</p>' for x in d.get("policy_old", []))
+    if old:
+        policy += f'<h4 class="old-policy-h">前の治療方針</h4>{old}'
+    main, sub = _today_main(d)
     notes = "".join(
         f'<div class="fs-note"><b>{D.ja_date(n["note_date"])}{" 歯科衛生士" if n["author_role"] == "hygienist" else ""}</b> {h(n["body"])}</div>'
         for n in d["notes"]
     )
     today = _tpl("today-treatment", _treat_title(a),
                  '<div class="fs-cols"><div class="fs-col"><div class="fs-scroll">'
-                 f'<h3>{_treat_title(a)}</h3><p class="fs-big-line">{h(a["detail"] or a["treatment"])}</p><p>{h(a["detail_sub"])}</p>'
+                 f'<h3>{_treat_title(a)}</h3><p class="fs-big-line">{h(main)}</p><p>{h(sub)}</p>'
                  f"<h3>治療計画</h3><ul>{plan}</ul><h3>治療方針</h3>{policy}</div></div>"
                  f'<div class="fs-col"><h3>過去の診療メモ</h3><div class="fs-scroll">{notes}</div></div></div>')
     rows = "".join(
@@ -234,39 +238,16 @@ def _fs_doctor(d):
     return today + hist
 
 
-UPPER = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]
-LOWER = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
-
-
-def _perio_col(ex, label):
-    def cell(t):
-        v = ex["teeth"].get(t)
-        if not v:
-            return f'<div class="pc none"><i>{t}</i></div>'
-        cls = " deep" if v["pocket"] >= 4 else ""
-        return (f'<div class="pc{cls}"><i>{t}</i><b>{v["pocket"]}</b>'
-                f'<u class="bop">{"●" if v["bop"] else ""}</u>{"<em>動</em>" if v["mobility"] else ""}</div>')
-
-    stats = (f'4mm以上 {ex["deep"]}本　BOP {ex["bop"]}%　PCR {ex["pcr"]}%　動揺 {ex["loose"]}本　検査した歯 {ex["n"]}本')
-    return (f'<div class="fs-col pcol"><h3>{label} {D.ja_date(ex["date"])}</h3><div class="pstat">{stats}</div>'
-            f'<div class="pgrid">{"".join(cell(t) for t in UPPER)}</div>'
-            f'<div class="pgrid">{"".join(cell(t) for t in LOWER)}</div></div>')
 
 
 def _fs_perio(d):
-    """新しい検査から順に、前回と今回を前後に並べる。1ページに1組。ページ送りで過去の検査へ遡る。"""
+    """新しい検査から順に、1ページに1回分の検査を大きく出す。ページ送りで過去の検査へ遡る。"""
     ex = d["perio_all"]
     if not ex:
-        return _tpl("perio-exam", "歯周基本検査", '<div class="fs-scroll"><p>検査の記録はありません</p></div>')
-    pages = []
-    for i in range(max(1, len(ex) - 1)):
-        new = ex[i]
-        old = ex[i + 1] if i + 1 < len(ex) else None
-        first = i == 0
-        left = _perio_col(old, "前回" if first else "前の検査") if old else ""
-        right = _perio_col(new, "今回" if first else "この検査")
-        pages.append(f'<section class="fs-page"><div class="fs-cols">{left}{right}</div></section>')
-    return _tpl("perio-exam", "歯周基本検査", f'<div class="fs-scroll" data-pages>{"".join(pages)}</div>')
+        return _tpl("perio-exam", PERIO_TITLE, '<div class="fs-scroll"><p>検査の記録はありません</p></div>')
+    pages = [f'<section class="fs-page perio-page">{perio_body(e, ex[i + 1] if i + 1 < len(ex) else None)}</section>'
+             for i, e in enumerate(ex)]
+    return _tpl("perio-exam", PERIO_TITLE, f'<div class="fs-scroll perio-fs" data-pages>{"".join(pages)}</div>')
 
 
 def _fs_memo(d):
@@ -280,12 +261,22 @@ def _fs_memo(d):
 # ---------- 歯科医師 ----------
 def _months_since(s):
     """経過した月数。日数から四捨五入する (2026年5月8日から6か月)。"""
-    days = (D.date.fromisoformat(TODAY) - D.date.fromisoformat(s)).days
+    days = (D.date.fromisoformat(app_today()) - D.date.fromisoformat(s)).days
     return round(days / 30.4375)
+
+
+def _today_main(d):
+    """今日の処置の大きな1行と下の小さな行。記録したあとは、予約の予定ではなく、記録した「やったこと」を出す（G19m）。"""
+    a = d["appt"]
+    done = d.get("done_today") or []
+    if done:
+        return "、".join(done), ""
+    return a["detail"] or a["treatment"], a["detail_sub"]
 
 
 def _doctor_today(d):
     a = d["appt"]
+    main, sub = _today_main(d)
     notes = "".join(
         f'<div class="n{" hyg" if n["author_role"] == "hygienist" else ""}">{D.ja_date(n["note_date"])} '
         f'{"歯科衛生士 " if n["author_role"] == "hygienist" else ""}{h(n["body"])}</div>'
@@ -294,7 +285,7 @@ def _doctor_today(d):
     plan = "".join(f"<div>{h(x)}</div>" for x in d["plan"])
     inner = (
         '<div class="today">'
-        f'<div class="main">{h(a["detail"] or a["treatment"])}</div><div class="sub">{h(a["detail_sub"])}</div></div>'
+        f'<div class="main">{h(main)}</div><div class="sub">{h(sub)}</div></div>'
         f'<div class="plan" data-part="treatment-plan"><h3>治療計画</h3>{plan}</div>'
         '<h3 class="notes-h">過去の診療メモ</h3>'
         f'<div class="notes" data-part="past-notes">{notes}</div>'
@@ -315,20 +306,14 @@ def _doctor_history(d):
 
 
 def _doctor_teeth(d):
-    lines = "".join(f"<div><b>その他粘膜疾患</b> <span>{h(m['site'])} {h(m['name'])}</span></div>" for m in d["mucosal"])
-    for x in d["dentures"]:
-        t = f"{x['site']} {x['kind']}"
-        if x["made_by"]:
-            t += f" {x['made_by']}"
-        if x["made_on"]:
-            t += f" {D.ja_date(x['made_on'])} 経過期間 {_months_since(x['made_on'])}か月"
-        lines += f"<div><b>義歯</b> <span>{h(t)}</span></div>"
+    dentures = [{**x, "date": (f"{D.ja_date(x['made_on'])} 経過期間 {_months_since(x['made_on'])}か月"
+                               if x["made_on"] else "")} for x in d["dentures"]]
     own = TC.own_teeth(d["teeth"], [x["site"] for x in d["history"]], d["dentures"])
-    today = TC.today_teeth(a["detail"] for a in d["day"] if a["role"] == "doctor")
+    # 今日の歯: 記録したあとは「やったこと」の歯、記録する前は予約の予定から
+    today = TC.today_teeth(d["done_today"] if d.get("done_today") else [a["detail"] for a in d["day"] if a["role"] == "doctor"])
     doing = TC.doing_teeth(d["teeth"], d["plan"])
     svg = TC.chart_svg(d["teeth"], own, today, doing)
-    inner = f'<div class="teeth"><div class="frame">{svg}{TC.LEGEND}</div><div class="side">{lines}</div></div>'
-    return card("tooth-chart", "歯の状態", inner, 8)
+    return card("tooth-chart", "歯の状態", TC.panel(svg, dentures, d["mucosal"]), 8)
 
 
 def doctor_page(d):
@@ -343,27 +328,11 @@ def doctor_page(d):
 
 
 # ---------- 歯科衛生士 ----------
-SIDE = {0: "l", 1: "r", 2: "t", 3: "b"}  # 近心・遠心・頬側・舌側 → 四角の4辺
-
-
 def _perio(d):
     ex = d["perio"]
     if not ex:
-        return card("perio-exam", "歯周基本検査", "", 12, actions=FULL)
-    cur = ex[0]
-    prev = ex[1] if len(ex) > 1 else None
-    teeth = {
-        t: {"pocket": v["pocket"], "bop": v["bop"], "mobility": v["mobility"],
-            "sides": {SIDE[i] for i, c in enumerate(v["plaque"]) if c == "1"}}
-        for t, v in cur["teeth"].items()
-    }
-
-    def stat(label, key, unit):
-        return (label, f"{cur[key]}{unit}", f"{prev[key]}{unit}" if prev else None)
-
-    stats = [stat("4mm以上", "deep", "本"), stat("BOP", "bop", "%"), stat("PCR", "pcr", "%"),
-             stat("動揺のある歯", "loose", "本"), ("検査した歯", f"{cur['n']}本", None)]
-    return perio_card(teeth, stats, D.ja_date(cur["date"]))
+        return card("perio-exam", PERIO_TITLE, "", 12, actions=FULL)
+    return perio_card(ex[0], ex[1] if len(ex) > 1 else None)
 
 
 def _hyg_side(d):
@@ -402,10 +371,11 @@ def _reserve(d):
     start, end = (t[0]["start_time"], t[-1]["end_time"]) if t else ("", "")
     dur = D.duration(D.minutes(start, end)) if t else ""
     recent = [(D.ja_date(r["visit_date"]), r["treatment"] or "") for r in d["recent"]]
-    return reserve_card(D.ja_date(TODAY, week=True), f"{start}〜{end}（{dur}）", recent)
+    return reserve_card(D.ja_date(app_today(), week=True), f"{start}〜{end}（{dur}）", recent)
 
 
-def _heat(d):
+def heat_best(d):
+    """来院しやすい曜日・時間帯 (診療回から数える)。受付の画面と一覧が同じ数え方を使う。(格子, 表示の文字)"""
     grid = [[0] * 6 for _ in range(3)]
     for v in d["visits"]:
         day, hm = v.split(" ")
@@ -414,6 +384,11 @@ def _heat(d):
             grid[_band_of(hm)][wd] += 1
     best = max(((grid[b][w], b, w) for b in range(3) for w in range(6)), key=lambda x: (x[0], -x[1], -x[2]))
     big = f"{D.WEEK[best[2]]}曜の{BANDS[best[1]]}" if best[0] else "―"
+    return grid, big
+
+
+def _heat(d):
+    grid, big = heat_best(d)
     return heat_card(grid, BANDS, big, len(d["visits"]))
 
 
@@ -512,21 +487,34 @@ def _reception_templates(d):
 
 
 def reception_chooser(rows):
+    """受付用の患者様一覧。受付の端末は患者様に見せないので、氏名は伏せない。
+    数字は受付の画面と同じ出どころ (reception_data と heat_best) から読む。rows は D.reception_list()。"""
     body = ""
     for p in rows:
-        t = "　".join(f"{a['start_time']}〜{a['end_time']} {h(a['treatment'])}" for a in p["today"])
+        d = p["d"]
+        t = "　".join(f"{a['start_time']}〜{a['end_time']}" for a in d["today"])
+        proc = "　".join(h(a["treatment"]) for a in d["today"])
+        if d["booked"]:
+            dt = D.date.fromisoformat(d["booked"][0]["appt_date"])
+            nxt = f"{dt.month}/{dt.day}（{D.WEEK[dt.weekday()]}）"
+        else:
+            nxt = "未定"
+        memo = d["memo_latest"]
         body += (
             f'<tr class="row" tabindex="0" role="button" data-patient="{p["id"]}">'
-            f'<td class="no">{h(p["chart_no"])}</td>'
-            f'<td class="name"><span class="nm" data-name="{h(p["name"])}">●● ●●</span>'
-            '<button type="button" class="mini reveal" data-action="reveal">表示</button></td>'
-            f'<td class="time">{t}</td></tr>'
+            f'<td class="time">{t}</td><td class="no">{h(p["chart_no"])}</td>'
+            f'<td class="name">{h(p["name"])} 様</td><td class="proc">{proc}</td>'
+            f'<td class="nxt">{nxt}</td><td class="heat">{h(heat_best(d)[1])}</td>'
+            f'<td class="memo" title="{h(memo, quote=True)}">{h(memo) if memo else "—"}</td></tr>'
         )
     top = ('<header class="topbar"><span class="role-tag">受付用</span>'
-           f'<span class="date">{D.ja_date(TODAY, week=True)}</span></header>')
+           '<span class="patient">患者様一覧</span>'
+           f'<span class="date">{D.ja_date(app_today(), week=True)}</span><span class="spacer"></span>'
+           '<a class="to-entrance" href="/">← 入口へ戻る</a></header>')
     return (
-        top + '<main class="list" data-part="appointment-list"><table class="book">'
-        "<thead><tr><th>カルテ番号</th><th>氏名</th><th>今日の予約</th></tr></thead>"
+        top + '<main class="list" data-part="reception-list"><table class="book">'
+        "<thead><tr><th>時間</th><th>カルテ番号</th><th>氏名</th><th>今日の処置</th><th>次回の予約</th>"
+        "<th>来院しやすい曜日</th><th>受付メモ</th></tr></thead>"
         f"<tbody>{body}</tbody></table></main>"
     )
 
@@ -541,13 +529,14 @@ def list_page(rows):
             f'<td class="time">{r["start_time"]}〜{r["end_time"]}</td><td class="no">{h(r["chart_no"])}</td>'
             f'<td class="name"><span class="nm" data-name="{h(r["name"])}">●● ●●</span>'
             '<button type="button" class="mini reveal" data-action="reveal">表示</button></td>'
-            f'<td class="proc">{h(r["treatment"])}</td></tr>'
+            f'<td class="proc">{h(r["treatment"])}{" <span class='done-tag'>済み</span>" if r.get("status") == "done" else ""}</td></tr>'
         )
     return (
         "<!doctype html><html lang='ja'><head><meta charset='utf-8'><title>予約一覧</title>"
         "<link rel='stylesheet' href='/static/css/mock.css'>"
         "<link rel='stylesheet' href='/static/css/booklist.css'></head><body class='role-list'>"
-        f'<header class="topbar"><span class="role-tag">予約一覧</span><span class="date">{D.ja_date(TODAY, week=True)}</span></header>'
+        f'<header class="topbar"><span class="role-tag">予約一覧</span><span class="date">{D.ja_date(app_today(), week=True)}</span>'
+        '<span class="spacer"></span><a class="to-entrance" href="/">← 入口へ戻る</a></header>'
         '<main class="list" data-part="appointment-list"><table class="book">'
         "<thead><tr><th>時間</th><th>カルテ番号</th><th>氏名 "
         '<button type="button" class="mini" data-action="reveal-all">すべて表示</button></th>'

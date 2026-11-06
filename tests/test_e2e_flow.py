@@ -101,7 +101,7 @@ def flow(server, browser):  # noqa: F811
         last_ref = next(x for x in last_note if x.ref.startswith("note:"))
 
     # 2. 予約一覧で 0123 の RCT の行を選ぶ
-    pg = open_page(browser, server, "/")
+    pg = open_page(browser, server, "/clinic")
     pg.wait_for_selector("tr.row")
     appt = pick(pg, "0123", "RCT")
     assert "role=doctor" in pg.url
@@ -185,10 +185,7 @@ def flow(server, browser):  # noqa: F811
     inner = next(f for f in ap.frames if f != ap.main_frame)
     inner.wait_for_function("document.body.dataset.ready === '1'")
     assert "まだ記録に入っていません" in inner.inner_text("[data-part=draft-mark]")
-    inner.evaluate("window.cvTyped('確定')")
-    assert "先に" in inner.inner_text("#msg")  # 「確定する」の前に「確定」だけでは入らない
-    inner.evaluate("window.cvTyped('確定する')")
-    inner.evaluate("window.cvTyped('確定')")
+    inner.evaluate("window.cvTyped('確定する')")  # G19m: 1回言えば記録する（2回目を待たない）
     # 確定すると診療の画面などへ自動で戻るので、画面ではなく記録に入ったことで確かめる
     for _ in range(100):
         with D.con() as c:
@@ -216,7 +213,7 @@ def flow(server, browser):  # noqa: F811
 
     # 8. 次の患者様 0456 の SPT の行を開く。前の人が残っていない
     pg.click("[data-action=change-patient]")
-    pg.wait_for_url(base + "/")  # 確定済みなので止められない
+    pg.wait_for_url(base + "/clinic")  # 確定済みなので止められない
     pg.wait_for_selector("tr.row")
     appt2 = pick(pg, "0456", "SPT")
     pg.wait_for_selector('[data-part="important"]')

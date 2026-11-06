@@ -33,15 +33,21 @@ def clean():
     c = connect()
     max_note = c.execute("SELECT COALESCE(MAX(id), 0) FROM clinical_notes").fetchone()[0]
     max_plan = c.execute("SELECT COALESCE(MAX(id), 0) FROM treatment_plans").fetchone()[0]
+    appts = [tuple(r) for r in c.execute("SELECT id, status FROM appointments")]
     c.close()
 
     def restore():
         c = connect()
+        from app.ai.journal import undo
+
+        for (did,) in c.execute("SELECT draft_id FROM record_changes GROUP BY draft_id ORDER BY MAX(id) DESC").fetchall():
+            undo(c, did)  # 試験で記録した分（歯の状態・治療歴・次回の予定・治療方針・予約の済み）を、新しい記録から順に戻す（G19m）
+        c.executemany("UPDATE appointments SET status = ? WHERE id = ?", [(st, i) for i, st in appts])
         c.execute("DELETE FROM drafts WHERE recording_id IS NOT NULL")
         c.execute("DELETE FROM recordings")
         c.execute("DELETE FROM clinical_notes WHERE id > ?", (max_note,))
         c.execute("DELETE FROM treatment_plans WHERE id > ?", (max_plan,))
-        c.execute("UPDATE treatment_plans SET superseded_on = NULL")
+        c.execute("UPDATE treatment_plans SET superseded_on = NULL")  # 試験用の下書きでは、方針・次回の予定を印なしで外すので、見本の分は戻る
         c.commit()
         c.close()
 
@@ -55,7 +61,7 @@ def clean():
 def appt_of(chart, role=None):
     with D.con() as c:
         sql = ("SELECT a.id, a.role FROM appointments a JOIN patients p ON p.id = a.patient_id WHERE p.chart_no = ? "
-               "AND a.appt_date = '2026-11-06' AND a.status = 'booked' ORDER BY a.start_time")
+               "AND a.appt_date = '2026-11-06' AND a.status IN ('booked', 'done') ORDER BY a.start_time")
         rows = c.execute(sql, (chart,)).fetchall()
     return next(r[0] for r in rows if role is None or r[1] == role)
 
@@ -201,7 +207,7 @@ def test_back_button_and_voice_keep_draft_and_go_back(server, browser):  # noqa:
 def test_back_never_leaves_the_server(server, back):  # noqa: F811
     s = make_rec(server)
     r = httpx.get(f"http://127.0.0.1:{server}/drafts/{s['draft_id']}", params={"back": back})
-    assert r.status_code == 200 and "data-back='/'" in r.text and "example.com" not in r.text.split("<body")[1]
+    assert r.status_code == 200 and "data-back='/clinic'" in r.text and "example.com" not in r.text.split("<body")[1]
 
 
 def test_polished_text_is_the_body_and_original_is_kept(server, browser):  # noqa: F811
@@ -288,7 +294,7 @@ def test_leaving_patient_with_draft_is_stopped(server, browser):  # noqa: F811
     pg.click("[data-action=change-patient]")
     pg.wait_for_selector("#memo-block")
     pg.click("#memo-block [data-action=memo-later]")
-    pg.wait_for_url(f"http://127.0.0.1:{server}/")
+    pg.wait_for_url(f"http://127.0.0.1:{server}/clinic")
     assert db_one("SELECT state FROM recordings WHERE id = ?", s["id"])[0] == "後で直す"
     pg.close()
 
@@ -303,7 +309,7 @@ def test_failed_goes_later_then_fix_by_fixing_transcript(server, browser):  # no
     pg.click("[data-action=change-patient]")
     pg.wait_for_selector("#memo-block")  # 失敗でも、音声と診療回を残して進める
     pg.click("#memo-block [data-action=memo-later]")
-    pg.wait_for_url(f"http://127.0.0.1:{server}/")
+    pg.wait_for_url(f"http://127.0.0.1:{server}/clinic")
     row = db_one("SELECT * FROM recordings WHERE id = ?", s["id"])
     assert row["state"] == "後で直す" and row["audio_file"] and row["visit_id"] and row["patient_id"]
     set_fake(reply=GOOD, transcript=TALK)  # あとで直す。その場では話し直さない
@@ -319,23 +325,18 @@ def test_failed_goes_later_then_fix_by_fixing_transcript(server, browser):  # no
     assert "直した文字" in f.inner_text("[data-part=draft-transcript]") or "直した文字" in f.locator("[data-part=draft-transcript]").inner_html()
     assert db_one("SELECT fix_off FROM recordings WHERE id = ?", s["id"])[0] == 1  # 人が直した文字は、自動の直しをしない
     f.click("#btn-confirm")
-    f.wait_for_url(home(server, "/"))
+    f.wait_for_url(home(server, "/clinic"))
     assert db_one("SELECT state FROM recordings WHERE id = ?", s["id"])[0] == "確定"
     pg.close()
     f.close()
 
 
-def test_voice_confirm_needs_second_word(server, browser):  # noqa: F811
+def test_voice_confirm_is_one_time(server, browser):  # noqa: F811
+    """G19m: 「確定」と言うだけで記録して、来た画面へ戻る（2回目を待たない）。"""
     s = make_rec(server)
     pg, _ = open_draft(browser, server, s["draft_id"])
     ready(pg)
-    pg.evaluate("window.cvTyped('確定')")  # いきなり「確定」では記録しない
-    assert pg.evaluate("document.body.dataset.status") == "draft"
-    pg.evaluate("window.cvTyped('確定する')")
-    assert "もう一度「記録」" in pg.inner_text("#msg")
-    assert pg.evaluate("document.body.dataset.status") == "draft"  # まだ入らない
-    assert db_one("SELECT status FROM drafts WHERE id = ?", s["draft_id"])[0] == "draft"
     pg.evaluate("window.cvTyped('確定')")
-    pg.wait_for_url(home(server))  # 記録して、来た画面へ戻る
+    pg.wait_for_url(home(server))
     assert db_one("SELECT status FROM drafts WHERE id = ?", s["draft_id"])[0] == "confirmed"
     pg.close()

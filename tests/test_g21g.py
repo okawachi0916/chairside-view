@@ -9,7 +9,8 @@ import pytest
 
 from app.ai import ask as ask_mod
 from app.ai.records import build_records
-from app.db import TODAY, connect
+from app.db import connect
+from app.today import today
 from app.views import data as D
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,18 +40,18 @@ def prev(c, pid, visit_date):
 
 def test_previous_is_latest_before_visit_and_stable_after_editing_old_visit(db):
     pid = db.execute("SELECT id FROM patients WHERE chart_no='0123'").fetchone()[0]
-    first = prev(db, pid, TODAY)
-    assert first.startswith("note:") and first[5:] < TODAY
+    first = prev(db, pid, today())
+    assert first.startswith("note:") and first[5:] < today()
     # 古い日付の回を、あとから（いちばん新しい id で）足す・直す → 「前回」は変わらない
     db.execute("INSERT INTO clinical_notes (patient_id, visit_id, note_date, author_role, body) VALUES (?, (SELECT MIN(id) FROM visits), '2020-01-01', 'doctor', '古い回を直した')", (pid,))
     db.execute("UPDATE clinical_notes SET body = body || '（直した）' WHERE patient_id = ? AND note_date = ?", (pid, first[5:]))
     db.commit()
-    assert prev(db, pid, TODAY) == first
+    assert prev(db, pid, today()) == first
     # 今開いている回の日付以降の記録は「前回」にならない
-    db.execute("INSERT INTO clinical_notes (patient_id, visit_id, note_date, author_role, body) VALUES (?, (SELECT MIN(id) FROM visits), ?, 'doctor', '今日の回')", (pid, TODAY))
+    db.execute("INSERT INTO clinical_notes (patient_id, visit_id, note_date, author_role, body) VALUES (?, (SELECT MIN(id) FROM visits), ?, 'doctor', '今日の回')", (pid, today()))
     db.commit()
-    assert prev(db, pid, TODAY) == first
-    assert prev(db, pid, "2030-01-01") == "note:" + TODAY
+    assert prev(db, pid, today()) == first
+    assert prev(db, pid, "2030-01-01") == "note:" + today()
     # 開いている回がもっと前なら、その前の回
     older = prev(db, pid, first[5:])
     assert older[5:] < first[5:]

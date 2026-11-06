@@ -1,9 +1,12 @@
 """画面に出すデータをデータベースから読む。毎回読み直し、どこにも保存しない。"""
+import json
+import re
 from datetime import date
 
 from app.ai import segview
-from app.db import TODAY, age_on, connect, db_path
+from app.db import age_on, connect, db_path
 from app.db.update import update
+from app.today import today as app_today
 
 WEEK = "月火水木金土日"
 ROLE_NAME = {"doctor": "歯科医師", "hygienist": "歯科衛生士"}
@@ -49,10 +52,10 @@ def today_list():
     """今日の予約 (予約一覧の行)。"""
     with con() as c:
         return [dict(r) for r in c.execute(
-            "SELECT a.id, a.start_time, a.end_time, a.treatment, a.role, p.id AS patient_id, "
+            "SELECT a.id, a.start_time, a.end_time, a.treatment, a.role, a.status, p.id AS patient_id, "
             "p.chart_no, p.name FROM appointments a JOIN patients p ON p.id = a.patient_id "
-            "WHERE a.appt_date = ? AND a.status = 'booked' ORDER BY a.start_time, p.chart_no, a.id",
-            (TODAY,))]
+            "WHERE a.appt_date = ? AND a.status IN ('booked', 'done') ORDER BY a.start_time, p.chart_no, a.id",
+            (app_today(),))]
 
 
 def appointment(appt_id: int):
@@ -86,7 +89,7 @@ def common(c, pid):
 
 
 def same_day(c, appt):
-    return _all(c, "SELECT * FROM appointments WHERE patient_id = ? AND appt_date = ? AND status = 'booked' "
+    return _all(c, "SELECT * FROM appointments WHERE patient_id = ? AND appt_date = ? AND status IN ('booked', 'done') "
                    "ORDER BY start_time, id", appt["patient_id"], appt["appt_date"])
 
 
@@ -105,27 +108,54 @@ def unit_data(appt, role):
         d["photos"] = [r["number"] for r in c.execute(
             "SELECT number FROM photos WHERE patient_id = ? ORDER BY number", (pid,))]
         d["policy"] = [r["body"] for r in c.execute(
-            "SELECT body FROM treatment_plans WHERE patient_id = ? AND kind = 'policy' ORDER BY seq, id", (pid,))]
+            "SELECT body FROM treatment_plans WHERE patient_id = ? AND kind = 'policy' AND superseded_on IS NULL ORDER BY seq, id", (pid,))]
+        # G19m: 古くなった治療方針は消さず、日付を付けて全画面で見られる
+        d["policy_old"] = _all(c, "SELECT body, superseded_on FROM treatment_plans WHERE patient_id = ? AND kind = 'policy' "
+                                  "AND superseded_on IS NOT NULL ORDER BY superseded_on DESC, seq, id", pid)
         d["mucosal"] = _all(c, "SELECT site, name FROM mucosal_conditions WHERE patient_id = ? ORDER BY id", pid)
         d["dentures"] = _all(c, "SELECT site, kind, made_by, made_on FROM dentures WHERE patient_id = ? ORDER BY id", pid)
         # 今日のこの役割の下書きを、新しい順に全部出す（見本データの下書きも録音から作った下書きも同じ扱い）
         d["drafts"] = _all(c, "SELECT d.body, d.transcript FROM drafts d JOIN visits v ON v.id = d.visit_id "
-                              "WHERE d.patient_id = ? AND v.visit_date = ? AND v.role = ? ORDER BY d.id DESC", pid, TODAY, role)
+                              "WHERE d.patient_id = ? AND v.visit_date = ? AND v.role = ? ORDER BY d.id DESC", pid, app_today(), role)
         d["summary"] = [x for dr in d["drafts"] for x in dr["body"].split("\n") if x]
         d["transcript"] = "\n".join(dr["transcript"] for dr in d["drafts"] if dr["transcript"])
         vrow = c.execute("SELECT id, visit_date FROM visits WHERE appointment_id = ?", (appt["id"],)).fetchone()
+        d["done_today"] = _done_of_visit(c, vrow["id"] if vrow else None)
         d["segments"] = segview.list_for_visit(c, vrow["id"] if vrow else None)  # 録音の区切り（録音した順）
         d["seg_today"] = vrow["visit_date"] if vrow else appt["appt_date"]
         d["combined_draft"] = segview.combined_draft(c, vrow["id"] if vrow else None, role)
         d["photo_rows"] = _all(c, "SELECT number, taken_on, file FROM photos WHERE patient_id = ? ORDER BY number", pid)
-        d["interval"] = c.execute("SELECT months, last_date FROM maintenance_intervals WHERE patient_id = ?", (pid,)).fetchone()
+        # 前回: 保存した値（maintenance_intervals.last_date）は読まず、毎回求める。この診療日より前の、歯科衛生士の最後の診療回の日付。
+        # 無ければ、最後の歯周検査の日付（G19m）
+        iv = c.execute("SELECT months FROM maintenance_intervals WHERE patient_id = ?", (pid,)).fetchone()
+        last = (c.execute("SELECT MAX(visit_date) FROM visits WHERE patient_id = ? AND role = 'hygienist' AND visit_date < ?",
+                          (pid, appt["appt_date"])).fetchone()[0]
+                or c.execute("SELECT MAX(exam_date) FROM perio_exams WHERE patient_id = ? AND exam_date < ?",
+                             (pid, appt["appt_date"])).fetchone()[0])
+        d["interval"] = {"months": iv["months"], "last_date": last} if iv else None
         d["care"] = _all(c, "SELECT item, last_date FROM care_purchases WHERE patient_id = ? ORDER BY last_date DESC, id", pid)
         d["perio_all"] = _perio(c, pid, None)  # 全画面で過去の検査へ遡る。新しい検査から順
         d["perio"] = d["perio_all"][:2]
         # 歯冠と根があればその2つ、無ければ今までの状態の文字（絵の側で読み替える）
-        d["teeth"] = {r["tooth"]: ((r["crown"], r["root"]) if r["crown"] else r["status"]) for r in c.execute(
-            "SELECT tooth, status, crown, root FROM tooth_status WHERE patient_id = ?", (pid,))}
+        # 歯冠・根・カリエスの3つ（G07g）。歯冠が空の古い行は今までの1つの状態の文字を読み替える
+        d["teeth"] = {r["tooth"]: ((r["crown"], r["root"], bool(r["caries"])) if r["crown"] else r["status"])
+                      for r in c.execute("SELECT tooth, status, crown, root, caries FROM tooth_status "
+                                         "WHERE patient_id = ?", (pid,))}
     return d
+
+
+def _done_of_visit(c, visit_id):
+    """この診療回で記録した（確定した）「やったこと」の文。記録する前は空。今日の処置の大きな1行と、歯の絵の「今日の歯」が使う。"""
+    if not visit_id:
+        return []
+    row = c.execute("SELECT items FROM drafts WHERE visit_id = ? AND status = 'confirmed' ORDER BY id DESC LIMIT 1", (visit_id,)).fetchone()
+    if not row:
+        return []
+    try:
+        rows = json.loads(row["items"] or "{}").get("done", [])
+    except ValueError:
+        return []
+    return [re.sub(r"[。.]+$", "", r["text"].strip()) for r in rows if isinstance(r, dict) and (r.get("text") or "").strip()]
 
 
 def percent(part, whole):
@@ -133,51 +163,83 @@ def percent(part, whole):
     return int(100 * part / whole + 0.5) if whole else 0
 
 
+def perio_exam(exam_row, teeth_rows, visit_time=""):
+    """検査1回分を画面用の形にする。基本検査も精密検査も同じ形で、精密検査の歯だけ pts（6点のポケット）と bops（6点の出血）を持つ。
+    割合: PCR＝赤い面÷（検査した歯×4）。BOP率＝出血のある点÷点の数（基本は歯1本に1点、精密は1本に6点）。"""
+    precise = exam_row["kind"] == "precise"
+    teeth = {}
+    for r in teeth_rows:
+        t = dict(r)
+        if precise:  # 6点が無い精密検査の歯（壊れたデータ）は、空欄で出す。基本検査の値から作り足さない
+            t["pts"] = [int(x) for x in t["pockets6"].split(",")] if t["pockets6"] else [None] * 6
+            t["bops"] = [int(x) for x in t["bops6"]] if t["bops6"] else [0] * 6
+        teeth[t["tooth"]] = t
+    n = len(teeth)
+    points = sum(6 if precise else 1 for _ in teeth.values())
+    bleeding = sum(sum(t["bops"]) if "bops" in t else t["bop"] for t in teeth.values())
+    day = date.fromisoformat(exam_row["exam_date"])
+    return {
+        "date": exam_row["exam_date"], "weekday": WEEK[day.weekday()], "time": exam_row["exam_time"] or visit_time,
+        "kind": exam_row["kind"], "teeth": teeth, "n": n,
+        "deep": sum(t["pocket"] >= 4 for t in teeth.values()),
+        "bop": percent(bleeding, points),
+        "pcr": percent(sum(t["plaque"].count("1") for t in teeth.values()), n * 4),
+        "loose": sum(t["mobility"] > 0 for t in teeth.values()),
+    }
+
+
 def _perio(c, pid, limit=2):
-    exams = _all(c, "SELECT id, exam_date FROM perio_exams WHERE patient_id = ? ORDER BY exam_date DESC, id DESC"
+    exams = _all(c, "SELECT id, exam_date, kind, exam_time FROM perio_exams WHERE patient_id = ? ORDER BY exam_date DESC, id DESC"
                     + (f" LIMIT {int(limit)}" if limit else ""), pid)
     out = []
     for e in exams:
-        teeth = {r["tooth"]: dict(r) for r in c.execute(
-            "SELECT tooth, pocket, bop, plaque, mobility FROM perio_teeth WHERE exam_id = ?", (e["id"],))}
-        n = len(teeth) or 1
-        out.append({
-            "date": e["exam_date"], "teeth": teeth, "n": len(teeth),
-            "deep": sum(t["pocket"] >= 4 for t in teeth.values()),
-            "bop": percent(sum(t["bop"] for t in teeth.values()), n),
-            "pcr": percent(sum(t["plaque"].count("1") for t in teeth.values()), n * 4),
-            "loose": sum(t["mobility"] > 0 for t in teeth.values()),
-        })
+        rows = _all(c, "SELECT tooth, pocket, bop, plaque, mobility, pockets6, bops6 FROM perio_teeth WHERE exam_id = ?", e["id"])
+        v = c.execute("SELECT start_time FROM visits WHERE patient_id = ? AND visit_date = ? ORDER BY id LIMIT 1",
+                      (pid, e["exam_date"])).fetchone()
+        out.append(perio_exam(e, rows, v[0] if v else ""))
     return out
 
 
 def reception_data(pid):
     with con() as c:
         d = common(c, pid)
-        d["today"] = _all(c, "SELECT * FROM appointments WHERE patient_id = ? AND appt_date = ? AND status = 'booked' "
-                             "ORDER BY start_time, id", pid, TODAY)
-        d["recent"] = _all(c, "SELECT v.visit_date, a.treatment FROM visits v LEFT JOIN appointments a ON a.id = v.appointment_id "
-                              "WHERE v.patient_id = ? AND v.visit_date < ? ORDER BY v.visit_date DESC, v.id DESC LIMIT 4",
-                           pid, TODAY)
+        d["today"] = _all(c, "SELECT * FROM appointments WHERE patient_id = ? AND appt_date = ? AND status IN ('booked', 'done') "
+                             "ORDER BY start_time, id", pid, app_today())
+        d["recent"] = _all(c, "SELECT appt_date AS visit_date, treatment FROM appointments "
+                              "WHERE patient_id = ? AND status = 'done' AND appt_date <= ? ORDER BY appt_date DESC, start_time DESC, id DESC LIMIT 4",
+                           pid, app_today())
         d["visits"] = [r["visit_date"] + " " + r["start_time"] for r in c.execute(
             "SELECT visit_date, start_time FROM visits WHERE patient_id = ? AND visit_date < ? AND visit_date >= ?",
-            (pid, TODAY, _year_ago()))]
+            (pid, app_today(), _year_ago()))]
         d["cancels"] = _all(c, "SELECT cancel_date, no_show, reason FROM cancellations WHERE patient_id = ? "
                                "ORDER BY cancel_date DESC", pid)
         d["appt_count"] = c.execute("SELECT COUNT(*) FROM appointments WHERE patient_id = ? AND status IN ('done','cancelled')",
                                     (pid,)).fetchone()[0]
-        d["next"] = c.execute("SELECT body, staff_role, staff_name, minutes, timing FROM treatment_plans "
-                              "WHERE patient_id = ? AND kind = 'next' ORDER BY id", (pid,)).fetchone()
+        nx = _all(c, "SELECT body, staff_role, staff_name, minutes, timing FROM treatment_plans "
+                     "WHERE patient_id = ? AND kind = 'next' AND superseded_on IS NULL ORDER BY id", pid)
+        d["next"] = {**nx[0], "body": "、".join(x["body"] for x in nx)} if nx else None  # 記録で入った次回の予定が何行でも、1つにして出す
         d["booked"] = _all(c, "SELECT appt_date, start_time, role, staff_name, reception_text FROM appointments "
                               "WHERE patient_id = ? AND appt_date > ? AND status = 'booked' ORDER BY appt_date, start_time",
-                           pid, TODAY)
+                           pid, app_today())
+        d["memo_latest"] = latest_memo(d["memo_full"])
         d["goods"] = _all(c, "SELECT bought_on, item, qty FROM goods_purchases WHERE patient_id = ? ORDER BY bought_on DESC, id", pid)
         d["rx"] = _all(c, "SELECT prescribed_on, drug, amount FROM prescriptions WHERE patient_id = ? ORDER BY prescribed_on DESC, id", pid)
     return d
 
 
+def latest_memo(memo_full):
+    """いちばん新しい受付メモ1件の文。書いた時期（「2026年9月」）で比べ、読めなければ入れた順。無ければ空。"""
+    def key(ix_m):
+        ix, m = ix_m
+        hit = re.match(r"\s*(\d{4})年(?:(\d{1,2})月)?", m.get("written_on") or "")
+        return ((int(hit.group(1)), int(hit.group(2) or 0)) if hit else (0, 0), ix)
+    if not memo_full:
+        return ""
+    return max(enumerate(memo_full), key=key)[1]["body"]
+
+
 def _year_ago():
-    t = date.fromisoformat(TODAY)
+    t = date.fromisoformat(app_today())
     return t.replace(year=t.year - 1).isoformat()
 
 
@@ -185,9 +247,18 @@ def reception_patients():
     """受付で選ぶ患者様 (今日の予約がある人)。"""
     with con() as c:
         rows = _all(c, "SELECT p.id, p.chart_no, p.name FROM patients p WHERE p.id IN "
-                       "(SELECT patient_id FROM appointments WHERE appt_date = ? AND status = 'booked') "
-                       "ORDER BY p.chart_no", TODAY)
+                       "(SELECT patient_id FROM appointments WHERE appt_date = ? AND status IN ('booked', 'done')) "
+                       "ORDER BY p.chart_no", app_today())
         for r in rows:
             r["today"] = _all(c, "SELECT start_time, end_time, treatment FROM appointments WHERE patient_id = ? "
-                                 "AND appt_date = ? AND status = 'booked' ORDER BY start_time", r["id"], TODAY)
+                                 "AND appt_date = ? AND status IN ('booked', 'done') ORDER BY start_time", r["id"], app_today())
         return rows
+
+
+def reception_list():
+    """受付用の患者様一覧の元。今日の予約の時間の順。1人ずつ受付の画面と同じ reception_data を読む。"""
+    out = []
+    for p in reception_patients():
+        p["d"] = reception_data(p["id"])
+        out.append(p)
+    return sorted(out, key=lambda p: (p["d"]["today"][0]["start_time"] if p["d"]["today"] else "99:99", p["chart_no"]))

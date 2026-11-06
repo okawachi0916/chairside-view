@@ -18,3 +18,17 @@ table.book tr.row { cursor: pointer; }
 table.book tr.row:hover, table.book tr.row:focus { background: var(--c-canvas); outline: none; }
 table.book .nm { margin-right: var(--sp-3); }
 table.book .mini { font-size: var(--fs-2); padding: var(--sp-1) var(--sp-3); }
+
+/* 上の行の右の「← 入口へ戻る」 */
+.topbar a.to-entrance {
+  font-size: var(--fs-2); font-weight: var(--fw-medium); color: var(--c-surface); text-decoration: none;
+  border: 1px solid var(--c-surface); border-radius: var(--r-s); padding: var(--sp-1) var(--sp-4);
+}
+/* 受付用の患者様一覧 */
+table.book td.name { font-size: var(--fs-5); font-weight: var(--fw-bold); white-space: nowrap; }
+table.book td.nxt, table.book td.heat { white-space: nowrap; }
+table.book td.memo { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-3); }
+[data-part="reception-list"] table.book td.no { font-size: var(--fs-6); }
+
+/* G19m: 記録を済ませた予約の印 */
+.book .done-tag { margin-left: var(--sp-3); padding: 0 var(--sp-3); border: 1px solid var(--c-line-strong); border-radius: var(--r-s); font-size: var(--fs-2); color: var(--c-sub); }

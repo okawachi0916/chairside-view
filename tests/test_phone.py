@@ -11,7 +11,7 @@ import urllib.request
 
 import pytest
 
-from app.db import TODAY
+from app.today import today
 from app.mobile import links
 from app.views import data as D
 from tests.screen_helper import ROOT, browser, open_page, server  # noqa: F401
@@ -186,7 +186,7 @@ def test_upload_goes_into_photo_list_with_number_and_is_logged(mobile, server): 
         con.close()
     assert [e["kind"] for e in ev] == ["入れた", "入れた"] and ev[0]["photo_number"] == before + 1
     assert len(ev[0]["at"]) == 19 and ev[0]["at"][4] == "-" and "T" in ev[0]["at"]  # 入れた時刻
-    assert row["taken_on"] == TODAY and row["kind"] == "intraoral"
+    assert row["taken_on"] == today() and row["kind"] == "intraoral"
     # 保存した画像は main からも見られる
     name = page.split("/photo-up/")[1].split('"')[0]
     assert http("GET", server, f"/photo-up/{name}")[0] == 200
@@ -425,3 +425,19 @@ def test_save_failure_is_told_apart_from_wrong_kind_and_is_logged(tmp_path, monk
     assert "画像だけ" not in ng.json()["error"]
     log = (tmp_path / "error_log.txt").read_text(encoding="utf-8")
     assert "スマホの写真" in log and "保存できませんでした" in log
+
+
+def test_photo_added_after_the_qr_window_is_closed_still_appears(server, browser, mobile):  # noqa: F811
+    """G19m: 写真の数の見張りは、QR の窓とは別に、ユニットの画面が開いている間ずっと動く。"""
+    pg = open_page(browser, server, UNIT)
+    pg.wait_for_selector('[data-part="photo-list"]')
+    before = pg.locator('[data-part="photo-list"] .ph').count()
+    pg.click('[data-part="intraoral-photos"] [data-action="phone"]')
+    pg.wait_for_selector("#phone-modal .qr svg")
+    url = pg.evaluate("document.getElementById('phone-modal').dataset.url")
+    pg.click("#phone-modal [data-act=close]")
+    assert pg.locator("#phone-modal").count() == 0
+    time.sleep(3)  # 窓を閉じたあとも、数え始めの数を取る
+    code, body, _ = upload(mobile, url.split("/m/")[1], png((30, 60, 200)))
+    assert code == 200
+    pg.wait_for_function(f"document.querySelectorAll('[data-part=\"photo-list\"] .ph').length === {before + 1}", timeout=15000)

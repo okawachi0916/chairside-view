@@ -62,7 +62,7 @@ def test_hanako_screens_fit(server, browser):  # noqa: F811
     h_appt = H_HYG
     pg = open_page(browser, server, f"/unit?appt={h_appt}&role=hygienist")
     pg.wait_for_selector('[data-part="perio-exam"]')
-    check_screen(pg, HYG_PARTS, ["歯周基本検査", "4mm以上", "前回 9本", "検査日 2026年8月7日", "3か月ごと"])
+    check_screen(pg, HYG_PARTS, ["歯周検査", "PCR", "前回 24%", "2026/8/7", "検査した歯（本数）", "3か月ごと"])
     pg.close()
     pg = open_page(browser, server, "/reception?patient=1")
     pg.wait_for_selector('[data-part="important"]')
@@ -85,12 +85,12 @@ def test_appointment_time_follows_row(server, browser):  # noqa: F811
 
 
 def test_list_to_unit_and_back(server, browser):  # noqa: F811
-    pg = open_page(browser, server, "/")
+    pg = open_page(browser, server, "/clinic")
     rows = pg.locator("tr.row")
     assert rows.count() == 6
     assert "見本 花子" not in pg.inner_text("body")
     for i, role in enumerate(["doctor", "hygienist", "doctor", "doctor", "hygienist", "doctor"]):
-        pg.goto(f"http://127.0.0.1:{server}/")
+        pg.goto(f"http://127.0.0.1:{server}/clinic")
         pg.locator("tr.row").nth(i).click()
         pg.wait_for_url("**/unit?appt=*")
         assert f"role={role}" in pg.url
@@ -104,7 +104,7 @@ def test_list_to_unit_and_back(server, browser):  # noqa: F811
     pg.wait_for_function("document.body.className === 'role-doctor'")
     assert pg.locator('[data-part="today-treatment"]').count() == 1
     pg.locator("[data-action=change-patient]").click()
-    pg.wait_for_url(f"http://127.0.0.1:{server}/")
+    pg.wait_for_url(f"http://127.0.0.1:{server}/clinic")
     assert pg.locator("tr.row").count() == 6
     pg.close()
 
@@ -149,13 +149,13 @@ def test_reception_choose_inside_screen(server, browser):  # noqa: F811
     pg = open_page(browser, server, "/reception")
     pg.wait_for_selector("tr[data-patient]")
     assert pg.locator("tr[data-patient]").count() == 5
-    assert "見本 花子" not in pg.inner_text("body")
+    assert "見本 花子" in pg.inner_text("body") and "●●" not in pg.inner_text("body")  # G21n: 受付用の一覧は氏名を伏せない
     pg.locator("tr[data-patient]").nth(2).click()
     pg.wait_for_function("document.body.innerText.includes('見本 太郎')")
     assert "ワルファリン" in pg.inner_text("body")
     pg.locator("[data-action=change-patient]").click()
     pg.wait_for_selector("tr[data-patient]")
-    assert "見本 太郎" not in pg.inner_text("body")
+    assert pg.locator("[data-part=important]").count() == 0  # 一覧へ戻り、前の患者様の画面は残らない
     pg.close()
 
 

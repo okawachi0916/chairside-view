@@ -148,12 +148,12 @@ def test_reception_fullscreens(server, browser):  # noqa: F811
     assert not bad, "\n".join(bad[:15])
 
 
-@pytest.mark.parametrize("path", ["/", "/recordings", "/today", "/sent"])
+@pytest.mark.parametrize("path", ["/", "/clinic", "/reception", "/recordings", "/today", "/sent"])
 def test_list_screens(server, browser, path):  # noqa: F811
     pg = open_page(browser, server, path)
     pg.wait_for_load_state("networkidle")
     bad = check(pg, path, fs=False)
-    shot(pg, "page_" + (path.strip("/") or "booklist"))
+    shot(pg, "page_" + {"/": "entrance", "/clinic": "booklist"}.get(path, path.strip("/")))
     pg.close()
     assert not bad, "\n".join(bad)
 

@@ -72,7 +72,7 @@ def test_say_list_numbers_match_the_screen():
     ex = json.loads((ROOT / "config" / "examples.json").read_text(encoding="utf-8"))
     words = ex["say_list"][0]["words"]
     names = {"重要事項": "important", "全身既往・服薬": "medical-history", "今日の処置": "today-treatment", "治療歴": "treatment-history",
-             "写真": "intraoral-photos", "話した内容の整理": "spoken-summary", "歯周基本検査": "perio-exam", "言える言葉": "say-list",
+             "写真": "intraoral-photos", "話した内容の整理": "spoken-summary", "歯周検査": "perio-exam", "言える言葉": "say-list",
              "役割を変える": "change-role", "スマホで写真をやり取り": "phone"}
     got = {}
     for w in words:

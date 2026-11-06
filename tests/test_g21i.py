@@ -13,32 +13,32 @@ ROOT = Path(__file__).resolve().parents[1]
 PROBE = r'''
 import json, sqlite3, sys, re
 from fastapi.testclient import TestClient
-from app.db import TODAY
+from app.today import today
 from app.main import app
 from app.ai import ask
 from app.ai.recpipe import today_str
 from app.db import connect
 c = TestClient(app)
 con = connect()
-out = {"today": TODAY, "rec_today": today_str()}
+out = {"today": today(), "rec_today": today_str()}
 q = lambda s, *a: con.execute(s, a).fetchall()
 out["future_rows"] = {
-    "clinical_notes": q("SELECT COUNT(*) FROM clinical_notes WHERE note_date > ?", TODAY)[0][0],
-    "treatment_history": q("SELECT COUNT(*) FROM treatment_history WHERE done_date > ?", TODAY)[0][0],
-    "visits_past": q("SELECT COUNT(*) FROM visits WHERE visit_date > ?", TODAY)[0][0],
-    "photos": q("SELECT COUNT(*) FROM photos WHERE taken_on > ?", TODAY)[0][0],
-    "perio": q("SELECT COUNT(*) FROM perio_exams WHERE exam_date > ?", TODAY)[0][0],
+    "clinical_notes": q("SELECT COUNT(*) FROM clinical_notes WHERE note_date > ?", today())[0][0],
+    "treatment_history": q("SELECT COUNT(*) FROM treatment_history WHERE done_date > ?", today())[0][0],
+    "visits_past": q("SELECT COUNT(*) FROM visits WHERE visit_date > ?", today())[0][0],
+    "photos": q("SELECT COUNT(*) FROM photos WHERE taken_on > ?", today())[0][0],
+    "perio": q("SELECT COUNT(*) FROM perio_exams WHERE exam_date > ?", today())[0][0],
 }
-out["today_appts"] = q("SELECT COUNT(*) FROM appointments WHERE appt_date = ? AND status = 'booked'", TODAY)[0][0]
+out["today_appts"] = q("SELECT COUNT(*) FROM appointments WHERE appt_date = ? AND status = 'booked'", today())[0][0]
 pid = q("SELECT id FROM patients WHERE chart_no='0123'")[0][0]
-res = ask.answer("前回は何をした？", con, pid, None, visit_date=TODAY)
+res = ask.answer("前回は何をした？", con, pid, None, visit_date=today())
 out["prev"] = res.get("ref")
-cur = q("SELECT id FROM appointments WHERE patient_id=? AND appt_date=? AND role='doctor'", pid, TODAY)[0][0]
+cur = q("SELECT id FROM appointments WHERE patient_id=? AND appt_date=? AND role='doctor'", pid, today())[0][0]
 page = c.get("/api/view/unit", params={"appt": cur}).json()
 out["today_page_text"] = re.sub(r"<[^>]+>", "", page["html"])
 m = re.search(r'data-part="past-notes".*?</div></section>', page["html"], re.S) or re.search(r'data-part="past-notes".*', page["html"], re.S)
 out["past_notes_text"] = re.sub(r"<[^>]+>", "", m.group(0)) if m else ""
-out["list"] = re.sub(r"<[^>]+>", "", c.get("/").text)
+out["list"] = re.sub(r"<[^>]+>", "", c.get("/clinic").text)
 out["reception"] = re.sub(r"<[^>]+>", "", c.get("/api/view/reception", params={"patient": pid}).json()["html"])
 print(json.dumps(out, ensure_ascii=False))
 '''

@@ -151,7 +151,7 @@ def recordings_page():
     return HTMLResponse(
         "<!doctype html><html lang='ja'><head><meta charset='utf-8'><title>録音の一覧</title>"
         f"{CSS}</head><body class='rec-page' data-page='recordings'>"
-        "<header class='rec-head'><span>録音の一覧</span><a href='/'>予約一覧へ</a></header><main class='rec-main'>"
+        "<header class='rec-head'><span>録音の一覧</span><a href='/clinic'>予約一覧へ</a></header><main class='rec-main'>"
         "<table class='rtab' data-part='recording-list'><thead><tr><th>時間</th><th>長さ</th><th>カルテ番号</th><th>状態</th><th>操作</th></tr></thead>"
         "<tbody id='rows'></tbody></table>"
         "<div id='paste'><b>文字を貼り付けて下書きにする</b>（録音が使えないとき・試験用）<br>"
@@ -166,7 +166,7 @@ def safe_back(back: str) -> str:
     b = (back or "").strip()
     if b.startswith("/") and not b.startswith("//") and not any(c in b for c in ("\\", "\r", "\n", "\t", " ")):
         return b
-    return "/"
+    return "/clinic"
 
 
 def _fix_list(d):
@@ -195,7 +195,7 @@ def _fixes_html(d):
     return f"<ul class='fixes'>{rows}</ul>"
 
 
-def _draft_html(d, p, v, rec, fix, back="/"):
+def _draft_html(d, p, v, rec, fix, back="/clinic"):
     items = json.loads(d["items"] or "{}")
     done = d["status"] == "confirmed"
     dis = " disabled" if done else ""
@@ -242,10 +242,15 @@ def _draft_html(d, p, v, rec, fix, back="/"):
         f"<div class='draft-cols'><div class='draft-left' data-part='draft-transcript'><h3>{"話したままの文字（直して整理し直す）" if (fix and not done and not d["combined"]) else "話した文字（清書）"}</h3>{left}"
         f"<h3 class='fx-title'>直した聞き違い（元 → 直し）</h3><div data-part='draft-fixes'>{_fixes_html(d)}</div></div>"
         f"<div class='draft-right' data-part='draft-items'>{cols}</div></div>"
-        "<section class='plan-block' id='plan-compare' data-part='plan-compare'><h2>治療計画の変更</h2>"
+        "<div class='plan-row'><section class='plan-block' id='plan-compare' data-part='plan-compare'><h2>治療計画の変更</h2>"
         "<p class='plan-hint'>話に出ていない計画は、そのまま残します。変えたいものだけ印を付けてください。</p>"
         "<table class='rtab plan-table'><thead><tr><th>今の計画</th><th>新しい計画</th><th>操作</th></tr></thead>"
         "<tbody id='plan-rows'></tbody></table></section>"
+        + ("" if done else
+           "<section class='plan-block' id='tooth-compare' hidden><h2>他の画面にも入れる（歯の絵・治療歴・次回の予定・治療方針）</h2>"
+           "<p class='plan-hint' id='tooth-hint'>初めから印が付いています。入れたくないものは印を外してください（声なら「3番 外す」）。歯の処置は、歯が1本に決まり、処置の言葉が決まっている行だけ出ます。</p>"
+           "<table class='rtab plan-table'><thead><tr><th>内容</th><th>今 → 記録後</th><th>操作</th></tr></thead>"
+           "<tbody id='tooth-rows'></tbody></table></section>") + "</div>"
         "<script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script>"
         "<script src='/static/js/numrule.js'></script><script src='/static/js/numtags.js'></script><script src='/static/js/draft.js'></script><script src='/static/js/actions/look.js'></script></body></html>"
     )

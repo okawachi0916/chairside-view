@@ -1,32 +1,24 @@
 """架空の患者様5人の初期データ。番号は毎回同じになるよう、書いた順に1から振る。"""
-import re
-from datetime import date, timedelta
+from datetime import date
 
 from app.today import BASE, today
-
-TODAY = today()  # 今日はパソコンの日付（app/today.py。CV_TODAY で止められる）
-_ISO = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 UPPER = list(range(18, 10, -1)) + list(range(21, 29))
 LOWER = list(range(48, 40, -1)) + list(range(31, 39))
 ALL_TEETH = UPPER + LOWER
 
 
-def age_on(birth_date: str, today: str = TODAY) -> int:
-    b, t = date.fromisoformat(birth_date), date.fromisoformat(today)
+def age_on(birth_date: str, on: str = "") -> int:
+    """on の日の年齢。省くと今日（app/today.py の today()。使うたびに聞く）。"""
+    b, t = date.fromisoformat(birth_date), date.fromisoformat(on or today())
     return t.year - b.year - ((t.month, t.day) < (b.month, b.day))
 
 
 class _Rows(dict):
-    """表ごとの行の一覧。id は表ごとに書いた順に 1 から振る。"""
+    """表ごとの行の一覧。id は表ごとに書いた順に 1 から振る。
+    日付は、見本の BASE（2026-11-06）を「今日」として書いたまま入れる。今日へずらすのは app/db/dates.py の決まり1か所だけ。"""
 
     def add(self, table, **row):
-        # 見本の日付は 2026-11-06 を今日として書いてある。今日からの日数の差を保って、本当の今日に合わせる（生年月日は動かさない）
-        shift = (date.fromisoformat(TODAY) - date.fromisoformat(BASE)).days
-        if shift:
-            row = {k: ((date.fromisoformat(v) + timedelta(days=shift)).isoformat()
-                       if k != "birth_date" and isinstance(v, str) and _ISO.fullmatch(v) else v)
-                   for k, v in row.items()}
         rows = self.setdefault(table, [])
         row = {"id": len(rows) + 1, **row}
         rows.append(row)
@@ -127,11 +119,11 @@ def build() -> dict:
           body="右下6番 根管充填、側方加圧\nデンタルで確認、問題なし\n次回 支台築造と形成、2週間後ごろ",
           transcript="右下6番、根管充填をします。側方加圧で詰めました。デンタルで確認して、問題ありませんでした。"
                      "次回は支台築造と形成です。二週間後ごろでお願いします。",
-          created_at=TODAY + " 14:50")
+          created_at=BASE + " 14:50")
     r.add("drafts", patient_id=H, visit_id=tv_hyg, kind="spoken_summary", status="draft",
           body="右下奥の清掃を指導\n寝る前の歯間ブラシを継続",
           transcript="右下の奥は磨き残しが出やすいので、清掃の仕方をお伝えしました。寝る前の歯間ブラシは続けてください。",
-          created_at=TODAY + " 15:40")
+          created_at=BASE + " 15:40")
     # 録音の区切りの見本。前の診療回（花子様の10/23と10/9）につなぎ、その診療回の日付で入れる。確定済みなので消せない
     for n, (day, vid, role, hm, text) in enumerate([
         ("2026-10-23", hv["2026-10-23"], "doctor", "14:40", "右下6番、根管充填をしました。デンタルで確認して、問題ありませんでした。"),
@@ -280,36 +272,46 @@ def build() -> dict:
 
     # ---- 歯の状態 ----
     wisdom = [18, 28, 38, 48]
+    # 花子様の右上4番は有床義歯、左下5番はブリッジのポンティック
     missing = {H: wisdom + [14, 35], I: wisdom, M: wisdom,
                T: wisdom + [15, 16, 25, 26, 35, 36, 45, 46],  # ブリッジで補う
                K: [t for t in ALL_TEETH if t not in (13, 23, 25, 33, 43)]}  # 義歯で補う
-    # G07f: 1本を歯冠と根の2つで持つ。status は今までの1つの状態の文字（欠損の見分けなどに使う）
-    def tooth(pid, t, status, crown, root):
-        r.add("tooth_status", patient_id=pid, tooth=t, status=status, crown=crown, root=root)
+    # G07f: 1本を歯冠と根の2つで持つ。G07g: カリエスは歯冠とは別の印（caries=1）。根にインプラントがある。
+    # status は今までの1つの状態の文字（欠損の見分けなどに使う）
+    def tooth(pid, t, status, crown, root, caries=0):
+        r.add("tooth_status", patient_id=pid, tooth=t, status=status, crown=crown, root=root, caries=caries)
 
+    # 花子様（動画で使う）には、絵に出る表現を全部入れる（G07g）。右下6番の根治中・左下7番の CR・右上6番の
+    # クラウン・右上5番のカリエスは台本と治療歴・治療計画のまま。歯周検査の数字を変えないため、新しい欠損は作らない
+    # （ブリッジのポンティックは前からの欠損の左下5番）。インプラントは AI の見本の質問「インプラントの記録は？」が
+    # 「記録がありません」と答える前提なので、花子様には入れない（院長の決定 11/5）。一郎様と美咲様に入れる
     for pid, items in {
-        H: [(46, "RCT中", "健全", "根治中"), (37, "CR", "CR", "生活"), (26, "クラウン", "クラウン", "根充後"),
-            (47, "CR", "CR", "生活"), (15, "C2", "カリエス", "生活")],
-        I: [(16, "CR", "CR", "生活"), (26, "CR", "CR", "生活"), (46, "クラウン", "クラウン", "根充後")],
-        T: [(14, "ブリッジ支台", "ブリッジ支台", "生活"), (17, "ブリッジ支台", "ブリッジ支台", "根充後"),
-            (34, "ブリッジ支台", "ブリッジ支台", "生活"), (37, "ブリッジ支台", "ブリッジ支台", "根充後"),
-            (44, "ブリッジ支台", "ブリッジ支台", "生活"), (47, "ブリッジ支台", "ブリッジ支台", "根充後")],
-        K: [(13, "残根", "残根", "失活"), (23, "残根", "残根", "根充後"), (33, "残根", "残根", "失活"),
+        H: [(46, "RCT中", "健全", "根治中"), (37, "CR", "CR", "生活"), (26, "クラウン", "クラウン", "根充済"),
+            (47, "CR", "CR", "生活"), (15, "C2", "健全", "生活", 1),
+            (24, "CR+カリエス", "CR", "生活", 1), (21, "失活", "健全", "失活"), (22, "根管治療済", "健全", "根充済"),
+            (16, "クラウン", "クラウン", "生活"), (17, "残根", "残根", "失活"),
+            (34, "ブリッジ支台", "ブリッジ支台", "生活"), (36, "ブリッジ支台", "ブリッジ支台", "根充済")],
+        I: [(16, "CR", "CR", "生活"), (26, "CR", "CR", "生活"), (46, "クラウン", "クラウン", "根充済"),
+            (36, "インプラント", "クラウン", "インプラント")],
+        T: [(14, "ブリッジ支台", "ブリッジ支台", "生活"), (17, "ブリッジ支台", "ブリッジ支台", "根充済"),
+            (34, "ブリッジ支台", "ブリッジ支台", "生活"), (37, "ブリッジ支台", "ブリッジ支台", "根充済"),
+            (44, "ブリッジ支台", "ブリッジ支台", "生活"), (47, "ブリッジ支台", "ブリッジ支台", "根充済")],
+        K: [(13, "残根", "残根", "失活"), (23, "残根", "残根", "根充済"), (33, "残根", "残根", "失活"),
             (43, "残根", "残根", "失活")],
-        M: [(16, "C2", "カリエス", "生活"), (35, "CR", "CR", "生活")],
+        M: [(16, "C2", "健全", "生活", 1), (35, "CR", "CR", "生活"), (46, "インプラント", "なし", "インプラント")],
     }.items():
-        for t, st, crown, root in items:
-            tooth(pid, t, st, crown, root)
+        for t, st, crown, root, *caries in items:
+            tooth(pid, t, st, crown, root, *caries)
     for pid, ts in missing.items():
         for t in ts:
             tooth(pid, t, "欠損", "欠損", "")
     # 和子様の左上5番: インレーが取れて、下がむし歯（行の id は最後に付け、既にある DB の行とぶつけない）
-    tooth(K, 25, "インレー+カリエス", "インレー+カリエス", "生活")
+    tooth(K, 25, "インレー+カリエス", "インレー", "生活", 1)
 
     r.add("mucosal_conditions", patient_id=H, site="舌左縁", name="白板症")
     r.add("mucosal_conditions", patient_id=K, site="上顎前庭", name="義歯性口内炎")
     for pid, site, kind, made_by, made_on in [
-        (H, "左下", "部分床義歯", "当院作成", "2026-05-08"),
+        (H, "右上", "部分床義歯", "当院作成", "2026-05-08"),  # 右上4番の欠損（G07g で左下5番はブリッジ）
         (K, "上顎", "総義歯", "当院作成", "2024-03-15"),
         (K, "下顎", "総義歯", "当院作成", "2024-03-15"),
         (T, "下顎", "ブリッジ", "他院作成", None),

@@ -24,27 +24,24 @@ PLAQUE = {
 }
 
 
-def _teeth():
-    out = {}
-    for t in POCKET:
-        out[t] = {
-            "pocket": POCKET[t],
-            "bop": t in BOP,
-            "mobility": LOOSE.get(t, 0),
-            "sides": set(PLAQUE.get(t, "")),
-        }
-    return out
+SIDE_AT = {"l": 0, "r": 1, "t": 2, "b": 3}  # 四角の4辺 → プラークの4文字（近心・遠心・頬側・舌側）
+
+
+def _exam(pocket, bop, loose, plaque, date, time, pcr, bop_pct, n):
+    teeth = {}
+    for t in pocket:
+        flags = ["0"] * 4
+        for k in plaque.get(t, ""):
+            flags[SIDE_AT[k]] = "1"
+        teeth[t] = {"pocket": pocket[t], "bop": int(t in bop), "mobility": loose.get(t, 0), "plaque": "".join(flags)}
+    return {"date": date, "time": time, "kind": "basic", "teeth": teeth, "n": n, "pcr": pcr, "bop": bop_pct,
+            "loose": sum(1 for v in loose.values() if v)}
 
 
 def _perio():
-    stats = [
-        ("4mm以上", "6本", "9本"),
-        ("BOP", "15%", "19%"),
-        ("PCR", "18%", "24%"),
-        ("動揺のある歯", "0本", "0本"),
-        ("検査した歯", "26本", None),
-    ]
-    return perio_card(_teeth(), stats, "2026年8月7日")
+    now = _exam(POCKET, BOP, LOOSE, PLAQUE, "2026-08-07", "14:30", 18, 15, 26)
+    before = {"pcr": 24, "bop": 19}
+    return perio_card(now, before)
 
 
 def _side():

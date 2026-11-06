@@ -132,19 +132,15 @@ def test_number_not_shown_or_wrong(server, browser):  # noqa: F811
     pg.close()
 
 
-@pytest.mark.parametrize("first,second", [("カルテに記録する", "記録"), ("カルテに記録して", "記録"), ("カルテに記録してください", "確定"),
-                                          ("カルテに記録してください。", "記録"), ("確定する", "確定")])
-def test_word_record_needs_two_times(server, browser, first, second):  # noqa: F811
+@pytest.mark.parametrize("word", ["カルテに記録する", "カルテに記録して", "カルテに記録してください", "カルテに記録してください。", "確定する", "記録", "確定"])
+def test_word_record_is_one_time(server, browser, word):  # noqa: F811
+    """G19m: 記録は1回言えば入る（2回目を待たない）。聞き違いの守りは、その日のうちの「記録を取り消す」。"""
     s = make_rec(server)
     pg = open_ready(browser, server, s)
-    assert pg.evaluate("t => window.cvTyped(t)", second) == "need-first"  # いきなりは記録しない
-    assert "先に「カルテに記録する」" in pg.inner_text("#msg")
-    assert pg.evaluate("t => window.cvTyped(t)", first) == "armed"
-    assert "もう一度「記録」と言ってください" in pg.inner_text("#msg")
-    assert db_one("SELECT status FROM drafts WHERE id = ?", s["draft_id"])[0] == "draft"  # 1回目だけでは記録されない
-    pg.evaluate("t => window.cvTyped(t)", second)
+    assert pg.evaluate("t => window.cvTyped(t)", word) == "confirm"
     pg.wait_for_url(home(server))
     assert db_one("SELECT status FROM drafts WHERE id = ?", s["draft_id"])[0] == "confirmed"
+    assert "もう一度「記録」" not in pg.inner_text("body")  # 2回目を待つ表示は出ない
     pg.close()
 
 
@@ -204,7 +200,8 @@ def test_button2_shows_dark_band_with_words(server, browser):  # noqa: F811
     for w in ("カルテに記録する", "記録", "あとで直す", "戻して", "戻る", "確定する", "確定"):
         assert w in words
     assert any(w.endswith("番") for w in words)
-    assert "2回言います" in pg.inner_text("#num-band .ex-msg")
+    assert "1回で入ります" in pg.inner_text("#num-band .ex-msg") and "2回言います" not in pg.inner_text("#num-band .ex-msg")
+    assert "3番 外す" in words
     # 黒い帯は、番号の札やボタンをふさがない（下に出る）
     band = pg.locator("#num-band").bounding_box()
     assert band["y"] < 10 and band["height"] <= 80 and band["x"] > 700  # 上の段の右側。下の表のボタンも、左の札もふさがない
@@ -233,15 +230,10 @@ def test_every_word_in_the_band_really_works(server, browser):  # noqa: F811
     words = band_words(pg)
     pg.close()
     for w in words:
-        if w in ("カルテに記録する", "確定する", "記録", "確定", "あとで直す", "戻して", "戻る") or w.endswith("番"):
+        if w in ("カルテに記録する", "確定する", "記録", "確定", "あとで直す", "戻して", "戻る", "3番 外す", "3番 付ける") or w.endswith("番"):
             continue
         raise AssertionError("帯に、試験で確かめていない言葉がある: " + w)
-    for w in ("カルテに記録する", "確定する"):
-        pg = open_ready(browser, server, s)
-        assert pg.evaluate("t => window.cvTyped(t)", w) == "armed"
-        pg.close()
-    pg = open_ready(browser, server, s)
-    assert pg.evaluate("t => window.cvTyped(t)", "記録") == "need-first"  # 1回目なしでは動かない（言葉として受けている）
+    pg = open_ready(browser, server, s)   # 記録の言葉は test_word_record_is_one_time が確かめる（言うと記録が入るので、ここでは言わない）
     assert pg.evaluate("t => window.cvTyped(t)", "あとで直す") == "later"
     pg.close()
     pg = open_ready(browser, server, s)

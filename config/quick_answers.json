@@ -118,7 +118,7 @@
         "予定"
       ],
       "target": {
-        "part": "treatment-plan"
+        "part": "next-appointment"
       },
       "empty": "次回の予定の記録がありません。"
     }

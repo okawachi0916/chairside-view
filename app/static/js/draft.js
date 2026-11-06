@@ -1,7 +1,9 @@
 // 下書きの画面。5つの項目をキーボードで直し（直した所はその場で自動で保存する）、「カルテに記録する」か「あとで直す」で、来た画面へ戻る。
 // 記録するまで診療メモにも治療計画にも入らない。
 // 言える言葉は黒い帯（ボタン2か「言える言葉」ボタン）に出ているものだけ。出ていない言葉で動くものは作らない。
-// 声（ボタン2）か文字（window.cvTyped）で「カルテに記録する」（または「確定する」）と言ったあと、もう一度「記録」（または「確定」）と言うと記録する。
+// 声（ボタン2）か文字（window.cvTyped）で「カルテに記録する」（または「確定する」「記録」「確定」）と言うと、1回で記録する（G19m）。
+// 間違えたときは、記録のあとその日のうち、ユニットの画面で「記録を取り消す」と言えば戻る（聞き違いの守りは、この取り消し）。
+// 「他の画面にも入れる」候補（歯ごとの処置・次回の予定・治療方針）は、初めから印が付いている。「3番 外す」「3番 付ける」で印を替える。
 // ボタン2を押すと番号の札が出て、番号で押せる（マウスと同じ動き）。「戻して」は戻る。
 (function () {
   var body = document.body;
@@ -11,8 +13,7 @@
   var msg = document.getElementById("msg");
   var plans = [];                 // 今の治療計画
   var picked = {};                // 反映の選び方 { "c3": true, "d4": true, "a:文字": false }
-  var armed = 0;                  // 「確定する」と言った時刻。もう一度「確定」を待つ
-  var back = body.dataset.back || "/";   // 来た画面（?back=）。診療の画面・録音の一覧・今日の診療一覧のどれか
+  var back = body.dataset.back || "/clinic";   // 来た画面（?back=）。診療の画面・録音の一覧・今日の診療一覧のどれか
   var saveTimer = null, saving = Promise.resolve();
 
   function say(t) { msg.textContent = t; body.dataset.msg = t; }
@@ -42,12 +43,13 @@
   }
   document.addEventListener("click", function (e) {
     var del = e.target.closest(".del");
-    if (del && !confirmed) { del.closest("li").remove(); renderPlans(); autosave(); return; }
+    if (del && !confirmed) { del.closest("li").remove(); renderPlans(); loadTeeth(); autosave(); return; }
     var add = e.target.closest(".add");
     if (add && !confirmed) { addRow(add.closest(".draft-sec")); }
   });
   document.addEventListener("input", function (e) {
     if (e.target.closest("[data-section=future_plan]")) renderPlans();
+    if (e.target.closest("[data-section=done]")) loadTeeth();
     if (e.target.closest(".draft-sec .tx")) autosave();
   });
 
@@ -116,6 +118,51 @@
     };
   }
 
+  // ---- 他の画面にも入れる（G19l 歯ごとの処置、G19m 次回の予定・治療方針）: 項目から候補を出し、印の付いたものだけ入れる ----
+  var toothCands = [];            // サーバーが作った候補 [{ key, kind, title, row, before, after }]
+  var toothPicked = {};           // 外した印 { 候補の key: false }（無ければ付いている。初めは全部付いている）
+  var toothTimer = null, toothSeq = 0;
+  function renderTeeth() {
+    var rows = document.getElementById("tooth-rows"), sec = document.getElementById("tooth-compare");
+    if (!rows || !sec) return;
+    rows.innerHTML = "";
+    sec.hidden = !toothCands.length;
+    toothCands.forEach(function (c) {
+      var tr = document.createElement("tr");
+      tr.dataset.toothKey = c.key;
+      tr.appendChild(cell(c.title));
+      tr.appendChild(cell(c.before + " → " + c.after));
+      var td = document.createElement("td");
+      var l = document.createElement("label"), box = document.createElement("input");
+      box.type = "checkbox";
+      box.dataset.toothKey = c.key;
+      box.checked = toothPicked[c.key] !== false;
+      box.disabled = confirmed;
+      box.addEventListener("change", function () { toothPicked[c.key] = box.checked; });
+      l.appendChild(box);
+      l.appendChild(document.createTextNode(" 入れる"));
+      td.appendChild(l);
+      tr.appendChild(td);
+      rows.appendChild(tr);
+    });
+  }
+  function loadTeeth() {          // 「やったこと」を直すたびに候補を作り直す（少し待つ）
+    if (confirmed) return;
+    clearTimeout(toothTimer);
+    toothTimer = setTimeout(function () {
+      var n = ++toothSeq;
+      api("POST", "/api/drafts/" + draftId + "/candidates", { items: collect() }).then(function (r) {
+        if (n !== toothSeq) return;
+        toothCands = r.candidates || [];
+        renderTeeth();
+        body.dataset.toothReady = String(n);
+      }).catch(function (e) { say(e.message); });
+    }, 300);
+  }
+  function picks() {
+    return toothCands.filter(function (c) { return toothPicked[c.key] !== false; }).map(function (c) { return c.key; });
+  }
+
   // ---- 自動で保存・記録する・あとで直す ----
   function save() {
     if (confirmed) return Promise.resolve();
@@ -140,21 +187,28 @@
     flush().then(goBack);
     return "back";
   }
+  var busy = false;               // 記録の途中でもう一度言われても、二重に送らない
   function doConfirm() {
+    if (busy) return Promise.resolve();
+    busy = true;
+    clearTimeout(toothTimer);
     return flush().then(function () {
+      // 直した直後でも食い違わないよう、いまの項目から候補を作り直してから、印の付いたものを送る（サーバーも同じ項目から作り直して確かめる）
+      return api("POST", "/api/drafts/" + draftId + "/candidates", { items: collect() }).then(function (r) { toothCands = r.candidates || []; });
+    }).then(function () {
       var choice = planChoice();
-      // 計画の変更・削除は、画面で選んだものだけ送る
-      return api("POST", "/api/drafts/" + draftId + "/confirm", { items: collect(), plan: choice });
+      // 計画の変更・削除と、歯ごとの処置は、画面で選んだものだけ送る
+      return api("POST", "/api/drafts/" + draftId + "/confirm", { items: collect(), plan: choice, picks: picks() });
     }).then(function () {
       confirmed = true;
       body.dataset.status = "confirmed";
       document.querySelector("[data-part=draft-mark]").textContent = "確定済み（診療メモに入りました）";
-      document.querySelectorAll(".tx, .del, .add, #plan-rows input").forEach(function (e) { e.disabled = true; });
+      document.querySelectorAll(".tx, .del, .add, #plan-rows input, #tooth-rows input").forEach(function (e) { e.disabled = true; });
       var bar = document.querySelector(".draft-actions");
       if (bar) bar.remove();
       say("カルテに記録しました");
       goBack();
-    }).catch(function (e) { say(e.message); });
+    }).catch(function (e) { busy = false; say(e.message); });
   }
   function later() {
     if (!recId) return say("録音がありません");
@@ -189,7 +243,7 @@
   var HINT = "ボタン2で番号を出して選べます";
 
   // ---- 番号の札（ほかの画面と同じ仕組み。numtags.js）----
-  // 番号を出すもの: カルテに記録する、あとで直す、各行の消す（上から）、計画の「削除する」、整理し直す、戻る（最後）
+  // 番号を出すもの: カルテに記録する、あとで直す、各行の消す（上から）、計画の「削除する」、歯ごとの処置の「反映する」、整理し直す、戻る（最後）
   var targets = {};           // 印 → 要素。番号を言われたら、マウスで押したのと同じ click を送る
   function numberList() {
     var NT = window.CVNumTags, out = [], hidden = 0;
@@ -204,6 +258,7 @@
     add("later", document.getElementById("btn-later"));
     Array.prototype.forEach.call(document.querySelectorAll(".draft-sec li.row .del"), function (el, i) { add("del:" + (i + 1), el); });
     Array.prototype.forEach.call(document.querySelectorAll("#plan-rows input[data-key^='d']"), function (c, i) { add("plan:" + (i + 1), c.closest("label")); });
+    Array.prototype.forEach.call(document.querySelectorAll("#tooth-rows input[data-tooth-key]"), function (c, i) { add("pick:" + (i + 1), c.closest("label")); });
     add("reorg", document.getElementById("fix-reorg"));
     add("back", document.getElementById("btn-back"));
     body.dataset.numHidden = hidden;
@@ -246,6 +301,18 @@
     return "number:" + key;
   }
 
+  // 「3番 外す」「3番 付ける」: 番号の札が出ている印だけ、外す・付けるを決めて替える（マウスで押すのと同じ変更イベント）
+  function setPick(n, on, shown, text) {
+    var key = shown && shown[n], el = key && targets[key];
+    if (!shown) { say("「" + text + "」 番号は出ていません。" + HINT); return "no-numbers"; }
+    if (!el || !el.isConnected) { say("「" + text + "」 その番号はありません"); return "no-number"; }
+    var box = key.indexOf("pick:") === 0 && el.querySelector("input[type=checkbox]");
+    if (!box) { say("「" + text + "」 その番号は、外したり付けたりするものではありません"); return "not-a-pick"; }
+    if (box.checked !== on) { box.checked = on; box.dispatchEvent(new Event("change")); }
+    say("「" + text + "」");
+    return (on ? "on:" : "off:") + key;
+  }
+
   function handle(text, shown) {
     body.dataset.heard = text;
     // 言葉の読み取りは、ほかの画面と同じ表（config/commands.json）だけ。この画面の言葉は screen=draft の行
@@ -253,18 +320,12 @@
       .then(function (r) { return r.json(); })
       .then(function (res) {
         var act = res.action;
-        if (act === "draft-arm") { armed = Date.now(); say("もう一度「記録」と言ってください"); return "armed"; }
-        if (act === "draft-confirm") {
-          if (armed && Date.now() - armed < 20000) { armed = 0; doConfirm(); return "confirm"; }
-          armed = 0;
-          say("先に「カルテに記録する」と言ってください");
-          return "need-first";
-        }
-        armed = 0;
+        if (act === "draft-confirm") { doConfirm(); return "confirm"; }   // 1回で記録する
         if (act === "draft-later") { later(); return "later"; }
         if (act === "draft-back") { return leave(); }
         var nums = res.numbers || (res.arg ? [res.arg] : []);
         if (act === "part-number" && nums.length === 1) return callNumber(nums[0], shown, text);
+        if ((act === "draft-off" || act === "draft-on") && nums.length === 1) return setPick(nums[0], act === "draft-on", shown, text);
         say("「" + text + "」は使えません。" + HINT);
         return "ignored";
       })
@@ -315,6 +376,7 @@
   fetch("/api/drafts/" + draftId, { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {
     plans = d.plans || [];
     renderPlans();
+    loadTeeth();
     body.dataset.ready = "1";
   });
 })();

@@ -1,5 +1,5 @@
 from app.today import short_date, today
-from app.mockview.parts import DATE, FULL, band, card, important, page, topbar
+from app.mockview.parts import FULL, date_text, band, card, important, page, topbar
 from app.mockview.reception_parts import heat_card, next_card, reserve_card
 
 RECENT = [
@@ -30,7 +30,7 @@ RX = [
 
 def _reserve():
     return reserve_card(
-        DATE, "14:30〜16:00（1時間30分）", [(d, p) for d, p in RECENT]
+        date_text(), "14:30〜16:00（1時間30分）", [(d, p) for d, p in RECENT]
     )
 
 

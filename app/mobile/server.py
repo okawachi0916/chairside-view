@@ -9,7 +9,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 
 from app import errlog, versioning
-from app.db import TODAY, data_dir
+from app.db import data_dir
+from app.today import today as app_today
 from app.mobile import links
 from app.views import photos as PH
 
@@ -192,7 +193,7 @@ def page(token: str):
 
 def _today_numbers(con, patient_id):
     return [r["number"] for r in con.execute(
-        "SELECT number FROM photos WHERE patient_id = ? AND taken_on = ? ORDER BY number", (patient_id, TODAY))]
+        "SELECT number FROM photos WHERE patient_id = ? AND taken_on = ? ORDER BY number", (patient_id, app_today()))]
 
 
 @app.get("/m/{token}/photos")
@@ -216,7 +217,7 @@ def photo(token: str, number: int, dl: int = 0):
     try:
         # その患者様の、今日の写真だけ。ほかの患者様の番号・今日でない写真は「無い」と同じ答え
         r = con.execute("SELECT file FROM photos WHERE patient_id = ? AND number = ? AND taken_on = ?",
-                        (row["patient_id"], number, TODAY)).fetchone()
+                        (row["patient_id"], number, app_today())).fetchone()
         if not r:
             return _json({"error": "写真がありません"}, 404)
         if r["file"]:
@@ -278,7 +279,7 @@ async def upload(token: str, request: Request):
                 con.execute("BEGIN IMMEDIATE")
                 n = con.execute("SELECT COALESCE(MAX(number), 0) + 1 FROM photos WHERE patient_id = ?", (row["patient_id"],)).fetchone()[0]
                 con.execute("INSERT INTO photos (patient_id, number, taken_on, kind, file) VALUES (?, ?, ?, 'intraoral', ?)",
-                            (row["patient_id"], n, TODAY, name))
+                            (row["patient_id"], n, app_today(), name))
                 links.log_event(con, row["id"], row["patient_id"], "入れた", n)
                 con.commit()
                 return _json({"ok": True, "number": n})

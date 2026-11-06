@@ -11,7 +11,7 @@ HYG = f"/unit?appt={H_DOC}&role=hygienist&typed=1&hide=1"
 
 PARTS = {"重要事項": "important", "口腔内写真": "intraoral-photos", "写真": "intraoral-photos", "話した内容": "spoken-summary",
          "全身既往": "medical-history", "今日の処置": "today-treatment", "治療歴": "treatment-history",
-         "歯周基本検査": "perio-exam"}
+         "歯周検査": "perio-exam"}
 BACK = ["もとに戻す", "元に戻す", "もとに戻して", "元に戻して", "戻す", "戻して", "閉じて"]
 NUMBER_WORDS = {
     1: ["1番", "一番", "いちばん", "1番です", "一番です", "いちばんで", "1", "いち番", "1ばん", "1番で", "いちばんです"],
@@ -519,7 +519,7 @@ def test_side_by_side_in_photo_fullscreen(server, browser):  # noqa: F811
 def test_outside_app_opens_same_screen_inside_app(server, browser):  # noqa: F811
     import time
 
-    for path, sel in [("/", "[data-part=appointment-list]"), ("/recordings", "body")]:
+    for path, sel in [("/clinic", "[data-part=appointment-list]"), ("/recordings", "body")]:
         pg = open_page(browser, server, path)
         pg.wait_for_selector(sel)
         time.sleep(0.4)

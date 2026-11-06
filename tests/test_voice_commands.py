@@ -56,7 +56,7 @@ def test_all_fullscreens_are_ready():
     assert ready == {"important", "intraoral-photos", "spoken-summary", "medical-history", "today-treatment",
                      "treatment-history", "perio-exam"}  # 受付メモは声の言葉に足さない
     for part, arg in (("全身既往", "medical-history"), ("今日の処置", "today-treatment"), ("治療歴", "treatment-history"),
-                      ("歯周基本検査", "perio-exam")):
+                      ("歯周検査", "perio-exam")):
         res = interpret(f"{part}を全画面にして")
         assert res["action"] == "fs-open" and res["arg"] == arg
     assert interpret("受付メモを全画面にして")["action"] is None
@@ -180,7 +180,7 @@ def test_reception_has_no_voice(server, browser):  # noqa: F811
 
 def test_draft_screen_words_come_from_the_table_only():
     """G21k-6: 下書きの画面の言葉は commands.json の draft の行だけ。unit では動かない。"""
-    for w, act in [("カルテに記録する", "draft-arm"), ("確定して", "draft-arm"), ("記録", "draft-confirm"), ("確定", "draft-confirm"),
+    for w, act in [("カルテに記録する", "draft-confirm"), ("確定して", "draft-confirm"), ("記録", "draft-confirm"), ("確定", "draft-confirm"),
                    ("後で直して", "draft-later"), ("あとで直す", "draft-later"), ("戻って", "draft-back"), ("戻して", "draft-back")]:
         assert interpret(w, "draft")["action"] == act, w
     assert interpret("カルテに記録する", "unit")["action"] is None

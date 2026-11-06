@@ -124,7 +124,7 @@
     var p = panel();
     if (!p) return;
     scrollers(p).forEach(function (el) {
-      // 組で1ページの表 (歯周基本検査) は1組ずつ、ほかは9割ずつ送る
+      // 1ページに1回分の表 (歯周検査) は1組ずつ、ほかは9割ずつ送る
       el.scrollTop += dir * (el.hasAttribute("data-pages") ? el.clientHeight : Math.max(40, Math.floor(el.clientHeight * 0.9)));
     });
     fsUpdate();
@@ -145,7 +145,7 @@
 
   register("hide-toggle", function () { if (hidden) restore(); else hide(); });
   register("clear-transient", clearTransient);
-  register("pick-patient", function () { clearTransient(); location.href = "/"; });
+  register("pick-patient", function () { clearTransient(); location.href = "/clinic"; });
 
   // ボタン3は隠す・戻す。ボタン1・2は、録音と声の窓が register("button1") などで足す。
   register("button3", function () { run("hide-toggle"); });

@@ -82,7 +82,7 @@ body.fs-mode .bands, body.fs-mode main.body { display: none; }
 .fs-col li { font-size: var(--fs-5); line-height: var(--lh-text); }
 .fs-col p { margin: 0; font-size: var(--fs-4); line-height: var(--lh-text); white-space: pre-wrap; }
 
-/* 全身既往・治療歴の表、今日の処置、歯周基本検査の前後 */
+/* 全身既往・治療歴の表、今日の処置、歯周検査 */
 .fs-table { width: 100%; border-collapse: collapse; }
 .fs-table th { text-align: left; font-size: var(--fs-2); color: var(--c-sub); padding: var(--sp-2) var(--sp-3); border-bottom: 2px solid var(--c-line); position: sticky; top: 0; background: var(--c-surface); }
 .fs-table td { font-size: var(--fs-4); padding: var(--sp-3); border-bottom: 1px solid var(--c-line); }
@@ -96,23 +96,21 @@ body.fs-mode .bands, body.fs-mode main.body { display: none; }
 .fs-scroll[data-pages] { scroll-snap-type: y mandatory; }
 .fs-page { height: 100%; scroll-snap-align: start; box-sizing: border-box; padding-bottom: var(--sp-2); }
 .fs-page .fs-cols { height: 100%; }
-.pstat { font-size: var(--fs-2); margin-bottom: var(--sp-2); }
-.pgrid { display: grid; grid-template-columns: repeat(16, 1fr); gap: var(--sp-1); margin-bottom: var(--sp-4); }
-.pc { border: 1px solid var(--c-line-strong); border-radius: var(--r-s); text-align: center; padding: var(--sp-1) 0; min-height: 64px; display: flex; flex-direction: column; align-items: center; }
-.pc i { font-style: normal; font-size: var(--fs-1); color: var(--c-sub); }
-.pc b { font-size: var(--fs-4); }
-.pc.deep b { color: var(--c-alert); }
-.pc.none { background: var(--c-canvas); border-style: dashed; }
-.pc .bop { text-decoration: none; color: var(--c-alert); font-size: var(--fs-1); min-height: var(--sp-4); }
-.pc em { font-style: normal; font-size: var(--fs-1); }
 
 /* 歯周基本検査の入力 */
-.perio-editing table.perio td[data-k] { cursor: pointer; }
-.perio-editing table.perio td.todo { outline: 2px dashed var(--c-sub); outline-offset: -2px; }
-.perio-editing table.perio td.flash { background: var(--c-warn-soft); outline-color: var(--c-alert); }
-.perio-bar { flex: none; display: flex; align-items: center; gap: var(--sp-3); margin: var(--sp-2) 0; }
+.perio-editing table.perio td[data-k], .perio-editing table.perio span[data-k] { cursor: pointer; }
+.perio-editing table.perio td.todo, .perio-editing table.perio span.todo { outline: 2px dashed var(--c-sub); outline-offset: -2px; }
+.perio-editing table.perio td.flash, .perio-editing table.perio span.flash { background: var(--c-alert-soft); outline-color: var(--c-alert); }
+.perio-editing .perio-top { display: none; } /* 入力のあいだは上の数字（前の検査のもの）を隠し、種類の切り替えを出す */
+.perio-editing table.perio td.todo, .perio-editing table.perio span.todo { outline-width: 1px; }
+.perio-kind { display: flex; flex: none; }
+.perio-bar .perio-kind button { border-color: var(--c-alert); color: var(--c-alert); padding: var(--sp-1) var(--sp-5); }
+.perio-bar .perio-kind button:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right-width: 1px; }
+.perio-bar .perio-kind button:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left-width: 1px; }
+.perio-bar .perio-kind button.on { background: var(--c-alert); color: var(--c-surface); }
+.perio-bar { flex: none; display: flex; align-items: center; gap: var(--sp-3); margin: 0 0 var(--sp-1); }
 .perio-bar .msg { flex: 1; font-size: var(--fs-2); color: var(--c-sub); }
-.perio-bar button { font-family: inherit; font-size: var(--fs-3); font-weight: var(--fw-bold); padding: var(--sp-2) var(--sp-6); border: 2px solid var(--role); border-radius: var(--r-s); background: var(--c-surface); color: var(--role); cursor: pointer; }
+.perio-bar button { font-family: inherit; font-size: var(--fs-3); font-weight: var(--fw-bold); padding: var(--sp-1) var(--sp-6); border: 2px solid var(--role); border-radius: var(--r-s); background: var(--c-surface); color: var(--role); cursor: pointer; }
 .perio-bar button.main { background: var(--role); color: var(--c-surface); }
 .perio-pop { position: fixed; z-index: 80; background: var(--c-surface); border: 2px solid var(--c-line-strong); border-radius: var(--r-l); padding: var(--sp-3); font-size: var(--fs-2); }
 .perio-pop .row { display: flex; gap: var(--sp-2); margin: var(--sp-1) 0 var(--sp-3); }
@@ -170,3 +168,17 @@ body.fs-mode .bands, body.fs-mode main.body { display: none; }
 details.seg-raw, details.draft-raw { margin: var(--sp-2) 0; color: var(--c-sub); font-size: var(--fs-2); }
 details.seg-raw summary, details.draft-raw summary { cursor: pointer; }
 .seg-note, .polish-note { color: var(--c-warn); font-size: var(--fs-2); margin: var(--sp-1) 0; }
+
+/* 歯周検査の全画面: 1ページに1回分の検査を大きく出す */
+.perio-page { display: flex; flex-direction: column; }
+.perio-page table.perio { flex: 1; }
+.perio-fs .perio-stats b, .perio-fs .pdate b { font-size: var(--fs-7); }
+.perio-fs .pdate .wd { font-size: var(--fs-6); }
+.perio-fs .perio-stats small, .perio-fs .perio-stats i, .perio-fs .pdate .tm { font-size: var(--fs-3); }
+.perio-fs table.perio td { font-size: var(--fs-5); }
+.perio-fs table.perio th.row { font-size: var(--fs-3); }
+.perio-fs table.perio td.bop, .perio-fs table.perio span.bop { font-size: var(--fs-6); }
+.perio-fs table.perio td.p3 span { font-size: var(--fs-4); }
+.perio-fs table.perio td.p3 span.bop { font-size: var(--fs-5); }
+.perio-fs .perio-legend, .perio-fs .perio-lr { font-size: var(--fs-3); }
+.perio-fs .perio-lr { padding-top: var(--sp-3); }

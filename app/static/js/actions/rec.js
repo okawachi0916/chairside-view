@@ -48,6 +48,19 @@
     say("開ける下書きはありません");
   });
 
+  // 「記録を取り消す」（G19m）。その日のうちなら、この診療回で最後に記録した下書きの記録を取り消し、その下書きの画面へ戻る
+  CVActions.register("record-cancel", function () {
+    var appt = new URLSearchParams(location.search).get("appt");
+    if (!appt) return say("取り消せる記録がありません");
+    fetch("/api/records/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appt: Number(appt) }) })
+      .then(function (r) { return r.json().then(function (b) { if (!r.ok) throw new Error(b.error || r.status); return b; }); })
+      .then(function (b) {
+        say("記録を取り消しました。下書きに戻ります");
+        location.href = "/drafts/" + b.draft_id + "?back=" + encodeURIComponent(window.CVReturn.here());
+      })
+      .catch(function (e) { say(e.message); });
+  });
+
   var style = document.createElement("style");
   style.textContent =
     "#memo-block{position:fixed;inset:0;z-index:90;background:var(--c-ink);display:flex;align-items:center;justify-content:center}" +
@@ -84,7 +97,7 @@
     var r = rec();
     if (r && r.locked()) { r.toast("録音中は次の患者様へ進めません。先に録音を止めてください", 4000); return; }
     var appt = new URLSearchParams(location.search).get("appt");
-    function leave() { CVActions.run("clear-transient"); location.href = "/"; }
+    function leave() { CVActions.run("clear-transient"); location.href = "/clinic"; }
     if (!appt) return leave();
     fetch("/api/pending-memo?appt=" + appt, { cache: "no-store" }).then(function (x) { return x.json(); }).then(function (d) {
       if (d.memos && d.memos.length) blockDialog(d.memos, appt, leave);
