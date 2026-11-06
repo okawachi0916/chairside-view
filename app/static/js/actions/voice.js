@@ -442,11 +442,11 @@
       return Promise.resolve(st);
     }
     releaseWarm();
-    return navigator.mediaDevices.getUserMedia({ audio: true });
+    return window.CVMicError.open();
   }
   function prewarm() {
     if (warm || rec || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+    window.CVMicError.open().then(function (stream) {
       if (warm || rec) stream.getTracks().forEach(function (t) { t.stop(); });
       else keepWarm(stream);
     }).catch(function () { /* 許可が無いときは、始めるときに知らせる */ });
@@ -476,13 +476,13 @@
         recorder.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
         recorder.onerror = function (e) { fail("録音", String(e.error && e.error.name)); };
         recorder.onstop = function () { finish(chunks, stream); };
-        rec = { recorder: recorder, stream: stream, timer: setTimeout(stopRec, MAX_MS) };
+        rec = { recorder: recorder, stream: stream, meter: window.CVMicError.meter(stream), timer: setTimeout(stopRec, MAX_MS) };
         recorder.start();
         rec.micMs = Math.round(performance.now() - tPress); // 押してから録音が始まるまで
         holdRec(true);
         showNumbers();
         setMic("rec");
-        say("聞いています…");
+        say("聞いています…（マイク: " + window.CVMicError.label(stream) + "）");
         setTimeout(function () { // つないだのに音が来ない（ミュート・無効）なら、黙らずに知らせる
           var why = rec && rec.stream === stream ? window.CVMicError.silent(stream) : "";
           if (why) say("聞いています…（" + why + "）");
@@ -507,9 +507,14 @@
   function finish(chunks, stream) {
     if (liveStream(stream)) keepWarm(stream); else stream.getTracks().forEach(function (t) { t.stop(); });
     var T = { t0: (rec && rec.t0) || performance.now(), mic: rec && rec.micMs };
+    var m = rec && rec.meter;
+    var quiet = m && m.silent(); // 録音の間ずっと音が来なかった
+    var lbl = m ? m.label() : "";
+    if (m) m.stop();
     rec = null;
     var shown = takeNumbers(); // 聞き取りが終わったら番号と暗さを消す。この言葉は、いま出ていた番号で受ける
     setMic("idle");
+    if (quiet) { holdRec(false); return fail("マイク", window.CVMicError.silentText(lbl)); } // 無音は文字起こしに回さない（幻の言葉が出る）
     say("聞き取り中…");
     fetch("/voice/transcribe", { method: "POST", body: new Blob(chunks, { type: "audio/webm" }) })
       .then(function (r) { return r.json().then(function (b) { return [r.ok, b]; }); })

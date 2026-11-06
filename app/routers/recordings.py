@@ -158,7 +158,7 @@ def recordings_page():
         "<textarea id='paste-text' placeholder='話した内容の文字'></textarea><br>"
         "<select id='paste-target'><option value=''>患者様なし（あとで選ぶ）</option></select> "
         "<button type='button' id='paste-go'>下書きにする</button> <span id='paste-msg' class='err'></span></div>"
-        "</main><script src='/static/js/mic_error.js'></script><script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script><script src='/static/js/recordings.js'></script></body></html>", headers=NO_STORE)
+        "</main><script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script><script src='/static/js/recordings.js'></script></body></html>", headers=NO_STORE)
 
 
 def safe_back(back: str) -> str:
@@ -251,7 +251,7 @@ def _draft_html(d, p, v, rec, fix, back="/clinic"):
            "<p class='plan-hint' id='tooth-hint'>初めから印が付いています。入れたくないものは印を外してください（声なら「3番 外す」）。歯の処置は、歯が1本に決まり、処置の言葉が決まっている行だけ出ます。</p>"
            "<table class='rtab plan-table'><thead><tr><th>内容</th><th>今 → 記録後</th><th>操作</th></tr></thead>"
            "<tbody id='tooth-rows'></tbody></table></section>") + "</div>"
-        "<script src='/static/js/mic_error.js'></script><script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script>"
+        "<script src='/static/js/voice_keys.js'></script><script src='/static/js/rec_keys.js'></script>"
         "<script src='/static/js/numrule.js'></script><script src='/static/js/numtags.js'></script><script src='/static/js/draft.js'></script><script src='/static/js/actions/look.js'></script></body></html>"
     )
 
@@ -286,5 +286,5 @@ def parent_app(go: str = ""):
         "<iframe id='inner' title='画面' src='" + html.escape(go, quote=True) + "'></iframe>"
         "<div id='band' data-part='key-band' hidden><span data-band-text></span><span data-band-left></span></div>"
         "<div id='rec-win' data-part='rec-window' hidden><span class='dot'></span><span class='msg'></span></div>"
-        "<script src='/static/js/mic_error.js'></script><script src='/static/js/voice_keys.js'></script><script src='/static/js/rec.js'></script></body></html>",
+        "<script src='/static/js/voice_keys.js'></script><script src='/static/js/rec.js'></script></body></html>",
         headers=NO_STORE)

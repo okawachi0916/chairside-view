@@ -88,10 +88,75 @@ def test_explain_unit(ctx_page):
     assert "外れ" in out["ended"]
 
 
-def test_all_mic_pages_load_the_explainer(server):  # noqa: F811
+def test_all_mic_pages_load_the_explainer_via_voice_keys(server):  # noqa: F811
+    """説明の部品は voice_keys.js の中にある（画面の HTML を変えなくても、どの画面でも効く）。マイクを使う部品より先に読まれる。"""
     import urllib.request
+    from pathlib import Path
+    assert "window.CVMicError" in (Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "voice_keys.js").read_text(encoding="utf-8")
     for path in [UNIT, "/voice-test", "/recordings", "/app"]:
         with urllib.request.urlopen(f"http://127.0.0.1:{server}{path}", timeout=10) as r:
             html = r.read().decode("utf-8")
         if "voice_test.js" in html or "/static/js/rec.js" in html or "/static/js/actions/voice.js" in html or "/static/js/draft.js" in html:
-            assert "mic_error.js" in html and html.index("mic_error.js") < html.index("static/js/", html.index("mic_error.js") + 5) + 1, path
+            i = html.index("voice_keys.js")
+            for js in ("voice_test.js", "static/js/rec.js", "static/js/actions/voice.js", "static/js/draft.js"):
+                if js in html:
+                    assert i < html.index(js), (path, js)
+
+
+@pytest.fixture
+def silent_ctx(server, tmp_path):  # noqa: F811
+    """全く音の入らない偽マイク（ミュート・別の機器を想定）。"""
+    import wave
+    from playwright.sync_api import sync_playwright
+    w = tmp_path / "silent.wav"
+    with wave.open(str(w), "wb") as f:
+        f.setnchannels(1); f.setsampwidth(2); f.setframerate(48000); f.writeframes(bytes(2 * 48000 * 6))
+    with sync_playwright() as p:
+        b = p.chromium.launch(channel="msedge", args=["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream",
+                                                      f"--use-file-for-fake-audio-capture={w}"])
+        ctx = b.new_context(viewport={"width": 1920, "height": 1030})
+        ctx.grant_permissions(["microphone"], origin=f"http://127.0.0.1:{server}")
+        yield ctx, server
+        b.close()
+
+
+def test_silent_input_is_reported_and_not_transcribed(silent_ctx):
+    """音が全く入らない録音は、文字起こしに回さず（幻の言葉が出る）、使っている機器の名前と対処を出す。"""
+    ctx, port = silent_ctx
+    pg = ctx.new_page()
+    sent = []
+    pg.on("request", lambda r: sent.append(r.url) if "/voice/transcribe" in r.url else None)
+    pg.goto(f"http://127.0.0.1:{port}{UNIT}")
+    pg.wait_for_selector('[data-part="important"]')
+    pg.wait_for_function("window.VoiceKeys && document.getElementById('band') && window.CVMicError")
+    pg.wait_for_timeout(500)
+    double(pg, 2)
+    pg.wait_for_selector(".topbar .mic.rec")
+    assert "マイク:" in pg.evaluate("document.body.dataset.heard")  # 使っている機器の名前を出す
+    pg.wait_for_timeout(1200)
+    from tests.test_g14i import tap
+    tap(pg, 2)
+    pg.wait_for_function("(document.body.dataset.heard || '').includes('音が入っていません')", timeout=8000)
+    assert "使っている機器" in pg.evaluate("document.body.dataset.heard")
+    assert sent == []
+
+
+def test_voice_test_picker_chooses_device_for_all_screens(silent_ctx):
+    ctx, port = silent_ctx  # 偽マイクと許可つきの Edge
+    pg = ctx.new_page()
+    pg.goto(f"http://127.0.0.1:{port}/voice-test")
+    pg.wait_for_function("window.CVMicError")
+    out = pg.evaluate("""async () => {
+      localStorage.removeItem('cv.micId');
+      const calls = [];
+      const orig = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices.getUserMedia = (c) => { calls.push(JSON.stringify(c)); return c.audio === true ? orig(c) : Promise.reject(new DOMException('x', 'OverconstrainedError')); };
+      CVMicError.choose('abc');
+      const s = await CVMicError.open(); s.getTracks().forEach(t => t.stop());
+      CVMicError.choose('');
+      return {calls, after: CVMicError.chosen()};
+    }""")
+    assert out["calls"][0] == '{"audio":{"deviceId":{"exact":"abc"}}}'  # 選んだ機器で開く
+    assert len(out["calls"]) == 2 and out["calls"][1] == '{"audio":true}'  # 見つからなければ既定に戻す
+    assert out["after"] == ""
+    assert pg.locator("#mic-select").count() == 1

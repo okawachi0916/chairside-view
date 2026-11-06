@@ -349,7 +349,7 @@
     if (confirmed) return;
     if (rec) { clearTimeout(rec.timer); if (rec.recorder.state !== "inactive") rec.recorder.stop(); return; }
     if (!navigator.mediaDevices) return say(window.CVMicError.unsupported());
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+    window.CVMicError.open().then(function (stream) {
       var chunks = [], recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
       recorder.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
       recorder.onstop = function () {
