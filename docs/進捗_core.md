@@ -1,4 +1,5 @@
 # 進捗 core
+- G21o（2026-11-06）: 見本の状態へ戻した・エラーの表示なし（直した所なし）。
 - 動く版: G21n 完了（入口の画面 / で受付モード・臨床モードに分ける。予約一覧は /clinic、受付用の患者様一覧は /reception で氏名は伏せ字にしない。入口 app/views/entrance.py、一覧 render.reception_chooser、元 data.reception_list・latest_memo、曜日 render.heat_best。試験 tests/test_g21n.py）。G21l 完了（見本の日付が日付変更・起動・restore で今日へ合う。決まりは app/db/dates.py、印は app_meta）。G24b 完了（歯周検査の欄に精密検査。見出し「歯周検査」。表は app/mockview/perio_parts.py の1つ、入力は基本｜精密の切り替え、/api/perio/blank・save）。G24 完了（歯周基本検査の入力。app/routers/perio.py、actions/perio.js）。G22 完了（残りの全画面）。G20-r2 完了（録音を止めたら自動で下書き、窓と欄が変わる）。G20 完了（G12・G14・G16・G19 を取り込んだ上）。最小版の通しの試験と、動画の撮影用の道具。
   - 通しの試験: tests/test_e2e_flow.py。seed → 予約一覧で 0123 の RCT → 重要事項の全画面 → 3番の拡大と一覧 → 「前回は何をした？」→ 下書きを作って確定 → ボタン3で隠して戻す → 0456 の SPT で前の人が残らない。偽物の口と文字の口（cvTyped）。3回続けて通した。終わりにもう一度 seed を動かし、ほかの試験に確定した診療メモを残さない。
   - 院長の手順: docs/通しの手順.md（17行）。
