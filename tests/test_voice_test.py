@@ -163,9 +163,11 @@ def test_no_microphone_shows_cross(server):
     with sync_playwright() as p:
         b = p.chromium.launch(channel="msedge")
         pg = b.new_page()
+        # G27: マイクが無い機械を作る（ブラウザにマイクの入口が無い状態）。以前は idle でも通る条件でバツ印を確かめていなかった
+        pg.add_init_script("Object.defineProperty(navigator, 'mediaDevices', {value: undefined})")
         pg.goto(f"http://localhost:{server}/voice-test")
         pg.wait_for_function("document.getElementById('mic-label').textContent !== ''")
-        assert pg.get_attribute("#mic", "data-state") in ("none", "idle")
+        assert pg.get_attribute("#mic", "data-state") == "none"
         b.close()
 
 

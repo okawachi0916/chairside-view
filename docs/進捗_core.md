@@ -1,4 +1,8 @@
 # 進捗 core
+- G27（2026-11-06）: 機能の追加を止めた。全試験・/review-all・実API(--fix/--memo/--combine)を通した。
+  - 動いていない・足りないもの: 実機マイクの通し（院長の確認待ち）／/rec の retry・later など数本の呼ぶ試験／画面の試験が data/runtime を共有する件／話した内容の整理に「まだ記録に入っていません」の注記（確定済みの下書きが並ぶか要確認）／README の聞き違い清書の行。
+  - 動画に映さないもの: 受付の患者様一覧の中身（患者様の前に出ない情報）、/voice-test、更新の帯、スマホ写真の取り込み、精密検査の細かい入力、状態の保存と復元（demo_state）。
+  - 院長が決める: 出どころ不明の写真(photo16・17)とComfyUIのライセンス、公開する名前・アドレス、0.0.0.0 待ち受け。
 - G21r（2026-11-06）: ときどき落ちる試験の原因を直した。(1) e2e・rec_screen の待ちが見本の文で通っていた (2) numbersReady が画面の描き込み前に付いていた（直した。data-view-ready）。全件4回続けて通った。
 - G21o（2026-11-06）: 見本の状態へ戻した・エラーの表示なし（直した所なし）。
 - 動く版: G21n 完了（入口の画面 / で受付モード・臨床モードに分ける。予約一覧は /clinic、受付用の患者様一覧は /reception で氏名は伏せ字にしない。入口 app/views/entrance.py、一覧 render.reception_chooser、元 data.reception_list・latest_memo、曜日 render.heat_best。試験 tests/test_g21n.py）。G21l 完了（見本の日付が日付変更・起動・restore で今日へ合う。決まりは app/db/dates.py、印は app_meta）。G24b 完了（歯周検査の欄に精密検査。見出し「歯周検査」。表は app/mockview/perio_parts.py の1つ、入力は基本｜精密の切り替え、/api/perio/blank・save）。G24 完了（歯周基本検査の入力。app/routers/perio.py、actions/perio.js）。G22 完了（残りの全画面）。G20-r2 完了（録音を止めたら自動で下書き、窓と欄が変わる）。G20 完了（G12・G14・G16・G19 を取り込んだ上）。最小版の通しの試験と、動画の撮影用の道具。
