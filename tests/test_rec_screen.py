@@ -230,7 +230,7 @@ def test_stop_makes_draft_by_itself_and_column_changes(server, browser):  # noqa
     # 何も押さずに、転送 → 文字起こし → 整理 → 下書き。窓に出て、欄が読み直し無しで変わる
     pg.wait_for_function("document.getElementById('rec-win').textContent.includes('下書きができました')", timeout=15000)
     assert pg.locator("#rec-win .ok").count() == 0
-    pg.wait_for_function("document.querySelector('#inner').contentDocument.querySelector('[data-part=spoken-summary]').innerText.includes('根管充填')")
+    pg.wait_for_function("document.querySelector('#inner').contentDocument.querySelector('[data-part=spoken-summary]').innerText.includes('右下6番の根管充填')")  # 見本の文にも「根管充填」があるので、新しい下書きの文で待つ
     now = summary_items(pg)
     assert "右下6番の根管充填" in now[0] and any("側方加圧" in t for t in now[1:])  # 一番新しい下書きが先頭。見本の下書きも同じ扱いで、古いので後ろに並ぶ
     assert "根管充填をしました" in inner(pg).evaluate("document.querySelector('template[data-fs=spoken-summary]').innerHTML")

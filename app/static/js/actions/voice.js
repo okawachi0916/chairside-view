@@ -171,8 +171,15 @@
   var numCfg = null, exCfg = null;
   function loadNumbers() {
     return fetch("/voice/numbers", { cache: "no-store" }).then(function (r) { return r.json(); })
-      .then(function (c) { numCfg = c; document.body.dataset.numbersReady = "1"; return c; }).catch(function () { return null; });
+      .then(function (c) { numCfg = c; numbersReadyCheck(); return c; }).catch(function () { return null; });
   }
+  // 番号の言葉が使えるのは、番号の表を読み終え、かつ画面の部品が描かれたあと。どちらかが先でも、後に来た方で印を付ける（G21r）。
+  // 描く前に印が付くと、「1番」と言っても開く部品がまだ無い。画面を読み直している間は印を外す。
+  function numbersReadyCheck() {
+    if (numCfg && document.body.dataset.viewReady) document.body.dataset.numbersReady = "1";
+    else delete document.body.dataset.numbersReady;
+  }
+  document.addEventListener("cv-view-state", numbersReadyCheck);
   function loadExamples() {
     return fetch("/voice/examples", { cache: "no-store" }).then(function (r) { return r.json(); })
       .then(function (c) { exCfg = c; return c; }).catch(function () { return null; });
