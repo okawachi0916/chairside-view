@@ -7,6 +7,8 @@ import re
 import unicodedata
 from pathlib import Path
 
+from app.voice.mishear import variants as mishear_variants
+
 COMMANDS = Path(__file__).resolve().parents[2] / "config" / "commands.json"
 
 OP, QUESTION, UNRELATED, FAILED = "操作", "質問", "無関係", "聞き取り失敗"
@@ -143,6 +145,18 @@ def _is_question(raw: str, s: str) -> bool:
     return bool(re.search(r"何|いつ|どこ|どの", s))
 
 
+def _match_rows(forms: list, screen: str):
+    """表の行を上から見て、forms のどれかが言葉に全部合う最初の行と、その合い方を返す。"""
+    for row in load_table():
+        if screen not in row["使える画面"]:
+            continue
+        pat = _pattern(row["言葉"])
+        m = next((mm for mm in (pat.fullmatch(f) for f in forms) if mm), None)
+        if m:
+            return row, m
+    return None
+
+
 def interpret(text: str, screen: str = "unit") -> dict:
     raw = unicodedata.normalize("NFKC", text or "")
     s = _norm(raw)
@@ -151,26 +165,28 @@ def interpret(text: str, screen: str = "unit") -> dict:
         out["kind"] = FAILED
         return out
     forms = [_suru(s)] + [_suru(v) for v in _polite_variants(s)]
-    for row in load_table():
-        if screen not in row["使える画面"]:
-            continue
-        pat = _pattern(row["言葉"])
-        m = next((mm for mm in (pat.fullmatch(f) for f in forms) if mm), None)
-        if not m:
-            continue
-        res = dict(row["結果"])
-        out["kind"] = OP
-        out["message"] = res.get("message", "")
-        if row["状態"] == "使える" and res.get("action"):
-            nums = {k: to_number(v) for k, v in m.groupdict().items()}
-            out["action"] = res["action"]
-            out["arg"] = res.get("arg")
-            if nums:
-                out["numbers"] = [nums[k] for k in sorted(nums)]
-        else:
-            out["message"] = res.get("message", "まだ開けません")
-        out["word"] = row["言葉"]
-        return out
+    # 聞き違いの表（config/mishear.json）で直した別の読み。元の聞き取りを全部の行と照らして合わなかったときだけ使う
+    # （今までの動きは変えない）。声の操作（ここ）だけで使い、録音の文字起こしなどには混ぜない。
+    alts = []
+    for alt in mishear_variants(s):
+        alts += [_suru(alt)] + [_suru(v) for v in _polite_variants(alt)]
+    for group in (forms, alts):
+        hit = _match_rows(group, screen)
+        if hit:
+            row, m = hit
+            res = dict(row["結果"])
+            out["kind"] = OP
+            out["message"] = res.get("message", "")
+            if row["状態"] == "使える" and res.get("action"):
+                nums = {k: to_number(v) for k, v in m.groupdict().items()}
+                out["action"] = res["action"]
+                out["arg"] = res.get("arg")
+                if nums:
+                    out["numbers"] = [nums[k] for k in sorted(nums)]
+            else:
+                out["message"] = res.get("message", "まだ開けません")
+            out["word"] = row["言葉"]
+            return out
     if _is_question(raw, s) or any(_is_question(raw, v) for v in _polite_variants(s)):
         out.update(kind=QUESTION, message=MSG_QUESTION)
     return out
