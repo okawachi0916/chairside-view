@@ -175,7 +175,9 @@ def flow(server, browser):  # noqa: F811
     press(inner, "F6", 1)  # 止めるのは1回
     ap.wait_for_function("document.getElementById('rec-win').textContent.includes('下書きができました')", timeout=20000)
     assert ap.locator("#rec-win .ok").count() == 0
-    ap.wait_for_function("document.getElementById('inner').contentDocument.querySelector('[data-part=spoken-summary]').innerText.includes('根管充填')")
+    # 見本の文にも「根管充填」があるので、それでは待ちにならない。新しい下書きの文が先頭に来るまで待つ（欄は窓のあとに読み直される）
+    ap.wait_for_function("(() => { const li = document.getElementById('inner').contentDocument"
+                         ".querySelector('[data-part=spoken-summary] li'); return !!li && li.innerText.includes('右下6番の根管充填') })()")
     now = column()
     assert "右下6番の根管充填" in now[0] and any("側方加圧" in t for t in now[1:])  # 新しい順。見本の下書きも同じ扱いで後ろ
     with D.con() as c:

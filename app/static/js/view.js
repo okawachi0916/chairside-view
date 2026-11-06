@@ -6,9 +6,17 @@
   var seq = 0; // 新しく読み始めるたびに増やす。古い応答は番号が合わないので捨てる
   var state = { appt: null, role: null };
 
+  // 画面の部品が描かれているか。body の data-view-ready と、声の番号の準備（voice.js）に知らせる
+  function setViewReady(on) {
+    if (on) document.body.dataset.viewReady = "1";
+    else delete document.body.dataset.viewReady;
+    document.dispatchEvent(new Event("cv-view-state"));
+  }
+
   function load(url, after) {
     var my = ++seq;
     root.innerHTML = ""; // 前の患者様の表示を先に消す
+    setViewReady(false);
     fetch(url, { cache: "no-store" })
       .then(function (r) {
         if (!r.ok) throw new Error(r.status);
@@ -21,6 +29,7 @@
         state.role = d.role;
         window.cv.chart = d.chart_no || "";
         root.innerHTML = d.html;
+        setViewReady(true);
         if (after) after();
       })
       .catch(function () {
