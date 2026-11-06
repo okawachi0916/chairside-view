@@ -107,10 +107,10 @@ def test_appointment_list_shows_done_and_reception_counts(env):
     rid, r = make_draft(env)
     a, p = appt_of(env, "0123"), patient_id(env)
     n0 = D.reception_data(p)["appt_count"]
-    page = env["client"].get("/").text
+    page = env["client"].get("/clinic").text
     assert page.count("done-tag") == 0
     assert confirm_api(env, r["draft_id"], items_g(), [])[0] == 200
-    page = env["client"].get("/").text
+    page = env["client"].get("/clinic").text
     assert page.count("done-tag") == 1 and "済み" in page
     d = D.reception_data(p)
     assert d["appt_count"] == n0 + 1                       # 受付の回数
