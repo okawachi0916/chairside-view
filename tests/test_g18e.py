@@ -20,6 +20,8 @@ def test_treatment_photos_are_the_new_four_in_the_same_place():
     assert len(HASH) == 19
 
 
-def test_readme_says_claude_made_6_to_9():
+def test_readme_photo_section_is_one_sentence():
+    """G29: 写真の素材の節は、院長が決めた1文だけ（1枚ずつ何で作ったかは書かない）。"""
     t = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "ComfyUI" in t and "z_image_turbo" in t and "構図の手本" in t and "クリーム色" in t
+    assert "写真はすべて見本の画像で、実在の患者様ではありません。見本の画像は、模型を撮影したり、生成 AI を使ったりして作りました。" in t
+    assert "ChatGPT" not in t and "ComfyUI" not in t and "z_image_turbo" not in t
