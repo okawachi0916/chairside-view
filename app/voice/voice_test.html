@@ -24,6 +24,8 @@
 <h1>声の通り道の確認</h1>
 <dl>
   <dt>マイク</dt><dd><span id="mic" data-state="idle"></span> <span id="mic-label">ボタン待ち</span></dd>
+  <dt>マイクの選択</dt><dd><select id="mic-select" data-part="mic-select"></select> <button type="button" id="mic-refresh">機器を読み直す</button></dd>
+  <dt>音の大きさ</dt><dd><span id="level-bar" style="display:inline-block;width:240px;height:18px;background:#ddd;vertical-align:middle"><i id="level" style="display:block;height:100%;width:0;background:#2a7"></i></span> <span id="level-text">しゃべると動きます</span></dd>
   <dt>最後に押されたキー</dt><dd id="last-key">（まだ）</dd>
   <dt>聞き取った文字</dt><dd id="text"></dd>
   <dt>話し終わりから文字が出るまで</dt><dd id="seconds"></dd>

@@ -87,14 +87,14 @@
   }
 
   function start() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return toast("この接続ではマイクを使えません");
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return toast(window.CVMicError.unsupported(), 6000);
     var appt = context(); // 押した瞬間の画面で固定する
     var role = currentRole();
     var from = origin();
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+    window.CVMicError.open().then(function (stream) {
       return post("/rec/start", { appt: appt, role: role }).then(function (r) {
         var recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-        cur = { id: r.id, fixed: r.patient_id != null, appt: appt, origin: from, recorder: recorder, stream: stream, chunks: [], activeMs: 0, last: Date.now() };
+        cur = { id: r.id, fixed: r.patient_id != null, appt: appt, origin: from, recorder: recorder, stream: stream, meter: window.CVMicError.meter(stream), chunks: [], activeMs: 0, last: Date.now() };
         recorder.ondataavailable = function (e) { if (e.data.size) cur.chunks.push(e.data); };
         recorder.start(1000);
         setMode("recording");
@@ -103,7 +103,10 @@
         clearInterval(tick); tick = setInterval(paint, 250);
         paint();
       }).catch(function (e) { stream.getTracks().forEach(function (t) { t.stop(); }); throw e; });
-    }).catch(function (e) { toast("録音を始められません（" + (e.name || e.message) + "）", 4000); });
+    }).catch(function (e) {
+      if (e && e.name) window.CVMicError.explain(e).then(function (why) { toast("録音を始められません: " + why, 7000); });
+      else toast("録音を始められません（" + ((e && e.message) || "原因不明") + "）", 5000); // マイク以外（保存先との通信など）
+    });
   }
 
   function stop() {
@@ -112,6 +115,10 @@
     if (mode === "recording") c.activeMs += Date.now() - c.last;
     clearInterval(tick);
     c.recorder.onstop = function () {
+      var quiet = c.meter && c.meter.silent(); // 録音の間ずっと音が来なかった（ミュート・別の機器など）
+      var lbl = c.meter ? c.meter.label() : "";
+      if (c.meter) c.meter.stop();
+      if (quiet) toast(window.CVMicError.silentText(lbl), 9000);
       c.stream.getTracks().forEach(function (t) { t.stop(); });
       var blob = new Blob(c.chunks, { type: "audio/webm" });
       var dur = c.activeMs / 1000;

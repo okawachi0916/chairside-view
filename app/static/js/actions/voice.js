@@ -221,6 +221,23 @@
     main.concat(close).forEach(function (b, i) { out.push({ n: window.CVNumRule.label(i + 1), key: "sel:" + selOf(b), el: b }); });
     return out;
   }
+  // ボタンにも番号を付ける全画面（config/examples.json の screens.<名前>.numbered_buttons）。G14q: 歯周検査。
+  // いま押せる「次のページ」「前のページ」と、最後に「もとに戻す」。順番と番号は話した内容の整理と同じ決まり（numrule.js）。
+  // 画面の名前で分けず、表に書いた画面ならどこでも同じ。押すのはマウスと同じ道（view.js の click → data-action）
+  function pageTargets(key) {
+    var p = document.querySelector('[data-fs-panel="' + key + '"]'), out = [];
+    if (!p) return out;
+    var pick = function (a) {
+      var b = p.querySelector('[data-action="' + a + '"]');
+      return b && !b.disabled && !b.hidden && inView(b) ? b : null;
+    };
+    var list = ["fs-next", "fs-prev"].map(pick).filter(Boolean), close = pick("fs-close");
+    if (close) list.push(close);
+    list.forEach(function (b, i) {
+      out.push({ n: window.CVNumRule.label(i + 1), key: "sel:[data-fs-panel=\"" + key + "\"] [data-action=\"" + b.dataset.action + "\"]", el: b });
+    });
+    return out;
+  }
   function numberTargets() {
     if (!numCfg || window.CVActions.isHidden() || document.querySelector(".fs-panel")) return [];
     var out = [];
@@ -252,7 +269,13 @@
     var words = [];
     var panel = document.querySelector(".fs-panel");
     var next = panel && panel.querySelector('[data-action="fs-next"]');
-    if (sc.pages && next && !next.hidden) words = words.concat(ex.page_words || []);
+    var prev = panel && panel.querySelector('[data-action="fs-prev"]');
+    if (sc.pages && next && !next.hidden) { // 押せない方の言葉は出さない（最初のページの「前のページ」など）
+      (ex.page_words || []).forEach(function (w) {
+        var b = w === "次のページ" ? next : w === "前のページ" ? prev : null;
+        if (!b || !b.disabled) words.push(w);
+      });
+    }
     return { words: words.concat(sc.words || []), message: sc.message || "" };
   }
   function showNumbers() {
@@ -278,7 +301,8 @@
       if (bw.message) chip(band, bw.message, "ex-msg");
       document.body.appendChild(band);
       document.body.dataset.guide = key;
-      var st = key === "spoken-summary" ? segTargets() : [];
+      var scr = (exCfg && exCfg.screens && exCfg.screens[key]) || {};
+      var st = key === "spoken-summary" ? segTargets() : scr.numbered_buttons ? pageTargets(key) : [];
       if (st.length) { // ボタンにも番号。ボタンは明るいまま、まわりを暗くする
         dimWithHoles(st);
         addBadges(st);
@@ -442,11 +466,11 @@
       return Promise.resolve(st);
     }
     releaseWarm();
-    return navigator.mediaDevices.getUserMedia({ audio: true });
+    return window.CVMicError.open();
   }
   function prewarm() {
     if (warm || rec || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+    window.CVMicError.open().then(function (stream) {
       if (warm || rec) stream.getTracks().forEach(function (t) { t.stop(); });
       else keepWarm(stream);
     }).catch(function () { /* 許可が無いときは、始めるときに知らせる */ });
@@ -466,7 +490,7 @@
   function startRec() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setMic("none");
-      return fail("機器", "この接続ではマイクを使えません。https で開いてください");
+      return fail("マイク", window.CVMicError.unsupported());
     }
     var tPress = performance.now();
     getStream().then(function (stream) {
@@ -476,21 +500,24 @@
         recorder.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
         recorder.onerror = function (e) { fail("録音", String(e.error && e.error.name)); };
         recorder.onstop = function () { finish(chunks, stream); };
-        rec = { recorder: recorder, stream: stream, timer: setTimeout(stopRec, MAX_MS) };
+        rec = { recorder: recorder, stream: stream, meter: window.CVMicError.meter(stream), timer: setTimeout(stopRec, MAX_MS) };
         recorder.start();
         rec.micMs = Math.round(performance.now() - tPress); // 押してから録音が始まるまで
         holdRec(true);
         showNumbers();
         setMic("rec");
-        say("聞いています…");
+        say("聞いています…（マイク: " + window.CVMicError.label(stream) + "）");
+        setTimeout(function () { // つないだのに音が来ない（ミュート・無効）なら、黙らずに知らせる
+          var why = rec && rec.stream === stream ? window.CVMicError.silent(stream) : "";
+          if (why) say("聞いています…（" + why + "）");
+        }, 800);
       } catch (e) {
         stream.getTracks().forEach(function (t) { t.stop(); });
         fail("録音", e.name || String(e));
       }
     }).catch(function (e) {
-      if (e.name === "NotAllowedError" || e.name === "SecurityError") return fail("マイクの許可", "ブラウザでマイクを許可してください");
       setMic("none");
-      fail("機器", e.name);
+      window.CVMicError.explain(e).then(function (why) { fail("マイク", why); });
     });
   }
 
@@ -504,9 +531,14 @@
   function finish(chunks, stream) {
     if (liveStream(stream)) keepWarm(stream); else stream.getTracks().forEach(function (t) { t.stop(); });
     var T = { t0: (rec && rec.t0) || performance.now(), mic: rec && rec.micMs };
+    var m = rec && rec.meter;
+    var quiet = m && m.silent(); // 録音の間ずっと音が来なかった
+    var lbl = m ? m.label() : "";
+    if (m) m.stop();
     rec = null;
     var shown = takeNumbers(); // 聞き取りが終わったら番号と暗さを消す。この言葉は、いま出ていた番号で受ける
     setMic("idle");
+    if (quiet) { holdRec(false); return fail("マイク", window.CVMicError.silentText(lbl)); } // 無音は文字起こしに回さない（幻の言葉が出る）
     say("聞き取り中…");
     fetch("/voice/transcribe", { method: "POST", body: new Blob(chunks, { type: "audio/webm" }) })
       .then(function (r) { return r.json().then(function (b) { return [r.ok, b]; }); })

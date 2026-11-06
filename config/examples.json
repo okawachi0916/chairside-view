@@ -71,7 +71,8 @@
    "words": [
     "戻して"
    ],
-   "pages": true
+   "pages": true,
+   "numbered_buttons": true
   }
  },
  "fallback": {
