@@ -250,6 +250,32 @@ def test_claude_unavailable_and_bad_reply_fail_cleanly(env):
     assert r["error"] and "sk-" not in r["error"]
 
 
+class NoKeyMouth:
+    """鍵が無いときの口。本物の口と同じ ClaudeUnavailable を出す（清書も要約もここを通る）。"""
+
+    wants_purpose = True
+
+    def complete(self, system, user, max_tokens, purpose=""):
+        from app.ai.settings import ClaudeUnavailable
+
+        raise ClaudeUnavailable("Claude の鍵が見つからないため、この機能は使えません。")
+
+
+def test_no_key_says_unavailable_not_a_crash(env):
+    use(env, NoKeyMouth())
+    rid = record(env, appt_of(env, "0123"))
+    api(env, "post", f"/rec/{rid}/transfer", json={})
+    r = wait_state(env, rid, ["失敗", "下書き"])
+    # 清書は聞き取りのまま先へ進んでよい。要約まで進まない・落ちないことと、理由が「使えません」であること。
+    if r["state"] == "失敗":
+        assert "使えません" in r["error"]
+    else:
+        code, body = api(env, "post", f"/rec/{rid}/summarize")
+        assert code in (200, 409)
+        r2 = wait_state(env, rid, ["失敗", "下書き"])
+        assert r2["state"] == "失敗" and "使えません" in r2["error"]
+
+
 def test_transcription_failure_is_a_failure(env):
     use(env, ScriptedMouth(EMPTY), transcript="")
     env["mp"].setattr(recpipe.fake, "fake_transcript", lambda: (_ for _ in ()).throw(RuntimeError("文字起こしの機械が動きません")))
