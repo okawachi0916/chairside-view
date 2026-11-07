@@ -264,16 +264,17 @@ class NoKeyMouth:
 def test_no_key_says_unavailable_not_a_crash(env):
     use(env, NoKeyMouth())
     rid = record(env, appt_of(env, "0123"))
+    c = con_of(env)
+    notes = c.execute("SELECT COUNT(*) FROM clinical_notes").fetchone()[0]
+    plans = c.execute("SELECT COUNT(*) FROM treatment_plans").fetchone()[0]
     api(env, "post", f"/rec/{rid}/transfer", json={})
     r = wait_state(env, rid, ["失敗", "下書き"])
-    # 清書は聞き取りのまま先へ進んでよい。要約まで進まない・落ちないことと、理由が「使えません」であること。
-    if r["state"] == "失敗":
-        assert "使えません" in r["error"]
-    else:
-        code, body = api(env, "post", f"/rec/{rid}/summarize")
-        assert code in (200, 409)
-        r2 = wait_state(env, rid, ["失敗", "下書き"])
-        assert r2["state"] == "失敗" and "使えません" in r2["error"]
+    # 鍵が無いと、録音は「失敗」で止まり、理由は「使えません」。下書きも記録も作られず、鍵の文字は出ない。
+    assert r["state"] == "失敗"
+    assert "使えません" in r["error"] and "sk-" not in r["error"]
+    assert c.execute("SELECT COUNT(*) FROM drafts WHERE recording_id = ?", (rid,)).fetchone()[0] == 0
+    assert c.execute("SELECT COUNT(*) FROM clinical_notes").fetchone()[0] == notes
+    assert c.execute("SELECT COUNT(*) FROM treatment_plans").fetchone()[0] == plans
 
 
 def test_transcription_failure_is_a_failure(env):
