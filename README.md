@@ -1,5 +1,8 @@
 # Chairside View｜チェアサイドビュー
 
+<p align="center"><a href="https://youtu.be/BmFt_KhNKSM"><img src="https://img.youtube.com/vi/BmFt_KhNKSM/maxresdefault.jpg" alt="チェアサイドビューのデモ動画（3分）" width="720"></a></p>
+<p align="center"><a href="https://youtu.be/BmFt_KhNKSM">▶ デモ動画（3分）を YouTube で見る</a></p>
+
 治療中、画面に触れずに、必要な情報へ。
 
 歯科医師が現場の「困った」から考え、Claude Code と5日間で形にした、声と3つのボタンで動く診療支援の試作品です。
