@@ -1,7 +1,10 @@
 # Chairside View｜チェアサイドビュー
 
-<p align="center"><a href="https://youtu.be/BmFt_KhNKSM"><img src="https://img.youtube.com/vi/BmFt_KhNKSM/maxresdefault.jpg" alt="チェアサイドビューのデモ動画（3分）" width="720"></a></p>
-<p align="center"><a href="https://youtu.be/BmFt_KhNKSM">▶ デモ動画（3分）を YouTube で見る</a></p>
+<p align="center">
+<a href="https://youtu.be/-rkO4wW4goY"><img src="https://img.youtube.com/vi/-rkO4wW4goY/maxresdefault.jpg" alt="チェアサイドビューの紹介動画（約6分）" width="400"></a>
+<a href="https://youtu.be/BmFt_KhNKSM"><img src="https://img.youtube.com/vi/BmFt_KhNKSM/maxresdefault.jpg" alt="大会に提出したデモ動画（3分）" width="400"></a>
+</p>
+<p align="center"><a href="https://youtu.be/-rkO4wW4goY">▶ 紹介動画（約6分）</a>　｜　<a href="https://youtu.be/BmFt_KhNKSM">▶ 大会に提出したデモ動画（3分）</a></p>
 
 治療中、画面に触れずに、必要な情報へ。
 
