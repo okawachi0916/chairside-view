@@ -1,0 +1,14 @@
+# 架空データ（「見本」表示・見本太郎/花子）の画面写真・見本写真・フォント。2026-11-11
+docs/画面/**:forbidden-ext
+docs/画面/**:binary
+docs/画像/**:forbidden-ext
+docs/画像/**:binary
+data/photos/**:forbidden-dir
+data/photos/**:forbidden-ext
+data/photos/**:binary
+app/static/fonts/**:too-large
+app/static/fonts/**:binary
+# 試験用の架空の電話番号・生年月日
+docs/点検結果.md:phone-number
+tests/test_ai_gateway.py:phone-number
+tests/test_ai_gateway.py:birthdate
